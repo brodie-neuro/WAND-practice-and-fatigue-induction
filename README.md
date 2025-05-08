@@ -48,6 +48,18 @@ pip install -r requirements.txt
 | `LICENSE.txt`                | MIT License (free to use, modify, and distribute)                        |
 | `Abstract Stimuli/apophysis/` | PNG images used as stimuli in the N-back tasks |
 
+## Images   
+This script requires image files located in the "Abstract Stimuli/apophysis" folder relative to the script. Ensure this folder:
+- Is in the same directory as the script.
+- Contains at least 24 PNG files.
+Clone the repository, and verify the structure:
+- script.py
+- Abstract Stimuli/
+  - apophysis/
+    - apophysis1.png
+    - apophysis2.png
+    - ...
+
 ## Citation
 If you use this suite in your research, please cite:
 Mangan, B. (2025). WAND Practice and Fatigue Induction Suite. GitHub Repository: brodie_neuro/WAND-practice-and-fatigue-induction.
