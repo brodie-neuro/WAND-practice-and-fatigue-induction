@@ -23,6 +23,19 @@ Three PsychoPy scripts that together **induce, measure “active” mental fatig
 
 ---
 
+### Subjective Ratings
+
+During the induction phase, participants complete short self-report scales every ~15 minutes (plus baseline), covering:
+
+- Perceived mental fatigue
+- Task effort
+- Mind wandering
+- Task overwhelm
+
+Responses are recorded on 1–8 Likert scales and saved alongside behavioural results in `/data/`.
+
+---
+
 ## 2 Installation (Python 3.8.x)
 
 ```powershell
