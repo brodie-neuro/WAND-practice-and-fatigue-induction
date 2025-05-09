@@ -250,10 +250,14 @@ preloaded_images_dual = {
 }
 
 
+EEG_ENABLED = False  # Set True to activate EEG triggering
+
 def send_trigger(trigger_code):
     """Send EEG trigger if configured. Placeholder."""
-    # Implement EEG parallel port triggers here if needed.
-    core.wait(0.005)  # hold dummy trigger
+    if EEG_ENABLED:
+        # Insert parallel port code here (e.g., port.setData(trigger_code))
+        core.wait(0.005)  # Simulate duration
+
 
 
 def get_participant_info(win):
