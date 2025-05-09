@@ -1,0 +1,12 @@
+{
+  "title": "WAND — Practice and Fatigue‑Induction Suite (v1.0.0)",
+  "creators": [
+    { "name": "Mangan, Brodie", "affiliation": "University of Stirling" }
+  ],
+  "description": "Three PsychoPy scripts that calibrate, induce and measure active mental fatigue via adaptive Sequential, Spatial and Dual N‑back tasks.",
+  "license": "MIT",
+  "keywords": ["cognitive fatigue", "working memory", "N-back", "PsychoPy"],
+  "related_identifiers": [
+    { "identifier": "10.5281/zenodo.XXXXXXX", "relation": "isSupplementTo", "scheme": "doi" }
+  ]
+}
