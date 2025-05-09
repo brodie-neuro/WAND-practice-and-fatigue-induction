@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
-import os
-import sys
-import math
 import csv
-import random
 import logging
-import argparse
+import math
+import os
+import random
+import sys
 import time
 
 from psychopy import core, event, visual
-
-try:
-    from scipy.stats import norm
-except ImportError:
-    logging.error("SciPy is required for d-prime calculation. Install with 'pip install scipy'.")
-    core.quit()
 
 """
 WAND-fatigue-induction
@@ -34,29 +27,47 @@ Version: 1.0
 
 # Licensed under the MIT License (see LICENSE file for full text)
 
+try:
+    from scipy.stats import norm
+except ImportError:
+    logging.error("SciPy is required for d-prime calculation. Install with 'pip install scipy'.")
+    core.quit()
+
+# determine where this script lives on _any_ machine
+
+if getattr(sys, "frozen", False):
+    # if you’ve bundled into an executable
+    base_dir = sys._MEIPASS
+else:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+
 # === Experiment Settings ===
-FULLSCREEN = False               # Set to False for windowed mode during testing
-WINDOW_SIZE = (1200, 800)        # Only used if FULLSCREEN = False
-MONITOR_NAME = 'testMonitor'     # Update to match lab monitor profile if necessary
-BACKGROUND_COLOR = 'black'       # Background colour of experiment window
-COLOR_SPACE = 'rgb'              # Colour space
-USE_FBO = True                   # Framebuffer object for better rendering
-GRID_SPACING = 100               # Grid line spacing in pixels
-GRID_COLOR = 'gray'              # Colour of grid lines
-GRID_OPACITY = 0.2               # Opacity of grid lines
-IMAGE_FOLDER = os.path.join("Abstract Stimuli", "apophysis")  # Relative path to image folder
+FULLSCREEN = False  # Set to False for windowed mode during testing
+WINDOW_SIZE = (1200, 800)  # Only used if FULLSCREEN = False
+MONITOR_NAME = "testMonitor"  # Update to match lab monitor profile if necessary
+BACKGROUND_COLOR = "black"  # Background colour of experiment window
+COLOR_SPACE = "rgb"  # Colour space
+USE_FBO = True  # Framebuffer object for better rendering
+GRID_SPACING = 100  # Grid line spacing in pixels
+GRID_COLOR = "gray"  # Colour of grid lines
+GRID_OPACITY = 0.2  # Opacity of grid lines
+image_dir = os.path.join(base_dir, "Abstract Stimuli", "apophysis")  # Relative path to image folder
 
 # === Logging Configuration ===
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
 
 class FlushFileHandler(logging.FileHandler):
     """Custom file handler that flushes after every log record."""
+
     def emit(self, record):
         super().emit(record)
         self.flush()
 
+
 # Suppress verbose PIL (image library) logging
-pil_logger = logging.getLogger('PIL')
+pil_logger = logging.getLogger("PIL")
 pil_logger.setLevel(logging.INFO)
 
 # === Create the experiment window ===
@@ -69,14 +80,14 @@ win = visual.Window(
     monitor=MONITOR_NAME,
     color=BACKGROUND_COLOR,
     colorSpace=COLOR_SPACE,
-    blendMode='avg',
+    blendMode="avg",
     useFBO=USE_FBO,
-    units='pix',
-    winType='pyglet'  # Explicit window type
+    units="pix",
+    winType="pyglet",  # Explicit window type
 )
 
 # Determine the base directory
-if getattr(sys, 'frozen', False):
+if getattr(sys, "frozen", False):
     # Running as compiled app
     base_dir = sys._MEIPASS
 else:
@@ -90,27 +101,29 @@ logging.debug(f"Current working directory: {os.getcwd()}")
 
 try:
     import psychopy
+
     logging.debug(f"PsychoPy version: {psychopy.__version__}")
 except ImportError:
     logging.error("Failed to import PsychoPy")
 
 # After global variables
 grid_lines = []
-win_units = 'pix'  # Ensure consistent units across all stimuli
+win_units = "pix"  # Ensure consistent units across all stimuli
 
-def create_grid_lines(win, grid_spacing=100, grid_color='gray', opacity=0.2):
+
+def create_grid_lines(win, grid_spacing=100, grid_color="gray", opacity=0.2):
     """
-        Generate vertical and horizontal grid lines over the experiment window.
+    Generate vertical and horizontal grid lines over the experiment window.
 
-        Args:
-            win (visual.Window): The PsychoPy window object.
-            grid_spacing (int): Distance in pixels between each grid line.
-            grid_color (str): Colour of the grid lines.
-            opacity (float): Opacity of the grid lines (0 = transparent, 1 = opaque).
+    Args:
+        win (visual.Window): The PsychoPy window object.
+        grid_spacing (int): Distance in pixels between each grid line.
+        grid_color (str): Colour of the grid lines.
+        opacity (float): Opacity of the grid lines (0 = transparent, 1 = opaque).
 
-        Returns:
-            list: A list of PsychoPy Line stimuli representing the grid.
-        """
+    Returns:
+        list: A list of PsychoPy Line stimuli representing the grid.
+    """
     # Get window size
     win_width, win_height = win.size
     half_width = win_width / 2
@@ -125,40 +138,32 @@ def create_grid_lines(win, grid_spacing=100, grid_color='gray', opacity=0.2):
 
     # Calculate starting positions
     # Shift grid so that the center of a square is at (0,0)
-    start_x = - (num_vertical_lines // 2) * grid_spacing + grid_spacing / 2
+    start_x = -(num_vertical_lines // 2) * grid_spacing + grid_spacing / 2
     x_positions = [start_x + i * grid_spacing for i in range(num_vertical_lines)]
 
-    start_y = - (num_horizontal_lines // 2) * grid_spacing + grid_spacing / 2
+    start_y = -(num_horizontal_lines // 2) * grid_spacing + grid_spacing / 2
     y_positions = [start_y + i * grid_spacing for i in range(num_horizontal_lines)]
 
     # Now create vertical lines
     for x in x_positions:
         line = visual.Line(
-            win,
-            start=(x, -half_height),
-            end=(x, half_height),
-            lineColor=grid_color,
-            opacity=opacity,
-            units='pix'
+            win, start=(x, -half_height), end=(x, half_height), lineColor=grid_color, opacity=opacity, units="pix"
         )
         lines.append(line)
 
     # Create horizontal lines
     for y in y_positions:
         line = visual.Line(
-            win,
-            start=(-half_width, y),
-            end=(half_width, y),
-            lineColor=grid_color,
-            opacity=opacity,
-            units='pix'
+            win, start=(-half_width, y), end=(half_width, y), lineColor=grid_color, opacity=opacity, units="pix"
         )
         lines.append(line)
 
     return lines
 
+
 # Now create the grid lines once
 grid_lines = create_grid_lines(win)
+
 
 def get_jitter(base_duration, jitter_range=0.2):
     """
@@ -174,29 +179,32 @@ def get_jitter(base_duration, jitter_range=0.2):
     Returns:
         float: The jittered time value in seconds.
     """
-    return base_duration + random.uniform(-jitter_range/2, jitter_range/2)
+    return base_duration + random.uniform(-jitter_range / 2, jitter_range / 2)
 
 
-#error_catcher function
+# error_catcher function
 def error_catcher(type, value, tb):
     """
-        Handle unhandled exceptions by logging the error and displaying a message to the user.
+    Handle unhandled exceptions by logging the error and displaying a message to the user.
 
-        This function is set as sys.excepthook to catch unhandled exceptions during the experiment.
-        It logs the exception details and shows an error message in the experiment window.
+    This function is set as sys.excepthook to catch unhandled exceptions during the experiment.
+    It logs the exception details and shows an error message in the experiment window.
 
-        Args:
-            type: The type of the exception.
-            value: The exception instance.
-            tb: The traceback object.
-        """
+    Args:
+        type: The type of the exception.
+        value: The exception instance.
+        tb: The traceback object.
+    """
     logging.exception("An unexpected error occurred")
     # Display a message in the window
-    error_message = visual.TextStim(win, text="An unexpected error occurred. Please inform the researcher.", color='white', height=24, wrapWidth=800)
+    error_message = visual.TextStim(
+        win, text="An unexpected error occurred. Please inform the researcher.", color="white", height=24, wrapWidth=800
+    )
     error_message.draw()
     win.flip()
     event.waitKeys()
     core.quit()
+
 
 sys.excepthook = error_catcher
 logging.info("Starting script...")
@@ -205,17 +213,14 @@ logging.info("Creating window...")
 logging.info("Windowed mode created. Proceeding with the rest of the script...")
 
 
-event.globalKeys.add(key='escape', func=core.quit)
-
-# Path to the folder containing images
-image_dir = os.path.join(base_dir, "Abstract Stimuli", "apophysis")
+event.globalKeys.add(key="escape", func=core.quit)
 
 # Check if the directory exists
 if not os.path.exists(image_dir):
     raise FileNotFoundError(f"The image directory does not exist: {image_dir}")
 
 # Get the list of image files
-image_files = [f for f in os.listdir(image_dir) if f.endswith('.png')]
+image_files = [f for f in os.listdir(image_dir) if f.endswith(".png")]
 
 # Print the image directory path and number of files found to verify
 logging.debug(f"Image directory: {image_dir}")
@@ -245,12 +250,10 @@ preloaded_images_dual = {
 }
 
 
-
 def send_trigger(trigger_code):
     """Send EEG trigger if configured. Placeholder."""
     # Implement EEG parallel port triggers here if needed.
     core.wait(0.005)  # hold dummy trigger
-
 
 
 def get_participant_info(win):
@@ -271,14 +274,14 @@ def get_participant_info(win):
 
     # First get participant ID
     instruction_text = "Welcome to the experiment!\n\nPlease enter your Participant ID and press 'Enter'."
-    instructions = visual.TextStim(win, text=instruction_text, height=24, color='white', wrapWidth=800, pos=(0, 100))
+    instructions = visual.TextStim(win, text=instruction_text, height=24, color="white", wrapWidth=800, pos=(0, 100))
 
     box_width = 300
     box_height = 40
-    input_box = visual.Rect(win, width=box_width, height=box_height, fillColor=None, lineColor='white', pos=(0, 0))
+    input_box = visual.Rect(win, width=box_width, height=box_height, fillColor=None, lineColor="white", pos=(0, 0))
 
-    id_text = ''
-    text_stim = visual.TextStim(win, text=id_text, height=24, color='white', pos=(0, 0))
+    id_text = ""
+    text_stim = visual.TextStim(win, text=id_text, height=24, color="white", pos=(0, 0))
 
     while True:
         instructions.draw()
@@ -288,12 +291,12 @@ def get_participant_info(win):
 
         keys = event.waitKeys()
 
-        if 'return' in keys and id_text:
+        if "return" in keys and id_text:
             participant_id = id_text
             break
-        elif 'backspace' in keys:
+        elif "backspace" in keys:
             id_text = id_text[:-1]
-        elif 'escape' in keys:
+        elif "escape" in keys:
             core.quit()
         elif len(keys[0]) == 1:
             id_text += keys[0]
@@ -301,31 +304,28 @@ def get_participant_info(win):
         text_stim.setText(id_text)
 
     # Now get N-back level selection
-    level_text = (
-        "\n\nSelect Sequential N-back Level:\n\n"
-        "Press '2' for 2-back\n"
-        "Press '3' for 3-back"
-    )
-    level_instructions = visual.TextStim(win, text=level_text, height=24, color='white', wrapWidth=800, pos=(0, 0))
+    level_text = "\n\nSelect Sequential N-back Level:\n\n" "Press '2' for 2-back\n" "Press '3' for 3-back"
+    level_instructions = visual.TextStim(win, text=level_text, height=24, color="white", wrapWidth=800, pos=(0, 0))
 
     while True:
         level_instructions.draw()
         win.flip()
 
-        keys = event.waitKeys(keyList=['2', '3', 'escape'])
+        keys = event.waitKeys(keyList=["2", "3", "escape"])
 
-        if '2' in keys:
+        if "2" in keys:
             n_back_level = 2
             break
-        elif '3' in keys:
+        elif "3" in keys:
             n_back_level = 3
             break
-        elif 'escape' in keys:
+        elif "escape" in keys:
             core.quit()
 
-    return {'Participant ID': participant_id, 'N-back Level': n_back_level}
+    return {"Participant ID": participant_id, "N-back Level": n_back_level}
 
-def save_results_to_csv(filename, results, subjective_measures=None, mode='w'):
+
+def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
     """
     Write behavioural results and optional subjective measures to a CSV.
 
@@ -345,56 +345,56 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode='w'):
     """
 
     logging.info(f"Starting to save results to {filename}")
-    data_dir = os.path.join(base_dir, 'data')
+    data_dir = os.path.join(base_dir, "data")
     os.makedirs(data_dir, exist_ok=True)  # Ensure the directory exists
 
     full_path = os.path.join(data_dir, filename)
     logging.info(f"Saving results to: {full_path}")
 
     try:
-        with open(full_path, mode=mode, newline='') as file:
+        with open(full_path, mode=mode, newline="") as file:
             writer = csv.writer(file)
 
             # Write headers if in write mode
-            if mode == 'w':
-                writer.writerow(['Participant ID', 'Task', 'Block', 'N-back Level', 'Measure', 'Value'])
+            if mode == "w":
+                writer.writerow(["Participant ID", "Task", "Block", "N-back Level", "Measure", "Value"])
                 logging.debug("Headers written")
 
             # Process results (unchanged)
             for i, result in enumerate(results):
                 logging.debug(f"Processing result {i + 1}")
                 try:
-                    participant_id = result.get('Participant ID', 'Unknown')
-                    task = result.get('Task', 'Unknown Task')
-                    block = result.get('Block', 'Unknown Block')
-                    n_back_level = result.get('N-back Level', 'Unknown')
-                    data = result.get('Results')
+                    participant_id = result.get("Participant ID", "Unknown")
+                    task = result.get("Task", "Unknown Task")
+                    block = result.get("Block", "Unknown Block")
+                    n_back_level = result.get("N-back Level", "Unknown")
+                    data = result.get("Results")
 
                     if isinstance(data, dict):
                         # Overall metrics
                         overall_metrics = [
-                            'Correct Responses', 'Incorrect Responses', 'Lapses',
-                            'Accuracy', 'Total Reaction Time', 'Average Reaction Time',
-                            'Overall D-Prime'
+                            "Correct Responses",
+                            "Incorrect Responses",
+                            "Lapses",
+                            "Accuracy",
+                            "Total Reaction Time",
+                            "Average Reaction Time",
+                            "Overall D-Prime",
                         ]
                         for measure in overall_metrics:
-                            value = data.get(measure, 'N/A')
+                            value = data.get(measure, "N/A")
                             writer.writerow([participant_id, task, block, n_back_level, measure, value])
 
                         # Pre-distractor metrics
-                        pre_metrics = [
-                            'Pre-Distractor Accuracy', 'Pre-Distractor Avg RT', 'Pre-Distractor A-Prime'
-                        ]
+                        pre_metrics = ["Pre-Distractor Accuracy", "Pre-Distractor Avg RT", "Pre-Distractor A-Prime"]
                         for measure in pre_metrics:
-                            value = data.get(measure, 'N/A')
+                            value = data.get(measure, "N/A")
                             writer.writerow([participant_id, task, block, n_back_level, measure, value])
 
                         # Post-distractor metrics
-                        post_metrics = [
-                            'Post-Distractor Accuracy', 'Post-Distractor Avg RT', 'Post-Distractor A-Prime'
-                        ]
+                        post_metrics = ["Post-Distractor Accuracy", "Post-Distractor Avg RT", "Post-Distractor A-Prime"]
                         for measure in post_metrics:
-                            value = data.get(measure, 'N/A')
+                            value = data.get(measure, "N/A")
                             writer.writerow([participant_id, task, block, n_back_level, measure, value])
                     else:
                         logging.warning(f"Result {i + 1} has unexpected format: {data}")
@@ -407,14 +407,14 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode='w'):
             if subjective_measures:
                 logging.info("Writing subjective measures")
                 writer.writerow([])  # Empty row for separation
-                writer.writerow(['Participant ID', 'Time Point', 'Measure', 'Value'])
+                writer.writerow(["Participant ID", "Time Point", "Measure", "Value"])
 
                 for time_point, measures in subjective_measures.items():
                     try:
-                        writer.writerow([participant_id, time_point, 'Mental Fatigue', measures[0]])
-                        writer.writerow([participant_id, time_point, 'Task Effort', measures[1]])
-                        writer.writerow([participant_id, time_point, 'Mind Wandering', measures[2]])
-                        writer.writerow([participant_id, time_point, 'Overwhelmed', measures[3]])  # New fourth measure
+                        writer.writerow([participant_id, time_point, "Mental Fatigue", measures[0]])
+                        writer.writerow([participant_id, time_point, "Task Effort", measures[1]])
+                        writer.writerow([participant_id, time_point, "Mind Wandering", measures[2]])
+                        writer.writerow([participant_id, time_point, "Overwhelmed", measures[3]])  # New fourth measure
                     except Exception as e:
                         logging.error(f"Error saving subjective measures for time point {time_point}: {e}")
                         continue
@@ -429,9 +429,9 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode='w'):
             error_stim = visual.TextStim(
                 win,
                 text="An error occurred while saving data. Please inform the researcher.",
-                color='white',
+                color="white",
                 height=24,
-                wrapWidth=800
+                wrapWidth=800,
             )
             error_stim.draw()
             win.flip()
@@ -440,6 +440,7 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode='w'):
             logging.error(f"Error displaying save failure message: {inner_e}")
 
         return None
+
 
 def save_sequential_results(participant_id, n_back_level, block_name, seq_results):
     """
@@ -461,13 +462,13 @@ def save_sequential_results(participant_id, n_back_level, block_name, seq_result
     Returns:
         None
     """
-    results_filename = f'participant_{participant_id}_n{n_back_level}_{block_name}_results.csv'
+    results_filename = f"participant_{participant_id}_n{n_back_level}_{block_name}_results.csv"
     all_results = [
         {
             "Participant ID": participant_id,
             "Task": f"Sequential {n_back_level}-back",
             "Block": block_name,
-            "Results": seq_results
+            "Results": seq_results,
         },
     ]
     saved_file_path = save_results_to_csv(results_filename, all_results)
@@ -475,6 +476,7 @@ def save_sequential_results(participant_id, n_back_level, block_name, seq_result
         logging.info(f"Results saved to {saved_file_path}")
     else:
         logging.error(f"Failed to save results after Sequential N-back {block_name}")
+
 
 def show_overall_welcome_screen(win):
     """
@@ -494,10 +496,10 @@ def show_overall_welcome_screen(win):
         "Press 'space' to begin."
     )
 
-    welcome_message = visual.TextStim(win, text=welcome_text, color='white', height=24, wrapWidth=800)
+    welcome_message = visual.TextStim(win, text=welcome_text, color="white", height=24, wrapWidth=800)
     welcome_message.draw()
     win.flip()
-    event.waitKeys(keyList=['space'])
+    event.waitKeys(keyList=["space"])
 
 
 def show_welcome_screen(win, task_name, n_back_level=None):
@@ -535,21 +537,21 @@ def show_welcome_screen(win, task_name, n_back_level=None):
     # Append a concise auto-advance prompt
     welcome_text += "\n\nThis screen will advance in 20 seconds.\nPress 'space' to start now."
 
-    welcome_message = visual.TextStim(win, text=welcome_text, color='white', height=24, wrapWidth=800)
+    welcome_message = visual.TextStim(win, text=welcome_text, color="white", height=24, wrapWidth=800)
     welcome_message.draw()
     win.flip()
 
     timer = core.CountdownTimer(20)
     while timer.getTime() > 0:
-        keys = event.getKeys(keyList=['space', 'escape'])
-        if 'space' in keys:
+        keys = event.getKeys(keyList=["space", "escape"])
+        if "space" in keys:
             break
-        elif 'escape' in keys:
+        elif "escape" in keys:
             core.quit()
 
         time_left = int(timer.getTime())
         timer_text = f"Time remaining: {time_left} seconds"
-        timer_stim = visual.TextStim(win, text=timer_text, color='white', height=18, pos=(0, -300))
+        timer_stim = visual.TextStim(win, text=timer_text, color="white", height=18, pos=(0, -300))
         welcome_message.draw()
         timer_stim.draw()
         win.flip()
@@ -570,14 +572,14 @@ def show_break_screen(win, duration):
         "Feel free to move around in your seat\n\n"
         "The experiment will continue automatically"
     )
-    break_stim = visual.TextStim(win, text=break_text, color='white', height=24, wrapWidth=800)
+    break_stim = visual.TextStim(win, text=break_text, color="white", height=24, wrapWidth=800)
 
     timer = core.CountdownTimer(duration)
     while timer.getTime() > 0:
         break_stim.text = f"{break_text}\n\nTime remaining: {int(timer.getTime())} seconds"
         break_stim.draw()
         win.flip()
-        if event.getKeys(['escape']):
+        if event.getKeys(["escape"]):
             core.quit()
 
     event.clearEvents()
@@ -598,7 +600,7 @@ def collect_subjective_measures(win):
         "How mentally fatigued do you feel right now?",
         "How effortful do you find the task at this moment?",
         "Do you currently find your mind wandering or becoming distracted?",
-        "How overwhelmed do you feel by the task demands right now?"
+        "How overwhelmed do you feel by the task demands right now?",
     ]
     responses = []
 
@@ -610,15 +612,14 @@ def collect_subjective_measures(win):
         while response is None:
             instruction_stim.draw()
             win.flip()
-            keys = event.getKeys(keyList=['1', '2', '3', '4', '5', '6', '7', '8', 'escape'])
+            keys = event.getKeys(keyList=["1", "2", "3", "4", "5", "6", "7", "8", "escape"])
             if keys:
-                if 'escape' in keys:
+                if "escape" in keys:
                     core.quit()
                 response = int(keys[0])
         responses.append(response)
 
     return responses
-
 
 
 def get_progressive_timings(task_name, block_number):
@@ -663,23 +664,24 @@ def get_progressive_timings(task_name, block_number):
 
     return presentation_time, isi
 
+
 def calculate_A_prime(trials):
     """
-        Calculate the A-prime sensitivity index from trial data.
+    Calculate the A-prime sensitivity index from trial data.
 
-        A-prime is a non-parametric measure of sensitivity, similar to d-prime, but does not assume
-        equal variance in signal and noise distributions. It adjusts for extreme hit and false alarm rates.
+    A-prime is a non-parametric measure of sensitivity, similar to d-prime, but does not assume
+    equal variance in signal and noise distributions. It adjusts for extreme hit and false alarm rates.
 
-        Args:
-            trials: A list of trial dictionaries containing 'Is Target' and 'Response' keys.
+    Args:
+        trials: A list of trial dictionaries containing 'Is Target' and 'Response' keys.
 
-        Returns:
-            The A-prime value as a float, or None if it cannot be computed.
-        """
-    hits = sum(1 for trial in trials if trial['Is Target'] and trial['Response'] == 'match')
-    false_alarms = sum(1 for trial in trials if not trial['Is Target'] and trial['Response'] == 'match')
-    misses = sum(1 for trial in trials if trial['Is Target'] and trial['Response'] != 'match')
-    correct_rejections = sum(1 for trial in trials if not trial['Is Target'] and trial['Response'] != 'match')
+    Returns:
+        The A-prime value as a float, or None if it cannot be computed.
+    """
+    hits = sum(1 for trial in trials if trial["Is Target"] and trial["Response"] == "match")
+    false_alarms = sum(1 for trial in trials if not trial["Is Target"] and trial["Response"] == "match")
+    misses = sum(1 for trial in trials if trial["Is Target"] and trial["Response"] != "match")
+    correct_rejections = sum(1 for trial in trials if not trial["Is Target"] and trial["Response"] != "match")
 
     total_targets = hits + misses
     total_nontargets = false_alarms + correct_rejections
@@ -695,32 +697,37 @@ def calculate_A_prime(trials):
     false_alarm_rate = min(max(false_alarm_rate, 0.0001), 0.9999)
 
     if hit_rate >= false_alarm_rate:
-        A_prime = 0.5 + ((hit_rate - false_alarm_rate) * (1 + hit_rate - false_alarm_rate)) / (4 * hit_rate * (1 - false_alarm_rate))
+        A_prime = 0.5 + ((hit_rate - false_alarm_rate) * (1 + hit_rate - false_alarm_rate)) / (
+            4 * hit_rate * (1 - false_alarm_rate)
+        )
     else:
-        A_prime = 0.5 - ((false_alarm_rate - hit_rate) * (1 + false_alarm_rate - hit_rate)) / (4 * false_alarm_rate * (1 - hit_rate))
+        A_prime = 0.5 - ((false_alarm_rate - hit_rate) * (1 + false_alarm_rate - hit_rate)) / (
+            4 * false_alarm_rate * (1 - hit_rate)
+        )
 
     return A_prime
 
+
 def calculate_accuracy_and_rt(trials):
     """
-        Calculate accuracy and reaction time metrics from trial data.
+    Calculate accuracy and reaction time metrics from trial data.
 
-        Computes the percentage of correct responses and the total and average reaction times
-        based on trial data.
+    Computes the percentage of correct responses and the total and average reaction times
+    based on trial data.
 
-        Args:
-            trials: A list of trial dictionaries containing 'Accuracy' and 'Reaction Time' keys.
+    Args:
+        trials: A list of trial dictionaries containing 'Accuracy' and 'Reaction Time' keys.
 
-        Returns:
-            A tuple of (accuracy, total_rt, avg_rt) where:
-            - accuracy: Percentage of correct responses (float).
-            - total_rt: Sum of reaction times (float).
-            - avg_rt: Average reaction time (float).
-        """
+    Returns:
+        A tuple of (accuracy, total_rt, avg_rt) where:
+        - accuracy: Percentage of correct responses (float).
+        - total_rt: Sum of reaction times (float).
+        - avg_rt: Average reaction time (float).
+    """
     total_trials = len(trials)
-    correct = sum(1 for trial in trials if trial['Accuracy'])
+    correct = sum(1 for trial in trials if trial["Accuracy"])
     accuracy = (correct / total_trials) * 100 if total_trials > 0 else 0.0
-    reaction_times = [trial['Reaction Time'] for trial in trials if trial['Reaction Time'] is not None]
+    reaction_times = [trial["Reaction Time"] for trial in trials if trial["Reaction Time"] is not None]
     total_rt = sum(reaction_times)
     avg_rt = total_rt / len(reaction_times) if reaction_times else 0.0
     return accuracy, total_rt, avg_rt
@@ -728,23 +735,23 @@ def calculate_accuracy_and_rt(trials):
 
 def calculate_dprime(detailed_data):
     """
-        Calculate the d-prime sensitivity index from detailed trial data.
+    Calculate the d-prime sensitivity index from detailed trial data.
 
-        D-prime measures the ability to distinguish targets from non-targets in signal detection theory.
+    D-prime measures the ability to distinguish targets from non-targets in signal detection theory.
 
-        Args:
-            detailed_data: A list of trial dictionaries containing 'Is Target' and 'Response' keys.
+    Args:
+        detailed_data: A list of trial dictionaries containing 'Is Target' and 'Response' keys.
 
-        Returns:
-            The d-prime value as a float.
-        """
-    if not detailed_data or all(trial['Response'] == 'lapse' for trial in detailed_data):
+    Returns:
+        The d-prime value as a float.
+    """
+    if not detailed_data or all(trial["Response"] == "lapse" for trial in detailed_data):
         return 0.0
 
-    hits = sum(1 for trial in detailed_data if trial['Is Target'] and trial['Response'] == 'match')
-    false_alarms = sum(1 for trial in detailed_data if not trial['Is Target'] and trial['Response'] == 'match')
-    misses = sum(1 for trial in detailed_data if trial['Is Target'] and trial['Response'] != 'match')
-    correct_rejections = sum(1 for trial in detailed_data if not trial['Is Target'] and trial['Response'] != 'match')
+    hits = sum(1 for trial in detailed_data if trial["Is Target"] and trial["Response"] == "match")
+    false_alarms = sum(1 for trial in detailed_data if not trial["Is Target"] and trial["Response"] == "match")
+    misses = sum(1 for trial in detailed_data if trial["Is Target"] and trial["Response"] != "match")
+    correct_rejections = sum(1 for trial in detailed_data if not trial["Is Target"] and trial["Response"] != "match")
 
     total_targets = hits + misses
     total_non_targets = false_alarms + correct_rejections
@@ -758,6 +765,7 @@ def calculate_dprime(detailed_data):
     adjusted_fa_rate = (false_alarms + 0.5) / (total_non_targets + 1)
 
     from scipy.stats import norm
+
     try:
         d_prime = norm.ppf(adjusted_hit_rate) - norm.ppf(adjusted_fa_rate)
     except ValueError:
@@ -765,21 +773,24 @@ def calculate_dprime(detailed_data):
 
     return d_prime
 
+
 def show_summary(win, task_name, *results):
     """
-        After a block finishes, display overall correct/incorrect/lapse counts, accuracy, RTs, d′.
+    After a block finishes, display overall correct/incorrect/lapse counts, accuracy, RTs, d′.
 
-        Args:
-            win (visual.Window): PsychoPy window.
-            task_name (str): Name of the task for the header.
-            *results: Tuple of
-                (correct_responses, incorrect_responses, lapses,
-                 total_reaction_time, reaction_times_list, detailed_data, accuracy).
+    Args:
+        win (visual.Window): PsychoPy window.
+        task_name (str): Name of the task for the header.
+        *results: Tuple of
+            (correct_responses, incorrect_responses, lapses,
+             total_reaction_time, reaction_times_list, detailed_data, accuracy).
 
-        Side effect:
-            Renders a 10 s summary screen or advances on space.
-        """
-    correct_responses, incorrect_responses, lapses, total_reaction_time, reaction_times, detailed_data, accuracy = results
+    Side effect:
+        Renders a 10 s summary screen or advances on space.
+    """
+    correct_responses, incorrect_responses, lapses, total_reaction_time, reaction_times, detailed_data, accuracy = (
+        results
+    )
     total_responses = correct_responses + incorrect_responses + lapses
     avg_reaction_time = total_reaction_time / len(reaction_times) if reaction_times else 0
     d_prime = calculate_dprime(detailed_data)
@@ -796,49 +807,49 @@ def show_summary(win, task_name, *results):
         f"This screen will automatically advance in 10 seconds.\nPress 'space' to continue immediately."
     )
 
-    summary_message = visual.TextStim(win, text=summary_text, color='white', height=24, wrapWidth=800)
+    summary_message = visual.TextStim(win, text=summary_text, color="white", height=24, wrapWidth=800)
     summary_message.draw()
     win.flip()
 
     timer = core.Clock()
     while timer.getTime() < 10:
-        keys = event.getKeys(keyList=['space', 'escape'])
-        if 'space' in keys:
+        keys = event.getKeys(keyList=["space", "escape"])
+        if "space" in keys:
             break
-        elif 'escape' in keys:
+        elif "escape" in keys:
             core.quit()
     event.clearEvents()
 
 
 def generate_image_sequence_with_matches(num_trials, n, target_percentage=0.5, skip_responses=1):
     """
-        Build an image sequence for an N-back task, inserting true targets and (for 3-back) misleading trials.
+    Build an image sequence for an N-back task, inserting true targets and (for 3-back) misleading trials.
 
-        Args:
-            num_trials (int):
-                Total number of trials to generate, including the initial skip_responses.
-            n (int):
-                N-back distance (e.g. 2 for 2-back, 3 for 3-back).
-            target_percentage (float):
-                Proportion of eligible trials (i.e. after the first n) that should be true N-back matches.
-                Defaults to 0.5 (50% targets).
-            skip_responses (int):
-                Number of initial trials during which no response is required (these still count towards sequence length).
+    Args:
+        num_trials (int):
+            Total number of trials to generate, including the initial skip_responses.
+        n (int):
+            N-back distance (e.g. 2 for 2-back, 3 for 3-back).
+        target_percentage (float):
+            Proportion of eligible trials (i.e. after the first n) that should be true N-back matches.
+            Defaults to 0.5 (50% targets).
+        skip_responses (int):
+            Number of initial trials during which no response is required (these still count towards sequence length).
 
-        Behaviour:
-            - Selects positions for true N-back matches (“yes” trials) and limits consecutive matches to 2.
-            - If n == 3, additionally inserts misleading trials on 30% of the non-target positions,
-              where the stimulus matches the item from (n–1) steps back rather than n.
-            - Fills all other trials with randomly chosen images that avoid creating unintended n- or (for 3-back) 2-back repeats.
-            - Re-shuffles image pool when exhausted.
+    Behaviour:
+        - Selects positions for true N-back matches (“yes” trials) and limits consecutive matches to 2.
+        - If n == 3, additionally inserts misleading trials on 30% of the non-target positions,
+          where the stimulus matches the item from (n–1) steps back rather than n.
+        - Fills all other trials with randomly chosen images that avoid creating unintended n- or (for 3-back) 2-back repeats.
+        - Re-shuffles image pool when exhausted.
 
-        Returns:
-            tuple:
-                sequence (list of str):
-                    Ordered list of image filenames for each trial.
-                yes_positions (list of int):
-                    Indices where true N-back matches occur.
-        """
+    Returns:
+        tuple:
+            sequence (list of str):
+                Ordered list of image filenames for each trial.
+            yes_positions (list of int):
+                Indices where true N-back matches occur.
+    """
     # Start with a fresh copy of the image list and shuffle it
     available_images = image_files.copy()
     random.shuffle(available_images)
@@ -853,7 +864,7 @@ def generate_image_sequence_with_matches(num_trials, n, target_percentage=0.5, s
     if n == 3:
         misleading_positions = random.sample(
             [p for p in range(n, num_trials) if p not in yes_positions],
-            int(target_num_yes * 0.3)  # 30% misleading trials
+            int(target_num_yes * 0.3),  # 30% misleading trials
         )
     else:
         misleading_positions = []
@@ -876,9 +887,9 @@ def generate_image_sequence_with_matches(num_trials, n, target_percentage=0.5, s
 
             # Find images that do not create unwanted n-back or 2-back matches
             non_matching_images = [
-                img for img in available_images
-                if img not in sequence[-n:] and
-                (len(sequence) < 2 or img != sequence[-2])
+                img
+                for img in available_images
+                if img not in sequence[-n:] and (len(sequence) < 2 or img != sequence[-2])
             ]
 
             if not non_matching_images:
@@ -895,14 +906,14 @@ def generate_image_sequence_with_matches(num_trials, n, target_percentage=0.5, s
 
 def draw_grid():
     """
-        Draw all predefined grid lines on the PsychoPy window.
-        Assumes global variable 'grid_lines' has already been populated.
-        """
+    Draw all predefined grid lines on the PsychoPy window.
+    Assumes global variable 'grid_lines' has already been populated.
+    """
     for line in grid_lines:
         line.draw()
 
 
-def display_image(win, image_file, level_indicator, feedback_text=None, task='sequential'):
+def display_image(win, image_file, level_indicator, feedback_text=None, task="sequential"):
     """
     Draw grid, level text, then a central image (with optional feedback) and flip.
 
@@ -915,15 +926,15 @@ def display_image(win, image_file, level_indicator, feedback_text=None, task='se
 
     """
     # Select the correct preloaded images based on the task
-    if task == 'sequential':
+    if task == "sequential":
         image_stim = preloaded_images_sequential[image_file]
-    elif task == 'dual':
+    elif task == "dual":
         image_stim = preloaded_images_dual[image_file]
     else:
         raise ValueError("Invalid task type. Choose 'sequential' or 'dual'.")
 
     # Ensure consistent size and position
-    image_stim.size = (350, 350) if task == 'sequential' else (100, 100)  # Default sizes for each task
+    image_stim.size = (350, 350) if task == "sequential" else (100, 100)  # Default sizes for each task
     image_stim.pos = (0, 0)  # Always center for sequential
 
     # Draw the grid and level indicator first
@@ -936,17 +947,13 @@ def display_image(win, image_file, level_indicator, feedback_text=None, task='se
     # Optionally, draw feedback text
     if feedback_text:
         feedback_message = visual.TextStim(
-            win,
-            text=feedback_text,
-            color='orange',
-            height=24,
-            pos=(0, image_stim.size[1] / 2 + 50),
-            units='pix'
+            win, text=feedback_text, color="orange", height=24, pos=(0, image_stim.size[1] / 2 + 50), units="pix"
         )
         feedback_message.draw()
 
     # Flip the display
     win.flip()
+
 
 def calculate_sequential_nback_summary(results_dict, n_level):
     """
@@ -960,13 +967,13 @@ def calculate_sequential_nback_summary(results_dict, n_level):
         dict: Summary with keys 'N-back Level', 'Total Correct Responses', 'Total Incorrect Responses',
               'Total Lapses', 'Overall Accuracy (%)', 'Average Reaction Time (s)', 'Total Trials', 'D-Prime'.
     """
-    correct_responses = results_dict['Correct Responses']
-    incorrect_responses = results_dict['Incorrect Responses']
-    lapses = results_dict['Lapses']
+    correct_responses = results_dict["Correct Responses"]
+    incorrect_responses = results_dict["Incorrect Responses"]
+    lapses = results_dict["Lapses"]
     total_trials = correct_responses + incorrect_responses + lapses
-    accuracy = results_dict['Accuracy']
-    avg_reaction_time = results_dict['Average Reaction Time']
-    d_prime = results_dict['Overall D-Prime']
+    accuracy = results_dict["Accuracy"]
+    avg_reaction_time = results_dict["Average Reaction Time"]
+    d_prime = results_dict["Overall D-Prime"]
 
     return {
         "N-back Level": n_level,
@@ -976,13 +983,22 @@ def calculate_sequential_nback_summary(results_dict, n_level):
         "Overall Accuracy (%)": accuracy,
         "Average Reaction Time (s)": avg_reaction_time,
         "Total Trials": total_trials,
-        "D-Prime": d_prime
+        "D-Prime": d_prime,
     }
 
-def run_sequential_nback_block(win, n, num_images, target_percentage=0.5,
-                               display_duration=0.8, isi=1.0,
-                               provide_feedback=False, num_trials=None,
-                               is_first_encounter=True, block_number=1):
+
+def run_sequential_nback_block(
+    win,
+    n,
+    num_images,
+    target_percentage=0.5,
+    display_duration=0.8,
+    isi=1.0,
+    provide_feedback=False,
+    num_trials=None,
+    is_first_encounter=True,
+    block_number=1,
+):
     """
     Run one block of the Sequential N-back task, collecting responses and timing.
 
@@ -1027,16 +1043,16 @@ def run_sequential_nback_block(win, n, num_images, target_percentage=0.5,
     last_lapse = False
 
     # Prepare fixation and level indicator
-    fixation_cross = visual.TextStim(win, text='+', color='white', height=32, units='pix', pos=(0, 0))
+    fixation_cross = visual.TextStim(win, text="+", color="white", height=32, units="pix", pos=(0, 0))
     margin_x, margin_y = 350, 150
     level_indicator = visual.TextStim(
         win,
-        text=f'Level: {n}-back',
-        color='white',
+        text=f"Level: {n}-back",
+        color="white",
         height=32,
         pos=(-win.size[0] // 2 + margin_x, win.size[1] // 2 - margin_y),
-        units='pix',
-        alignText='left'
+        units="pix",
+        alignText="left",
     )
 
     # Determine where distractors will occur
@@ -1050,8 +1066,11 @@ def run_sequential_nback_block(win, n, num_images, target_percentage=0.5,
     # If first block, show a “no response required” notice
     if is_first_encounter:
         msg = f"No response required for the first {n} trials"
-        feedback_text = visual.TextStim(win, text=msg, color='white', height=24, units='pix')
-        draw_grid(); level_indicator.draw(); feedback_text.draw(); win.flip()
+        feedback_text = visual.TextStim(win, text=msg, color="white", height=24, units="pix")
+        draw_grid()
+        level_indicator.draw()
+        feedback_text.draw()
+        win.flip()
         core.wait(2)
 
     # --- Trial Loop ---
@@ -1070,72 +1089,88 @@ def run_sequential_nback_block(win, n, num_images, target_percentage=0.5,
         response_timer = core.Clock()
         response = None
         while response_timer.getTime() < display_duration:
-            keys = event.getKeys(keyList=['z', 'm', 'escape'])
-            if 'escape' in keys:
+            keys = event.getKeys(keyList=["z", "m", "escape"])
+            if "escape" in keys:
                 core.quit()
             if keys and response is None and i >= skip_responses:
                 rt = response_timer.getTime()
                 is_target = len(nback_queue) >= n and img == nback_queue[-n]
-                response = 'match' if 'z' in keys else 'non-match'
-                correct_responses += int((response == 'match') == is_target)
-                incorrect_responses += int((response == 'match') != is_target)
+                response = "match" if "z" in keys else "non-match"
+                correct_responses += int((response == "match") == is_target)
+                incorrect_responses += int((response == "match") != is_target)
                 total_reaction_time += rt
                 reaction_times.append(rt)
-                detailed_data.append({
-                    'Trial': i + 1,
-                    'Image': img,
-                    'Is Target': is_target,
-                    'Response': response,
-                    'Reaction Time': rt,
-                    'Accuracy': (response == 'match') == is_target
-                })
+                detailed_data.append(
+                    {
+                        "Trial": i + 1,
+                        "Image": img,
+                        "Is Target": is_target,
+                        "Response": response,
+                        "Reaction Time": rt,
+                        "Accuracy": (response == "match") == is_target,
+                    }
+                )
 
         # ISI + possible distractor
-        draw_grid(); fixation_cross.draw(); level_indicator.draw(); win.flip()
+        draw_grid()
+        fixation_cross.draw()
+        level_indicator.draw()
+        win.flip()
         isi_timer = core.Clock()
         jittered = get_jitter(isi)
         distractor_displayed = False
         while isi_timer.getTime() < jittered:
             if (i + 1) in distractor_trials and not distractor_displayed and isi_timer.getTime() >= jittered / 2 - 0.1:
-                draw_grid(); fixation_cross.draw(); level_indicator.draw()
-                sq = visual.Rect(win, width=100, height=100, fillColor='white', units='pix')
-                sq.draw(); win.flip(); core.wait(0.2)
-                draw_grid(); fixation_cross.draw(); level_indicator.draw(); win.flip()
+                draw_grid()
+                fixation_cross.draw()
+                level_indicator.draw()
+                sq = visual.Rect(win, width=100, height=100, fillColor="white", units="pix")
+                sq.draw()
+                win.flip()
+                core.wait(0.2)
+                draw_grid()
+                fixation_cross.draw()
+                level_indicator.draw()
+                win.flip()
                 distractor_displayed = True
                 logging.info(f"Distractor @ trial {i+1}")
-            keys = event.getKeys(keyList=['z', 'm', 'escape'])
-            if 'escape' in keys:
+            keys = event.getKeys(keyList=["z", "m", "escape"])
+            if "escape" in keys:
                 core.quit()
             if keys and response is None and i >= skip_responses:
                 rt = display_duration + isi_timer.getTime()
                 is_target = len(nback_queue) >= n and img == nback_queue[-n]
-                response = 'match' if 'z' in keys else 'non-match'
-                correct_responses += int((response == 'match') == is_target)
-                incorrect_responses += int((response == 'match') != is_target)
+                response = "match" if "z" in keys else "non-match"
+                correct_responses += int((response == "match") == is_target)
+                incorrect_responses += int((response == "match") != is_target)
                 total_reaction_time += rt
                 reaction_times.append(rt)
-                detailed_data.append({
-                    'Trial': i + 1,
-                    'Image': img,
-                    'Is Target': is_target,
-                    'Response': response,
-                    'Reaction Time': rt,
-                    'Accuracy': (response == 'match') == is_target
-                })
+                detailed_data.append(
+                    {
+                        "Trial": i + 1,
+                        "Image": img,
+                        "Is Target": is_target,
+                        "Response": response,
+                        "Reaction Time": rt,
+                        "Accuracy": (response == "match") == is_target,
+                    }
+                )
 
         # Handle lapse
         if response is None and i >= skip_responses:
             lapses += 1
             last_lapse = True
             is_target = len(nback_queue) >= n and img == nback_queue[-n]
-            detailed_data.append({
-                'Trial': i + 1,
-                'Image': img,
-                'Is Target': is_target,
-                'Response': 'lapse',
-                'Reaction Time': None,
-                'Accuracy': False
-            })
+            detailed_data.append(
+                {
+                    "Trial": i + 1,
+                    "Image": img,
+                    "Is Target": is_target,
+                    "Response": "lapse",
+                    "Reaction Time": None,
+                    "Accuracy": False,
+                }
+            )
 
         # Update queue & clear events
         nback_queue.append(img)
@@ -1152,49 +1187,49 @@ def run_sequential_nback_block(win, n, num_images, target_percentage=0.5,
     pre_indices = set()
     post_indices = set()
     for d in distractor_trials:
-        for j in range(d-3, d):
+        for j in range(d - 3, d):
             if 1 <= j <= total_trials:
                 pre_indices.add(j)
-        for j in range(d+1, d+4):
+        for j in range(d + 1, d + 4):
             if 1 <= j <= total_trials:
                 post_indices.add(j)
 
-    pre_data  = [t for t in detailed_data if t['Trial'] in pre_indices]
-    post_data = [t for t in detailed_data if t['Trial'] in post_indices]
+    pre_data = [t for t in detailed_data if t["Trial"] in pre_indices]
+    post_data = [t for t in detailed_data if t["Trial"] in post_indices]
 
     def _compute_metrics(trials):
         if not trials:
             return None, None, None
         # accuracy
-        acc = sum(1 for t in trials if t['Accuracy']) / len(trials) * 100
+        acc = sum(1 for t in trials if t["Accuracy"]) / len(trials) * 100
         # avg RT
-        rts = [t['Reaction Time'] for t in trials if t['Reaction Time'] is not None]
+        rts = [t["Reaction Time"] for t in trials if t["Reaction Time"] is not None]
         avg_rt = sum(rts) / len(rts) if rts else 0.0
         # A-prime
         ap = calculate_A_prime(trials)
         return acc, avg_rt, ap
 
-    pre_acc, pre_rt, pre_ap   = _compute_metrics(pre_data)
+    pre_acc, pre_rt, pre_ap = _compute_metrics(pre_data)
     post_acc, post_rt, post_ap = _compute_metrics(post_data)
 
     # Build and return the summary dict
     return {
-        'Block Number': block_number,
-        'Correct Responses': correct_responses,
-        'Incorrect Responses': incorrect_responses,
-        'Lapses': lapses,
-        'Accuracy': accuracy,
-        'Total Reaction Time': total_reaction_time,
-        'Average Reaction Time': (total_reaction_time / len(reaction_times)) if reaction_times else 0.0,
-        'Reaction Times': reaction_times,
-        'Detailed Data': detailed_data,
-        'Pre-Distractor Accuracy':    pre_acc    if pre_acc    is not None else 'N/A',
-        'Pre-Distractor Avg RT':      pre_rt     if pre_rt     is not None else 'N/A',
-        'Pre-Distractor A-Prime':     pre_ap     if pre_ap     is not None else 'N/A',
-        'Post-Distractor Accuracy':   post_acc   if post_acc   is not None else 'N/A',
-        'Post-Distractor Avg RT':     post_rt    if post_rt    is not None else 'N/A',
-        'Post-Distractor A-Prime':    post_ap    if post_ap    is not None else 'N/A',
-        'Overall D-Prime': calculate_dprime(detailed_data),
+        "Block Number": block_number,
+        "Correct Responses": correct_responses,
+        "Incorrect Responses": incorrect_responses,
+        "Lapses": lapses,
+        "Accuracy": accuracy,
+        "Total Reaction Time": total_reaction_time,
+        "Average Reaction Time": (total_reaction_time / len(reaction_times)) if reaction_times else 0.0,
+        "Reaction Times": reaction_times,
+        "Detailed Data": detailed_data,
+        "Pre-Distractor Accuracy": pre_acc if pre_acc is not None else "N/A",
+        "Pre-Distractor Avg RT": pre_rt if pre_rt is not None else "N/A",
+        "Pre-Distractor A-Prime": pre_ap if pre_ap is not None else "N/A",
+        "Post-Distractor Accuracy": post_acc if post_acc is not None else "N/A",
+        "Post-Distractor Avg RT": post_rt if post_rt is not None else "N/A",
+        "Post-Distractor A-Prime": post_ap if post_ap is not None else "N/A",
+        "Overall D-Prime": calculate_dprime(detailed_data),
     }
 
 
@@ -1207,18 +1242,19 @@ def show_transition_screen(win, next_task_name):
         next_task_name (str): Name of the next task.
     """
     transition_text = f"Transitioning to the {next_task_name} Task.\n\nPress 'space' to continue immediately or wait 5 seconds to proceed."
-    transition_message = visual.TextStim(win, text=transition_text, color='white', height=24, wrapWidth=750)
+    transition_message = visual.TextStim(win, text=transition_text, color="white", height=24, wrapWidth=750)
     transition_message.draw()
     win.flip()
 
     timer = core.Clock()
     while timer.getTime() < 5:
-        keys = event.getKeys(keyList=['space', 'escape'])
-        if 'space' in keys:
+        keys = event.getKeys(keyList=["space", "escape"])
+        if "space" in keys:
             break
-        elif 'escape' in keys:
+        elif "escape" in keys:
             core.quit()
     event.clearEvents()
+
 
 def show_level_change_screen(win, task_name, old_level, new_level, is_first_block=False):
     """
@@ -1248,18 +1284,19 @@ def show_level_change_screen(win, task_name, old_level, new_level, is_first_bloc
         "This screen will automatically advance in 10 seconds.\nPress 'space' to continue immediately."
     )
 
-    level_change_stim = visual.TextStim(win, text=message, color='white', height=24, wrapWidth=750)
+    level_change_stim = visual.TextStim(win, text=message, color="white", height=24, wrapWidth=750)
     level_change_stim.draw()
     win.flip()
 
     timer = core.Clock()
     while timer.getTime() < 10:
-        keys = event.getKeys(keyList=['space', 'escape'])
-        if 'space' in keys:
+        keys = event.getKeys(keyList=["space", "escape"])
+        if "space" in keys:
             break
-        elif 'escape' in keys:
+        elif "escape" in keys:
             core.quit()
     event.clearEvents()
+
 
 def print_debug_info(sequence, n, is_dual=False):
     """
@@ -1271,7 +1308,11 @@ def print_debug_info(sequence, n, is_dual=False):
         is_dual (bool, optional): Whether the task is dual N-back.
     """
     if is_dual:
-        match_positions = [i for i in range(n, len(sequence)) if sequence[i][0] == sequence[i - n][0] and sequence[i][1] == sequence[i - n][1]]
+        match_positions = [
+            i
+            for i in range(n, len(sequence))
+            if sequence[i][0] == sequence[i - n][0] and sequence[i][1] == sequence[i - n][1]
+        ]
     else:
         match_positions = [i for i in range(n, len(sequence)) if sequence[i] == sequence[i - n]]
 
@@ -1305,26 +1346,28 @@ def generate_positions_with_matches(num_positions, n, target_percentage=0.5):
 
     return sequence
 
+
 def get_level_color(n_level):
     """
-        Return a color corresponding to the given N-back level.
+    Return a color corresponding to the given N-back level.
 
-        Provides visual distinction for different N-back levels during the task.
+    Provides visual distinction for different N-back levels during the task.
 
-        Args:
-            n_level: The N-back level (integer).
+    Args:
+        n_level: The N-back level (integer).
 
-        Returns:
-            A string representing the color name.
-        """
+    Returns:
+        A string representing the color name.
+    """
     if n_level == 1:
-        return 'white'
+        return "white"
     elif n_level == 2:
-        return 'lightblue'
+        return "lightblue"
     elif n_level == 3:
-        return 'lightgreen'
+        return "lightgreen"
     else:
-        return 'white'  # Default color
+        return "white"  # Default color
+
 
 def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedback_text=None, lapse_feedback=None):
     """
@@ -1350,7 +1393,7 @@ def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedbac
 
     grid_color = get_level_color(n_level)
 
-    fixation_cross = visual.TextStim(win, text='+', color='white', height=32)
+    fixation_cross = visual.TextStim(win, text="+", color="white", height=32)
     fixation_cross.draw()
 
     for i, pos in enumerate(positions):
@@ -1358,7 +1401,7 @@ def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedbac
         rect.draw()
 
     if highlight and highlight_pos is not None:
-        highlight_color = 'white'
+        highlight_color = "white"
         highlight = visual.Rect(win, width=50, height=50, pos=positions[highlight_pos], fillColor=highlight_color)
         highlight.draw()
 
@@ -1367,12 +1410,15 @@ def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedbac
         feedback_message.draw()
 
     if lapse_feedback:
-        lapse_message = visual.TextStim(win, text=lapse_feedback, color='orange', height=24, pos=(0, 300))
+        lapse_message = visual.TextStim(win, text=lapse_feedback, color="orange", height=24, pos=(0, 300))
         lapse_message.draw()
 
     if n_level:
-        level_indicator = visual.TextStim(win, text=f'Level: {n_level}-back', color='white', height=24, pos=(-450, 350), alignText='left')
+        level_indicator = visual.TextStim(
+            win, text=f"Level: {n_level}-back", color="white", height=24, pos=(-450, 350), alignText="left"
+        )
         level_indicator.draw()
+
 
 def adjust_nback_level(current_level, accuracy, increase_threshold=82, decrease_threshold=65, max_level=4):
     """Adjust the N-back level based on participant accuracy.
@@ -1394,8 +1440,8 @@ def adjust_nback_level(current_level, accuracy, increase_threshold=82, decrease_
     else:
         return current_level
 
-def run_spatial_nback_block(win, n, num_trials, display_duration=1.0,
-                            isi=1.0, is_first_encounter=True, block_number=0):
+
+def run_spatial_nback_block(win, n, num_trials, display_duration=1.0, isi=1.0, is_first_encounter=True, block_number=0):
     """
     Run one block of the Spatial N-back task on a 12-position radial grid.
 
@@ -1448,15 +1494,15 @@ def run_spatial_nback_block(win, n, num_trials, display_duration=1.0,
         response = None
         jittered_isi = get_jitter(isi)
         while response_timer.getTime() < jittered_isi:
-            keys = event.getKeys(keyList=['z', 'm', 'escape'])
-            if 'escape' in keys:
+            keys = event.getKeys(keyList=["z", "m", "escape"])
+            if "escape" in keys:
                 core.quit()
 
             if keys and response is None and i >= n:
                 reaction_time = response_timer.getTime()
-                if 'z' in keys:
+                if "z" in keys:
                     response = True
-                elif 'm' in keys:
+                elif "m" in keys:
                     response = False
 
                 if response == is_target:
@@ -1485,6 +1531,7 @@ def run_spatial_nback_block(win, n, num_trials, display_duration=1.0,
     accuracy = (correct_responses / total_responses) * 100 if total_responses > 0 else 0
 
     return n
+
 
 def generate_dual_nback_sequence(num_trials, grid_size, n, target_rate=0.5):
     """
@@ -1517,22 +1564,23 @@ def generate_dual_nback_sequence(num_trials, grid_size, n, target_rate=0.5):
 
     return pos_seq, image_seq
 
+
 def display_dual_stimulus(win, pos, image_file, grid_size, n_level, feedback_text=None, return_stims=False):
     """
-        Draw or return the highlight rect + image stim for Dual N-back trial.
+    Draw or return the highlight rect + image stim for Dual N-back trial.
 
-        Args:
-            win (visual.Window): PsychoPy window.
-            pos ((int,int)): Grid‐cell coordinates.
-            image_file (str): Filename key for preloaded_images_dual.
-            grid_size (int): Number of cells per row/col.
-            n_level (int): N-back level for colour coding.
-            feedback_text (str, optional): Optional message above grid.
-            return_stims (bool): If True, returns (Rect, ImageStim) instead of drawing.
+    Args:
+        win (visual.Window): PsychoPy window.
+        pos ((int,int)): Grid‐cell coordinates.
+        image_file (str): Filename key for preloaded_images_dual.
+        grid_size (int): Number of cells per row/col.
+        n_level (int): N-back level for colour coding.
+        feedback_text (str, optional): Optional message above grid.
+        return_stims (bool): If True, returns (Rect, ImageStim) instead of drawing.
 
-        Returns:
-            If return_stims: (highlight_rect, image_stim), else None.
-        """
+    Returns:
+        If return_stims: (highlight_rect, image_stim), else None.
+    """
     # Define grid and cell properties
     grid_length = 600
     cell_length = grid_length / grid_size
@@ -1543,12 +1591,7 @@ def display_dual_stimulus(win, pos, image_file, grid_size, n_level, feedback_tex
     # Set the highlight rectangle for the position
     level_color = get_level_color(n_level)
     highlight = visual.Rect(
-        win,
-        width=cell_length - 2,
-        height=cell_length - 2,
-        pos=(x, y),
-        fillColor=level_color,
-        lineColor=None
+        win, width=cell_length - 2, height=cell_length - 2, pos=(x, y), fillColor=level_color, lineColor=None
     )
 
     # Use the preloaded image for dual tasks
@@ -1559,11 +1602,7 @@ def display_dual_stimulus(win, pos, image_file, grid_size, n_level, feedback_tex
     # Optionally display feedback text
     if feedback_text:
         feedback_message = visual.TextStim(
-            win,
-            text=feedback_text,
-            color=level_color,
-            height=24,
-            pos=(0, grid_length / 2 + 50)
+            win, text=feedback_text, color=level_color, height=24, pos=(0, grid_length / 2 + 50)
         )
 
     # Return stimuli objects if requested
@@ -1580,17 +1619,17 @@ def display_dual_stimulus(win, pos, image_file, grid_size, n_level, feedback_tex
 
 def create_grid(win, grid_size):
     """
-        Build a grid of visual.Rect cells plus an outline rectangle.
+    Build a grid of visual.Rect cells plus an outline rectangle.
 
-        Args:
-            win (visual.Window): PsychoPy window.
-            grid_size (int): Number of rows/columns.
+    Args:
+        win (visual.Window): PsychoPy window.
+        grid_size (int): Number of rows/columns.
 
-        Returns:
-            tuple:
-              - grid (list of visual.Rect): Individual cells.
-              - outline (visual.Rect): Outer border of the grid.
-        """
+    Returns:
+        tuple:
+          - grid (list of visual.Rect): Individual cells.
+          - outline (visual.Rect): Outer border of the grid.
+    """
     grid_length = 600
     cell_length = grid_length / grid_size
     top_left = (-grid_length / 2, grid_length / 2)
@@ -1600,19 +1639,19 @@ def create_grid(win, grid_size):
         for j in range(grid_size):
             x = top_left[0] + i * cell_length + cell_length / 2
             y = top_left[1] - j * cell_length - cell_length / 2
-            rect = visual.Rect(win, width=cell_length, height=cell_length,
-                               pos=(x, y),
-                               lineColor='white', fillColor=None)
+            rect = visual.Rect(
+                win, width=cell_length, height=cell_length, pos=(x, y), lineColor="white", fillColor=None
+            )
             grid.append(rect)
 
-    outline = visual.Rect(win, width=grid_length, height=grid_length,
-                          pos=(0, 0), lineColor='white', fillColor=None, lineWidth=2)
+    outline = visual.Rect(
+        win, width=grid_length, height=grid_length, pos=(0, 0), lineColor="white", fillColor=None, lineWidth=2
+    )
 
     return grid, outline
 
 
-def run_dual_nback_block(win, n, num_trials, display_duration=1.0,
-                         isi=1.2, is_first_encounter=True, block_number=0):
+def run_dual_nback_block(win, n, num_trials, display_duration=1.0, isi=1.2, is_first_encounter=True, block_number=0):
     """
     Run one block of the Dual N-back task on a 3×3 grid with images.
 
@@ -1631,7 +1670,8 @@ def run_dual_nback_block(win, n, num_trials, display_duration=1.0,
 
     # Add this line here
     logging.info(
-        f"Dual N-back Block {block_number + 1} timings - Presentation: {display_duration * 1000}ms, ISI: {isi * 1000}ms")
+        f"Dual N-back Block {block_number + 1} timings - Presentation: {display_duration * 1000}ms, ISI: {isi * 1000}ms"
+    )
 
     positions, images = generate_dual_nback_sequence(num_trials, 3, n)
     nback_queue = []
@@ -1643,8 +1683,8 @@ def run_dual_nback_block(win, n, num_trials, display_duration=1.0,
 
     # Create visual elements
     grid, outline = create_grid(win, 3)
-    fixation_cross = visual.TextStim(win, text='+', color='white', height=32)
-    level_text = visual.TextStim(win, text=f"Level: {n}-back", color='white', height=24, pos=(-450, 350))
+    fixation_cross = visual.TextStim(win, text="+", color="white", height=32)
+    level_text = visual.TextStim(win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350))
 
     # Show initial instructions if first encounter
     if is_first_encounter:
@@ -1681,9 +1721,7 @@ def run_dual_nback_block(win, n, num_trials, display_duration=1.0,
 
         # If lapse feedback is needed
         if lapse_feedback:
-            lapse_feedback_stim = visual.TextStim(
-                win, text=lapse_feedback, color='orange', height=24, pos=(0, 400)
-            )
+            lapse_feedback_stim = visual.TextStim(win, text=lapse_feedback, color="orange", height=24, pos=(0, 400))
             lapse_feedback_stim.draw()
 
         # Highlight and image stimuli
@@ -1715,15 +1753,15 @@ def run_dual_nback_block(win, n, num_trials, display_duration=1.0,
         jittered_isi = get_jitter(isi)
 
         while response_timer.getTime() < jittered_isi:
-            keys = event.getKeys(keyList=['z', 'm', 'escape'])
-            if 'escape' in keys:
+            keys = event.getKeys(keyList=["z", "m", "escape"])
+            if "escape" in keys:
                 core.quit()
 
             if keys and response is None and i >= n:
                 reaction_time = response_timer.getTime()
-                if 'z' in keys:
+                if "z" in keys:
                     response = True
-                elif 'm' in keys:
+                elif "m" in keys:
                     response = False
 
                 if response == is_target:
@@ -1755,7 +1793,9 @@ def run_dual_nback_block(win, n, num_trials, display_duration=1.0,
     return new_n_level
 
 
-def run_adaptive_nback_task(win, task_name, initial_n, num_blocks, target_duration, run_block_function, starting_block_number=0):
+def run_adaptive_nback_task(
+    win, task_name, initial_n, num_blocks, target_duration, run_block_function, starting_block_number=0
+):
     """Run a full adaptive N-back task across multiple blocks, adjusting difficulty based on performance.
 
     Args:
@@ -1781,24 +1821,23 @@ def run_adaptive_nback_task(win, task_name, initial_n, num_blocks, target_durati
         sub_block_trials = int(sub_block_duration / (display_duration + isi))
 
         for sub_block in range(3):
-            is_first_encounter = (cumulative_block_number == 0 and sub_block == 0)
+            is_first_encounter = cumulative_block_number == 0 and sub_block == 0
 
             # Run a sub-block using the provided run_block_function
             # The run_block_function adjusts the n-back level internally based on performance
             n_level = run_block_function(
-                win, n_level, num_trials=sub_block_trials,
+                win,
+                n_level,
+                num_trials=sub_block_trials,
                 display_duration=display_duration,
                 isi=isi,
                 is_first_encounter=is_first_encounter,
-                block_number=cumulative_block_number
+                block_number=cumulative_block_number,
             )
 
             # Display level change if n-back level was adjusted
             if n_level != initial_n:
-                show_level_change_screen(
-                    win, task_name, initial_n, n_level,
-                    is_first_block=is_first_encounter
-                )
+                show_level_change_screen(win, task_name, initial_n, n_level, is_first_block=is_first_encounter)
                 initial_n = n_level  # Update initial_n to the new level
 
 
@@ -1833,7 +1872,7 @@ def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
                 # If seq_result is a dictionary, look for keys that might contain the trial data
                 elif isinstance(seq_result, dict):
                     # Try common keys that might contain trial data
-                    possible_keys = ['detailed_data', 'trials', 'trial_data', 'responses']
+                    possible_keys = ["detailed_data", "trials", "trial_data", "responses"]
                     for key in possible_keys:
                         if key in seq_result:
                             detailed_data = seq_result[key]
@@ -1843,20 +1882,23 @@ def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
                 # Make sure detailed_data is actually a list of dictionaries with required keys
                 if detailed_data and isinstance(detailed_data, list) and len(detailed_data) > 0:
                     # Verify the expected structure by checking the first item
-                    if isinstance(detailed_data[0], dict) and 'Is Target' in detailed_data[0] and 'Response' in \
-                            detailed_data[0]:
-                        seq_summary['D-Prime'] = calculate_dprime(detailed_data)
+                    if (
+                        isinstance(detailed_data[0], dict)
+                        and "Is Target" in detailed_data[0]
+                        and "Response" in detailed_data[0]
+                    ):
+                        seq_summary["D-Prime"] = calculate_dprime(detailed_data)
                         logging.debug(f"Successfully calculated D-Prime: {seq_summary['D-Prime']}")
                     else:
                         logging.warning(f"detailed_data items do not have the expected structure: {detailed_data[0]}")
-                        seq_summary['D-Prime'] = 0.0
+                        seq_summary["D-Prime"] = 0.0
                 else:
                     logging.warning(f"detailed_data is not a valid list: {detailed_data}")
-                    seq_summary['D-Prime'] = 0.0
+                    seq_summary["D-Prime"] = 0.0
 
             except Exception as e:
                 logging.error(f"Error calculating D-Prime: {e}")
-                seq_summary['D-Prime'] = 0.0  # Default value
+                seq_summary["D-Prime"] = 0.0  # Default value
 
             summaries.append((f"Sequential {n_back_level}-back (Block {idx})", seq_summary))
 
@@ -1891,16 +1933,16 @@ def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
 
             summary_text += f"\nPage {i + 1} of {total_pages}\nPress 'space' to continue, 'backspace' to go back, or 'escape' to exit."
 
-            summary_stim = visual.TextStim(win, text=summary_text, color='white', height=24, wrapWidth=800)
+            summary_stim = visual.TextStim(win, text=summary_text, color="white", height=24, wrapWidth=800)
             summary_stim.draw()
             win.flip()
 
-            keys = event.waitKeys(keyList=['space', 'backspace', 'escape'])
-            if 'space' in keys:
+            keys = event.waitKeys(keyList=["space", "backspace", "escape"])
+            if "space" in keys:
                 i += 1
-            elif 'backspace' in keys:
+            elif "backspace" in keys:
                 i = max(0, i - 1)
-            elif 'escape' in keys:
+            elif "escape" in keys:
                 return
 
         elif i == len(summaries):
@@ -1920,31 +1962,34 @@ def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
                         if isinstance(seq_result, (list, tuple)) and len(seq_result) >= 2:
                             detailed_data = seq_result[-2]
                         elif isinstance(seq_result, dict):
-                            possible_keys = ['detailed_data', 'trials', 'trial_data', 'responses']
+                            possible_keys = ["detailed_data", "trials", "trial_data", "responses"]
                             for key in possible_keys:
                                 if key in seq_result:
                                     detailed_data = seq_result[key]
                                     break
 
                         if detailed_data and isinstance(detailed_data, list) and len(detailed_data) > 0:
-                            if isinstance(detailed_data[0], dict) and 'Is Target' in detailed_data[0] and 'Response' in \
-                                    detailed_data[0]:
-                                seq_summary['D-Prime'] = calculate_dprime(detailed_data)
+                            if (
+                                isinstance(detailed_data[0], dict)
+                                and "Is Target" in detailed_data[0]
+                                and "Response" in detailed_data[0]
+                            ):
+                                seq_summary["D-Prime"] = calculate_dprime(detailed_data)
                             else:
-                                seq_summary['D-Prime'] = 0.0
+                                seq_summary["D-Prime"] = 0.0
                         else:
-                            seq_summary['D-Prime'] = 0.0
+                            seq_summary["D-Prime"] = 0.0
                     except Exception as e:
                         logging.error(f"Error calculating D-Prime for block {seq_idx + 1}: {e}")
-                        seq_summary['D-Prime'] = 0.0
+                        seq_summary["D-Prime"] = 0.0
 
-                accuracy_change = seq5['Overall Accuracy (%)'] - seq1['Overall Accuracy (%)']
-                rt_change = seq5['Average Reaction Time (s)'] - seq1['Average Reaction Time (s)']
-                total_rt1 = seq1['Average Reaction Time (s)'] * seq1['Total Trials']
-                total_rt5 = seq5['Average Reaction Time (s)'] * seq5['Total Trials']
+                accuracy_change = seq5["Overall Accuracy (%)"] - seq1["Overall Accuracy (%)"]
+                rt_change = seq5["Average Reaction Time (s)"] - seq1["Average Reaction Time (s)"]
+                total_rt1 = seq1["Average Reaction Time (s)"] * seq1["Total Trials"]
+                total_rt5 = seq5["Average Reaction Time (s)"] * seq5["Total Trials"]
                 total_rt_change = total_rt5 - total_rt1
-                lapse_change = seq5['Total Lapses'] - seq1['Total Lapses']
-                d_prime_change = seq5['D-Prime'] - seq1['D-Prime']
+                lapse_change = seq5["Total Lapses"] - seq1["Total Lapses"]
+                d_prime_change = seq5["D-Prime"] - seq1["D-Prime"]
 
                 comparison_text += "Sequential N-back (Block 1 vs Block 5):\n"
                 comparison_text += f"Accuracy Change: {'Increase' if accuracy_change >= 0 else 'Decrease'} of {abs(accuracy_change):.2f}% ({seq1['Overall Accuracy (%)']:.2f}% to {seq5['Overall Accuracy (%)']:.2f}%)\n"
@@ -1957,15 +2002,15 @@ def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
 
             comparison_text += f"\nPage {i + 1} of {total_pages}\nPress 'space' to continue, 'backspace' to go back, or 'escape' to exit."
 
-            comparison_stim = visual.TextStim(win, text=comparison_text, color='white', height=24, wrapWidth=800)
+            comparison_stim = visual.TextStim(win, text=comparison_text, color="white", height=24, wrapWidth=800)
             comparison_stim.draw()
             win.flip()
-            keys = event.waitKeys(keyList=['space', 'backspace', 'escape'])
-            if 'space' in keys:
+            keys = event.waitKeys(keyList=["space", "backspace", "escape"])
+            if "space" in keys:
                 i += 1
-            elif 'backspace' in keys:
+            elif "backspace" in keys:
                 i = max(0, i - 1)
-            elif 'escape' in keys:
+            elif "escape" in keys:
                 return
 
         else:
@@ -1990,16 +2035,18 @@ def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
 
             subjective_text += f"\nPage {i + 1} of {total_pages}\nPress 'space' to exit the summary, 'backspace' to go back, or 'escape' to exit."
 
-            subjective_stim = visual.TextStim(win, text=subjective_text, color='white', height=24, wrapWidth=800)
+            subjective_stim = visual.TextStim(win, text=subjective_text, color="white", height=24, wrapWidth=800)
             subjective_stim.draw()
             win.flip()
-            keys = event.waitKeys(keyList=['space', 'backspace', 'escape'])
-            if 'space' in keys or 'escape' in keys:
+            keys = event.waitKeys(keyList=["space", "backspace", "escape"])
+            if "space" in keys or "escape" in keys:
                 return
-            elif 'backspace' in keys:
+            elif "backspace" in keys:
                 i = max(0, i - 1)
 
     logging.debug("Debug: Exiting show_final_summary")
+
+
 def run_dummy_session(win, n_back_level=2, num_trials=20):
     """
     Run a brief sequential N-back verification session.
@@ -2045,13 +2092,13 @@ def run_dummy_session(win, n_back_level=2, num_trials=20):
             "Please CLICK this window (to focus it) and then\n"
             "press SPACE to begin."
         ),
-        color='white',
+        color="white",
         height=24,
-        wrapWidth=800
+        wrapWidth=800,
     )
     instr.draw()
     win.flip()
-    event.waitKeys(keyList=['space'])
+    event.waitKeys(keyList=["space"])
 
     # --- 3) Run the tiny sequential N-back block ---
     dummy_results = run_sequential_nback_block(
@@ -2063,23 +2110,25 @@ def run_dummy_session(win, n_back_level=2, num_trials=20):
         isi=1.0,
         num_trials=num_trials,
         is_first_encounter=True,
-        block_number=0
+        block_number=0,
     )
 
     # --- 4) Save to a timestamped CSV ---
-    data_dir = os.path.join(base_dir, 'data')
+    data_dir = os.path.join(base_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    fname = f'participant_dummy_n{n_back_level}_TestRun_{timestamp}.csv'
+    fname = f"participant_dummy_n{n_back_level}_TestRun_{timestamp}.csv"
 
     full_path = save_results_to_csv(
         fname,
-        [{
-            "Participant ID": "dummy",
-            "Task": f"Sequential {n_back_level}-back",
-            "Block": "TestRun",
-            "Results": dummy_results
-        }]
+        [
+            {
+                "Participant ID": "dummy",
+                "Task": f"Sequential {n_back_level}-back",
+                "Block": "TestRun",
+                "Results": dummy_results,
+            }
+        ],
     )
 
     # --- 5) Print & clean up ---
@@ -2108,25 +2157,25 @@ def main_task_flow():
 
         # Get participant info including N-back level
         exp_info = get_participant_info(win)
-        participant_id = exp_info['Participant ID']
-        n_back_level = exp_info['N-back Level']
+        participant_id = exp_info["Participant ID"]
+        n_back_level = exp_info["N-back Level"]
 
         # Set up the base directory and data directory
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             base_dir = sys._MEIPASS
         else:
             base_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(base_dir, 'data')
+        data_dir = os.path.join(base_dir, "data")
         os.makedirs(data_dir, exist_ok=True)
 
         # Define the log filename and path
-        log_filename = f'participant_{participant_id}_log.txt'
+        log_filename = f"participant_{participant_id}_log.txt"
         log_file_path = os.path.join(data_dir, log_filename)
 
         # Create a custom handler that flushes after each record
-        flush_file_handler = FlushFileHandler(log_file_path, mode='w', encoding='utf-8')
+        flush_file_handler = FlushFileHandler(log_file_path, mode="w", encoding="utf-8")
         flush_file_handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         flush_file_handler.setFormatter(formatter)
 
         # Configure logging with the custom handler
@@ -2155,10 +2204,10 @@ def main_task_flow():
                 f"- No response needed for the first {n_back_level} images\n\n"
                 "Press 'space' to begin the practice."
             )
-            instruction_text = visual.TextStim(win, text=familiarisation_text, color='white', height=24, wrapWidth=800)
+            instruction_text = visual.TextStim(win, text=familiarisation_text, color="white", height=24, wrapWidth=800)
             instruction_text.draw()
             win.flip()
-            event.waitKeys(keyList=['space'])
+            event.waitKeys(keyList=["space"])
 
             # Calculate trials needed for 1 minute (2s per trial)
             num_practice_trials = int(60 / 2)  # 30 trials will take 1 minute
@@ -2171,7 +2220,7 @@ def main_task_flow():
                 isi=1.0,
                 num_trials=num_practice_trials,
                 is_first_encounter=True,
-                block_number="PRACTICE"  # Changed from numerical block number
+                block_number="PRACTICE",  # Changed from numerical block number
             )
 
             completion_text = (
@@ -2180,25 +2229,32 @@ def main_task_flow():
                 "Your responses will be recorded from this point forward.\n\n"
                 "Press 'space' to start the first block."
             )
-            completion_stim = visual.TextStim(win, text=completion_text, color='white', height=24, wrapWidth=800)
+            completion_stim = visual.TextStim(win, text=completion_text, color="white", height=24, wrapWidth=800)
             completion_stim.draw()
             win.flip()
-            event.waitKeys(keyList=['space'])
+            event.waitKeys(keyList=["space"])
         except Exception as e:
             logging.info(f"Error in Sequential N-back familiarisation: {e}")
             logging.exception("Exception occurred")
 
         # Collect initial subjective measures
         initial_measures = collect_subjective_measures(win)
-        subjective_measures['Initial'] = initial_measures
+        subjective_measures["Initial"] = initial_measures
 
         # Sequential N-back Task - First Block
         logging.info(f"Starting Sequential {n_back_level}-back Task - Block 1 (display_duration: 800ms, ISI: 1000ms)")
         seq1_results = None
         try:
             seq1_results = run_sequential_nback_block(
-                win, n_back_level, num_images, target_percentage=0.5,
-                display_duration=0.8, isi=1.0, num_trials=20, is_first_encounter=True, block_number=1
+                win,
+                n_back_level,
+                num_images,
+                target_percentage=0.5,
+                display_duration=0.8,
+                isi=1.0,
+                num_trials=164,
+                is_first_encounter=True,
+                block_number=1,
             )
             save_sequential_results(participant_id, n_back_level, "Block_1", seq1_results)
         except Exception as e:
@@ -2211,11 +2267,15 @@ def main_task_flow():
             show_transition_screen(win, "Spatial N-back")
             show_welcome_screen(win, "Spatial N-back")
             run_adaptive_nback_task(
-                win, "Spatial N-back", n_back_level, 1, 30,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number:
-                run_spatial_nback_block(w, n, num_trials, display_duration, isi, is_first_encounter,
-                                        block_number=block_number),
-                starting_block_number=spatial_block
+                win,
+                "Spatial N-back",
+                n_back_level,
+                1,
+                270,
+                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_spatial_nback_block(
+                    w, n, num_trials, display_duration, isi, is_first_encounter, block_number=block_number
+                ),
+                starting_block_number=spatial_block,
             )
             spatial_block += 1
         except Exception as e:
@@ -2228,11 +2288,15 @@ def main_task_flow():
             show_transition_screen(win, "Dual N-back")
             show_welcome_screen(win, "Dual N-back")
             run_adaptive_nback_task(
-                win, "Dual N-back", n_back_level, 1, 30,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number:
-                run_dual_nback_block(w, n, num_trials, display_duration, isi, is_first_encounter,
-                                     block_number=block_number),
-                starting_block_number=dual_block
+                win,
+                "Dual N-back",
+                n_back_level,
+                1,
+                270,
+                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_dual_nback_block(
+                    w, n, num_trials, display_duration, isi, is_first_encounter, block_number=block_number
+                ),
+                starting_block_number=dual_block,
             )
             dual_block += 1
         except Exception as e:
@@ -2245,8 +2309,15 @@ def main_task_flow():
         try:
             show_transition_screen(win, "Sequential N-back")
             seq2_results = run_sequential_nback_block(
-                win, n_back_level, num_images, target_percentage=0.5,
-                display_duration=0.8, isi=1.0, num_trials=20, is_first_encounter=False, block_number=2
+                win,
+                n_back_level,
+                num_images,
+                target_percentage=0.5,
+                display_duration=0.8,
+                isi=1.0,
+                num_trials=164,
+                is_first_encounter=False,
+                block_number=2,
             )
             save_sequential_results(participant_id, n_back_level, "Block_2", seq2_results)
         except Exception as e:
@@ -2254,7 +2325,7 @@ def main_task_flow():
             logging.exception("Exception occurred")
 
         induction1_measures = collect_subjective_measures(win)
-        subjective_measures['Induction 1'] = induction1_measures
+        subjective_measures["Induction 1"] = induction1_measures
         show_break_screen(win, 20)
 
         # Dual N-back Task - Second Block
@@ -2262,11 +2333,15 @@ def main_task_flow():
         try:
             show_transition_screen(win, "Dual N-back")
             run_adaptive_nback_task(
-                win, "Dual N-back", n_back_level, 1, 30,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number:
-                run_dual_nback_block(w, n, num_trials, display_duration, isi, is_first_encounter,
-                                     block_number=block_number),
-                starting_block_number=dual_block
+                win,
+                "Dual N-back",
+                n_back_level,
+                1,
+                270,
+                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_dual_nback_block(
+                    w, n, num_trials, display_duration, isi, is_first_encounter, block_number=block_number
+                ),
+                starting_block_number=dual_block,
             )
             dual_block += 1
         except Exception as e:
@@ -2278,11 +2353,15 @@ def main_task_flow():
         try:
             show_transition_screen(win, "Spatial N-back")
             run_adaptive_nback_task(
-                win, "Spatial N-back", n_back_level, 1, 30,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number:
-                run_spatial_nback_block(w, n, num_trials, display_duration, isi, is_first_encounter,
-                                        block_number=block_number),
-                starting_block_number=spatial_block
+                win,
+                "Spatial N-back",
+                n_back_level,
+                1,
+                270,
+                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_spatial_nback_block(
+                    w, n, num_trials, display_duration, isi, is_first_encounter, block_number=block_number
+                ),
+                starting_block_number=spatial_block,
             )
             spatial_block += 1
         except Exception as e:
@@ -2295,8 +2374,15 @@ def main_task_flow():
         try:
             show_transition_screen(win, "Sequential N-back")
             seq3_results = run_sequential_nback_block(
-                win, n_back_level, num_images, target_percentage=0.5,
-                display_duration=0.8, isi=1.0, num_trials=20, is_first_encounter=False, block_number=3
+                win,
+                n_back_level,
+                num_images,
+                target_percentage=0.5,
+                display_duration=0.8,
+                isi=1.0,
+                num_trials=164,
+                is_first_encounter=False,
+                block_number=3,
             )
             save_sequential_results(participant_id, n_back_level, "Block_3", seq3_results)
         except Exception as e:
@@ -2304,18 +2390,22 @@ def main_task_flow():
             logging.exception("Exception occurred")
 
         induction2_measures = collect_subjective_measures(win)
-        subjective_measures['Induction 2'] = induction2_measures
+        subjective_measures["Induction 2"] = induction2_measures
 
         # Spatial N-back Task - Third Block
         logging.info("Starting Spatial N-back Task - Block 3")
         try:
             show_transition_screen(win, "Spatial N-back")
             run_adaptive_nback_task(
-                win, "Spatial N-back", n_back_level, 1, 30,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number:
-                run_spatial_nback_block(w, n, num_trials, display_duration, isi, is_first_encounter,
-                                        block_number=block_number),
-                starting_block_number=spatial_block
+                win,
+                "Spatial N-back",
+                n_back_level,
+                1,
+                270,
+                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_spatial_nback_block(
+                    w, n, num_trials, display_duration, isi, is_first_encounter, block_number=block_number
+                ),
+                starting_block_number=spatial_block,
             )
             spatial_block += 1
         except Exception as e:
@@ -2327,11 +2417,15 @@ def main_task_flow():
         try:
             show_transition_screen(win, "Dual N-back")
             run_adaptive_nback_task(
-                win, "Dual N-back", n_back_level, 1, 30,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number:
-                run_dual_nback_block(w, n, num_trials, display_duration, isi, is_first_encounter,
-                                     block_number=block_number),
-                starting_block_number=dual_block
+                win,
+                "Dual N-back",
+                n_back_level,
+                1,
+                270,
+                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_dual_nback_block(
+                    w, n, num_trials, display_duration, isi, is_first_encounter, block_number=block_number
+                ),
+                starting_block_number=dual_block,
             )
             dual_block += 1
         except Exception as e:
@@ -2344,8 +2438,15 @@ def main_task_flow():
         try:
             show_transition_screen(win, "Sequential N-back")
             seq4_results = run_sequential_nback_block(
-                win, n_back_level, num_images, target_percentage=0.5,
-                display_duration=0.8, isi=1.0, num_trials=20, is_first_encounter=False, block_number=4
+                win,
+                n_back_level,
+                num_images,
+                target_percentage=0.5,
+                display_duration=0.8,
+                isi=1.0,
+                num_trials=164,
+                is_first_encounter=False,
+                block_number=4,
             )
             save_sequential_results(participant_id, n_back_level, "Block_4", seq4_results)
         except Exception as e:
@@ -2354,7 +2455,7 @@ def main_task_flow():
 
         # Collect measures after fourth Sequential block
         induction3_measures = collect_subjective_measures(win)
-        subjective_measures['Induction 3'] = induction3_measures
+        subjective_measures["Induction 3"] = induction3_measures
         show_break_screen(win, 20)
 
         # Dual N-back Task - Fourth Block
@@ -2362,11 +2463,15 @@ def main_task_flow():
         try:
             show_transition_screen(win, "Dual N-back")
             run_adaptive_nback_task(
-                win, "Dual N-back", n_back_level, 1, 30,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number:
-                run_dual_nback_block(w, n, num_trials, display_duration, isi, is_first_encounter,
-                                     block_number=block_number),
-                starting_block_number=dual_block
+                win,
+                "Dual N-back",
+                n_back_level,
+                1,
+                270,
+                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_dual_nback_block(
+                    w, n, num_trials, display_duration, isi, is_first_encounter, block_number=block_number
+                ),
+                starting_block_number=dual_block,
             )
             dual_block += 1
         except Exception as e:
@@ -2378,11 +2483,15 @@ def main_task_flow():
         try:
             show_transition_screen(win, "Spatial N-back")
             run_adaptive_nback_task(
-                win, "Spatial N-back", n_back_level, 1, 30,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number:
-                run_spatial_nback_block(w, n, num_trials, display_duration, isi, is_first_encounter,
-                                        block_number=block_number),
-                starting_block_number=spatial_block
+                win,
+                "Spatial N-back",
+                n_back_level,
+                1,
+                270,
+                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_spatial_nback_block(
+                    w, n, num_trials, display_duration, isi, is_first_encounter, block_number=block_number
+                ),
+                starting_block_number=spatial_block,
             )
             spatial_block += 1
         except Exception as e:
@@ -2395,8 +2504,15 @@ def main_task_flow():
         try:
             show_transition_screen(win, "Sequential N-back")
             seq5_results = run_sequential_nback_block(
-                win, n_back_level, num_images, target_percentage=0.5,
-                display_duration=0.8, isi=1.0, num_trials=20, is_first_encounter=False, block_number=5
+                win,
+                n_back_level,
+                num_images,
+                target_percentage=0.5,
+                display_duration=0.8,
+                isi=1.0,
+                num_trials=164,
+                is_first_encounter=False,
+                block_number=5,
             )
             save_sequential_results(participant_id, n_back_level, "Block_5", seq5_results)
         except Exception as e:
@@ -2404,7 +2520,7 @@ def main_task_flow():
             logging.exception("Exception occurred")
 
         post_all_measures = collect_subjective_measures(win)
-        subjective_measures['Post-All'] = post_all_measures
+        subjective_measures["Post-All"] = post_all_measures
 
         # Show final summary comparing all tasks
         logging.info("Showing final summary")
@@ -2413,7 +2529,7 @@ def main_task_flow():
                 win,
                 [seq1_results, seq2_results, seq3_results, seq4_results, seq5_results],
                 subjective_measures,
-                n_back_level
+                n_back_level,
             )
         except Exception as e:
             logging.info(f"Error in showing final summary: {e}")
@@ -2422,43 +2538,43 @@ def main_task_flow():
         # Save results to CSV
         logging.info("Saving results to CSV")
         try:
-            results_filename = f'participant_{participant_id}_n{n_back_level}_results.csv'
+            results_filename = f"participant_{participant_id}_n{n_back_level}_results.csv"
             all_results = [
                 {
                     "Participant ID": participant_id,
                     "N-back Level": n_back_level,
                     "Task": f"Sequential {n_back_level}-back",
                     "Block": 1,
-                    "Results": seq1_results
+                    "Results": seq1_results,
                 },
                 {
                     "Participant ID": participant_id,
                     "N-back Level": n_back_level,
                     "Task": f"Sequential {n_back_level}-back",
                     "Block": 2,
-                    "Results": seq2_results
+                    "Results": seq2_results,
                 },
                 {
                     "Participant ID": participant_id,
                     "N-back Level": n_back_level,
                     "Task": f"Sequential {n_back_level}-back",
                     "Block": 3,
-                    "Results": seq3_results
+                    "Results": seq3_results,
                 },
                 {
                     "Participant ID": participant_id,
                     "N-back Level": n_back_level,
                     "Task": f"Sequential {n_back_level}-back",
                     "Block": 4,
-                    "Results": seq4_results
+                    "Results": seq4_results,
                 },
                 {
                     "Participant ID": participant_id,
                     "N-back Level": n_back_level,
                     "Task": f"Sequential {n_back_level}-back",
                     "Block": 5,
-                    "Results": seq5_results
-                }
+                    "Results": seq5_results,
+                },
             ]
             saved_file_path = save_results_to_csv(results_filename, all_results, subjective_measures)
             logging.info(f"Results and subjective measures saved to {saved_file_path}")
@@ -2466,13 +2582,13 @@ def main_task_flow():
             final_message = visual.TextStim(
                 win,
                 text=f"Thank you for participating in the experiment!\n\nYour results have been saved to:\n{saved_file_path}\n\nPress 'space' to exit.",
-                color='white',
+                color="white",
                 height=24,
-                wrapWidth=800
+                wrapWidth=800,
             )
             final_message.draw()
             win.flip()
-            event.waitKeys(keyList=['space'])
+            event.waitKeys(keyList=["space"])
         except Exception as e:
             logging.info(f"Error in saving results to CSV: {e}")
             logging.exception("Exception occurred")
@@ -2482,35 +2598,7 @@ def main_task_flow():
     logging.info("Exiting main_task_flow()")
     win.close()
     core.quit()
+
+
 if __name__ == "__main__":
-    import argparse
-    import sys                     #  <-- add this
-
-    parser = argparse.ArgumentParser(
-        description="WAND fatigue‑induction: sequential, spatial & dual N‑back"
-    )
-    parser.add_argument(
-        "--test", action="store_true",
-        help="do a quick dummy session (not the full 90 min protocol)"
-    )
-    parser.add_argument(
-        "--level", type=int, default=2,
-        help="N‑back level for the dummy run (default: 2)"
-    )
-    parser.add_argument(
-        "--trials", type=int, default=20,
-        help="number of trials for dummy session (default: 20)"
-    )
-    args = parser.parse_args()
-
-    if args.test:
-        run_dummy_session(
-            win,
-            n_back_level=args.level,
-            num_trials=args.trials
-        )
-        sys.exit(0)                #  <-- hard‑stop so full protocol never runs
-    else:
         main_task_flow()
-
-

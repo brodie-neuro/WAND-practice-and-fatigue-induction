@@ -1,9 +1,11 @@
-import sys
-import traceback
-from psychopy import visual, core, event
-import random
+#!/usr/bin/env python3
 import math
 import os
+import random
+import sys
+import traceback
+
+from psychopy import core, event, visual
 
 """
 WAND-practice-plateau
@@ -23,11 +25,33 @@ Version: 1.0
 
 # Licensed under the MIT License (see LICENSE file for full text)
 
+# determine where this script lives on _any_ machine
+import os
+import sys
+
+if getattr(sys, "frozen", False):
+    # if you’ve bundled into an executable
+    base_dir = sys._MEIPASS
+else:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
 skip_to_next_stage = False
 
 grid_lines = []
 
-def create_grid_lines(win, grid_spacing=100, grid_color='gray', opacity=0.2):
+
+def create_grid_lines(win, grid_spacing=100, grid_color="gray", opacity=0.2):
+    """Create a grid of lines for the background of the N-back tasks.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw the grid on.
+        grid_spacing (int, optional): Distance between grid lines in pixels. Defaults to 100.
+        grid_color (str, optional): Color of the grid lines (e.g., 'gray'). Defaults to 'gray'.
+        opacity (float, optional): Opacity of grid lines (0 to 1). Defaults to 0.2.
+
+    Returns:
+        list: List of visual.Line objects representing the grid.
+    """
     win_width, win_height = win.size
     half_width = win_width / 2
     half_height = win_height / 2
@@ -36,47 +60,71 @@ def create_grid_lines(win, grid_spacing=100, grid_color='gray', opacity=0.2):
     num_vertical_lines = int(win_width // grid_spacing) + 2
     num_horizontal_lines = int(win_height // grid_spacing) + 2
 
-    start_x = - (num_vertical_lines // 2) * grid_spacing + grid_spacing / 2
+    start_x = -(num_vertical_lines // 2) * grid_spacing + grid_spacing / 2
     x_positions = [start_x + i * grid_spacing for i in range(num_vertical_lines)]
 
-    start_y = - (num_horizontal_lines // 2) * grid_spacing + grid_spacing / 2
+    start_y = -(num_horizontal_lines // 2) * grid_spacing + grid_spacing / 2
     y_positions = [start_y + i * grid_spacing for i in range(num_horizontal_lines)]
 
     for x in x_positions:
         line = visual.Line(
-            win,
-            start=(x, -half_height),
-            end=(x, half_height),
-            lineColor=grid_color,
-            opacity=opacity,
-            units='pix'
+            win, start=(x, -half_height), end=(x, half_height), lineColor=grid_color, opacity=opacity, units="pix"
         )
         lines.append(line)
 
     for y in y_positions:
         line = visual.Line(
-            win,
-            start=(-half_width, y),
-            end=(half_width, y),
-            lineColor=grid_color,
-            opacity=opacity,
-            units='pix'
+            win, start=(-half_width, y), end=(half_width, y), lineColor=grid_color, opacity=opacity, units="pix"
         )
         lines.append(line)
 
     return lines
 
+
 def draw_grid():
+    """Render the background grid lines into the current PsychoPy window.
+
+    Side effects:
+        Draws all Line stimuli stored in the global `grid_lines` list
+        onto the global `win` before the next `win.flip()`.
+
+    Returns:
+        None
+    """
     for line in grid_lines:
         line.draw()
 
+
 def set_skip_flag():
+    """Mark that the user has requested to skip the remainder of the current phase.
+
+    When bound to a global key (’5’), this lets any running practice/demo block
+    check `skip_to_next_stage` and exit early.
+
+    Side effects:
+        Sets the module‐level boolean `skip_to_next_stage` to True.
+
+    Returns:
+        None
+    """
     global skip_to_next_stage
     skip_to_next_stage = True
 
-event.globalKeys.add(key='5', func=set_skip_flag)
+
+event.globalKeys.add(key="5", func=set_skip_flag)
+
 
 def prompt_starting_level():
+    """Prompt the user to select the starting N-back level for the Sequential task.
+
+    Displays instructions and waits for '2' or '3' key press to set the starting level.
+
+    Returns:
+        int: The chosen starting level (2 or 3).
+
+    Raises:
+        SystemExit: If 'escape' is pressed, the program exits.
+    """
     instructions = (
         "Sequential N-back Task\n\n"
         "You can choose your starting level:\n"
@@ -84,23 +132,32 @@ def prompt_starting_level():
         "Press '3' for 3-back\n\n"
         "Press the corresponding key to begin."
     )
-    instruction_text = visual.TextStim(win, text=instructions, color='white', height=24, wrapWidth=800)
+    instruction_text = visual.TextStim(win, text=instructions, color="white", height=24, wrapWidth=800)
     instruction_text.draw()
     win.flip()
     starting_level = None
     while starting_level not in [2, 3]:
-        keys = event.waitKeys(keyList=['2', '3', 'escape'])
-        if 'escape' in keys:
+        keys = event.waitKeys(keyList=["2", "3", "escape"])
+        if "escape" in keys:
             core.quit()
-        elif '2' in keys:
+        elif "2" in keys:
             starting_level = 2
-        elif '3' in keys:
+        elif "3" in keys:
             starting_level = 3
     return starting_level
 
 
-
 def error_catcher(type, value, tb):
+    """Custom exception hook to handle and display errors gracefully.
+
+    Args:
+        type: The exception type.
+        value: The exception instance.
+        tb: The traceback object.
+
+    Note:
+        Prints error details and waits for user input before exiting.
+    """
     print("An error occurred:")
     print("Type:", type)
     print("Value:", value)
@@ -108,13 +165,14 @@ def error_catcher(type, value, tb):
     input("Press Enter to exit...")
     sys.exit(1)
 
+
 sys.excepthook = error_catcher
 
 print("Starting script...")
 print("Creating window...")
 
 try:
-    win = visual.Window(fullscr=False, color='black', units='pix')
+    win = visual.Window(fullscr=False, color="black", units="pix")
     print("Window created successfully.")
     grid_lines = create_grid_lines(win)
 except Exception as e:
@@ -122,16 +180,26 @@ except Exception as e:
     input("Press Enter to exit...")
     sys.exit(1)
 
-event.globalKeys.add(key='escape', func=core.quit)
-image_dir = r"C:\Users\brodi\PHD\PyCharm2\psychopy project dev\Abstract Stimuli\apophysis"
-image_files = [f for f in os.listdir(image_dir) if f.endswith('.png')]
+event.globalKeys.add(key="escape", func=core.quit)
+# point at the stimuli folder next to this script
+image_dir = os.path.join(base_dir, "Abstract Stimuli", "apophysis")
+
+image_files = [f for f in os.listdir(image_dir) if f.endswith(".png")]
 
 if len(image_files) < 22:
     error_message = "Not enough images found in directory"
     print(error_message)
     sys.exit(1)
 
+
 def show_pilot_entry_screen():
+    """Display an initial welcome screen outlining the practice session structure.
+
+    Informs participants about the three N-back task types and waits for 'space' to begin.
+
+    Raises:
+        SystemExit: If 'escape' is pressed, the program exits.
+    """
     pilot_text = (
         "Welcome to the N-back Practice Session\n\n"
         "You will complete three types of tasks:\n\n"
@@ -140,17 +208,25 @@ def show_pilot_entry_screen():
         "3. Sequential N-back (until performance stabilises)\n\n"
         "Press 'space' to begin."
     )
-    pilot_message = visual.TextStim(win, text=pilot_text, color='white', height=24, wrapWidth=800)
+    pilot_message = visual.TextStim(win, text=pilot_text, color="white", height=24, wrapWidth=800)
     pilot_message.draw()
     win.flip()
-    event.waitKeys(keyList=['space'])
+    event.waitKeys(keyList=["space"])
 
 
 def show_task_instructions(win, task_name, n_back_level=None):
+    """Display task-specific instructions based on the task type.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw instructions on.
+        task_name (str): The task type ('spatial', 'dual', or 'sequential').
+        n_back_level (int, optional): The N-back level for sequential tasks (2 or 3). Defaults to None.
+
+    Raises:
+        SystemExit: If 'escape' is pressed, the program exits.
+    """
     welcome_text = f"Welcome to the {task_name} Task\n\n"
-    welcome_text += (
-        "You will first complete a demonstration, followed by a practice session.\n\n"
-    )
+    welcome_text += "You will first complete a demonstration, followed by a practice session.\n\n"
 
     if task_name.lower() == "sequential":
         nb = n_back_level if n_back_level in [2, 3] else 2
@@ -193,43 +269,60 @@ def show_task_instructions(win, task_name, n_back_level=None):
             "Respond as quickly and accurately as possible.\n"
         )
     else:
-        welcome_text += (
-            "(No specific instructions available for this task.)\n\n"
-        )
+        welcome_text += "(No specific instructions available for this task.)\n\n"
 
-    instruction_text = visual.TextStim(
-        win,
-        text=welcome_text,
-        color='white',
-        height=24,
-        wrapWidth=800
-    )
+    instruction_text = visual.TextStim(win, text=welcome_text, color="white", height=24, wrapWidth=800)
     instruction_text.draw()
     win.flip()
 
     # Wait until participant presses SPACE
     while True:
-        keys = event.waitKeys(keyList=['space', 'escape'])
-        if 'space' in keys:
+        keys = event.waitKeys(keyList=["space", "escape"])
+        if "space" in keys:
             break
-        elif 'escape' in keys:
+        elif "escape" in keys:
             core.quit()
 
 
 def show_countdown():
+    """Display a 3-2-1 countdown sequence before each task block.
+
+    Uses a 1-second interval for each number, drawn on the global `win`.
+    """
     for i in [3, 2, 1]:
-        countdown_message = visual.TextStim(win, text=str(i), color='white', height=72)
+        countdown_message = visual.TextStim(win, text=str(i), color="white", height=72)
         countdown_message.draw()
         win.flip()
         core.wait(1)
 
+
 def display_feedback(win, correct, pos=(0, 400)):
-    feedback_symbol = '✓' if correct else '✗'
-    feedback_color = 'green' if correct else 'red'
+    """Display feedback symbol (✓ or ✗) based on response correctness.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw feedback on.
+        correct (bool): True for correct response, False for incorrect.
+        pos (tuple, optional): Position (x, y) of the feedback symbol. Defaults to (0, 400).
+    """
+    feedback_symbol = "✓" if correct else "✗"
+    feedback_color = "green" if correct else "red"
     feedback_stim = visual.TextStim(win, text=feedback_symbol, color=feedback_color, height=48, pos=pos)
     feedback_stim.draw()
 
+
 def display_block_results(task_name, accuracy, num_correct, num_incorrect, num_lapses):
+    """Display performance summary after each N-back practice block.
+
+    Args:
+        task_name (str): The task type ('Spatial', 'Dual', or 'Sequential').
+        accuracy (float): Percentage accuracy of the block.
+        num_correct (int): Number of correct responses.
+        num_incorrect (int): Number of incorrect responses.
+        num_lapses (int): Number of missed responses.
+
+    Raises:
+        SystemExit: If 'escape' is pressed, the program exits.
+    """
     results_text = (
         f"{task_name} N-back Block Results\n\n"
         f"Accuracy: {accuracy:.1f}%\n"
@@ -238,25 +331,27 @@ def display_block_results(task_name, accuracy, num_correct, num_incorrect, num_l
         f"Missed Responses: {num_lapses}\n\n"
         "Press 'space' to continue."
     )
-    results_stim = visual.TextStim(win, text=results_text, color='white', height=24, wrapWidth=800)
+    results_stim = visual.TextStim(win, text=results_text, color="white", height=24, wrapWidth=800)
     results_stim.draw()
     win.flip()
-    event.waitKeys(keyList=['space'])
+    event.waitKeys(keyList=["space"])
 
 
 def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0):
-    """
-    Spatial 2-back Demo in two passes:
-      PASS 1 (Normal):
-        - 6 trials at normal speed with brief feedback from trial 3 onward.
-      PASS 2 (Explanatory):
-        - The same 6 trials replayed.
-        - Each trial: present the highlighted square and keep it visible throughout the explanation.
-        - Extended feedback: if there's a mismatch, the current square remains highlighted in white
-          and the old square is shown in orange.
-        - After each trial's extended feedback, a prompt appears ("Press SPACE to proceed to the next trial"
-          or, on the final trial, "This was the final trial. Press SPACE to finish the demo.").
-      At any point, pressing "5" (or "escape") will skip the demo.
+    """Run a two-pass demo for the Spatial N-back task.
+
+    PASS 1: Normal speed with brief feedback.
+    PASS 2: Explanatory pass with extended feedback and space-to-proceed.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw the demo on.
+        n (int, optional): The N-back level. Defaults to 2.
+        num_demo_trials (int, optional): Number of trials in the demo. Defaults to 6.
+        display_duration (float, optional): Duration to display each stimulus. Defaults to 1.0.
+        isi (float, optional): Inter-stimulus interval. Defaults to 1.0.
+
+    Raises:
+        SystemExit: If 'escape' or '5' is pressed, the demo skips.
     """
 
     # Generate a 6-trial sequence (using ~40% targets)
@@ -272,11 +367,11 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
         "  2) Slowed/Explanatory version – after extended feedback, press SPACE to proceed\n\n"
         "Press SPACE to begin."
     )
-    intro_stim = visual.TextStim(win, text=intro_text, color='white', height=24, wrapWidth=800)
+    intro_stim = visual.TextStim(win, text=intro_text, color="white", height=24, wrapWidth=800)
     intro_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
     # ---------------------------------------------------------------------
@@ -288,11 +383,11 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
         f"From trial {n + 1} onward, a brief ✓ or ✗ will appear.\n\n"
         "Press SPACE to start PASS 1."
     )
-    pass1_stim = visual.TextStim(win, text=pass1_text, color='white', height=24, wrapWidth=800)
+    pass1_stim = visual.TextStim(win, text=pass1_text, color="white", height=24, wrapWidth=800)
     pass1_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
     nback_queue = []
@@ -312,7 +407,7 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
         # Feedback from trial 3 onward (brief)
         if trial_num > n:
             old_pos = nback_queue[-n]
-            is_target = (current_pos == old_pos)
+            is_target = current_pos == old_pos
             display_grid(win, highlight_pos=None, highlight=False, n_level=n)
             display_feedback(win, is_target, pos=(0, 400))
             win.flip()
@@ -328,11 +423,11 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
     # End of PASS 1
     draw_grid()
     pass1_end_text = "End of PASS 1.\nPress SPACE to continue to PASS 2 (Explanatory)."
-    pass1_end_stim = visual.TextStim(win, text=pass1_end_text, color='white', height=24, wrapWidth=800)
+    pass1_end_stim = visual.TextStim(win, text=pass1_end_text, color="white", height=24, wrapWidth=800)
     pass1_end_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
     # ---------------------------------------------------------------------
@@ -344,11 +439,11 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
         "If there's a mismatch, the old square will be highlighted in orange alongside the current square.\n\n"
         "Press SPACE to begin PASS 2."
     )
-    pass2_stim = visual.TextStim(win, text=pass2_text, color='white', height=24, wrapWidth=800)
+    pass2_stim = visual.TextStim(win, text=pass2_text, color="white", height=24, wrapWidth=800)
     pass2_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
     # Reset queue for PASS 2
@@ -361,7 +456,7 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
         angles = [idx * (360 / 12) for idx in range(12)]
         cur_x = radius * math.cos(math.radians(angles[current_pos]))
         cur_y = radius * math.sin(math.radians(angles[current_pos]))
-        current_rect = visual.Rect(win, width=50, height=50, pos=(cur_x, cur_y), fillColor='white')
+        current_rect = visual.Rect(win, width=50, height=50, pos=(cur_x, cur_y), fillColor="white")
 
         # Display grid with highlighted current position
         display_grid(win, highlight_pos=current_pos, highlight=True, n_level=n)
@@ -373,7 +468,7 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
         # Extended feedback for trial > n (with stimulus still visible)
         if trial_num > n:
             old_pos = nback_queue[-n]
-            is_target = (current_pos == old_pos)
+            is_target = current_pos == old_pos
 
             # Redraw the grid with the current position still highlighted
             display_grid(win, highlight_pos=current_pos, highlight=True, n_level=n)
@@ -382,7 +477,7 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
             if not is_target:
                 old_x = radius * math.cos(math.radians(angles[old_pos]))
                 old_y = radius * math.sin(math.radians(angles[old_pos]))
-                mismatch_rect = visual.Rect(win, width=50, height=50, pos=(old_x, old_y), fillColor='orange')
+                mismatch_rect = visual.Rect(win, width=50, height=50, pos=(old_x, old_y), fillColor="orange")
                 mismatch_rect.draw()
 
             if is_target:
@@ -390,7 +485,7 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
             else:
                 fb_text = f"If you remember, {n} steps back, that was a different square. (✗)"
 
-            feedback_stim = visual.TextStim(win, text=fb_text, color='white', height=24, pos=(0, -250), wrapWidth=800)
+            feedback_stim = visual.TextStim(win, text=fb_text, color="white", height=24, pos=(0, -250), wrapWidth=800)
             feedback_stim.draw()
             display_feedback(win, is_target, pos=(0, 400))
 
@@ -400,13 +495,14 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
             else:
                 proceed_text = "Press SPACE to proceed to the next trial."
 
-            proceed_stim = visual.TextStim(win, text=proceed_text, color='white', height=24, wrapWidth=800,
-                                           pos=(0, -280))
+            proceed_stim = visual.TextStim(
+                win, text=proceed_text, color="white", height=24, wrapWidth=800, pos=(0, -280)
+            )
             proceed_stim.draw()
             win.flip()
 
-            keys = event.waitKeys(keyList=['space', 'escape', '5'])
-            if 'escape' in keys or '5' in keys:
+            keys = event.waitKeys(keyList=["space", "escape", "5"])
+            if "escape" in keys or "5" in keys:
                 return
         else:
             # For trials <= n, add a prompt but keep the stimulus visible
@@ -417,13 +513,14 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
             else:
                 proceed_text = "Press SPACE to proceed to the next trial."
 
-            proceed_stim = visual.TextStim(win, text=proceed_text, color='white', height=24, wrapWidth=800,
-                                           pos=(0, -280))
+            proceed_stim = visual.TextStim(
+                win, text=proceed_text, color="white", height=24, wrapWidth=800, pos=(0, -280)
+            )
             proceed_stim.draw()
             win.flip()
 
-            keys = event.waitKeys(keyList=['space', 'escape', '5'])
-            if 'escape' in keys or '5' in keys:
+            keys = event.waitKeys(keyList=["space", "escape", "5"])
+            if "escape" in keys or "5" in keys:
                 return
 
         nback_queue.append(current_pos)
@@ -433,12 +530,13 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
     # End of PASS 2
     draw_grid()
     pass2_end_text = "End of PASS 2 (Explanatory).\nPress SPACE to finish the demo."
-    pass2_end_stim = visual.TextStim(win, text=pass2_end_text, color='white', height=24, wrapWidth=800)
+    pass2_end_stim = visual.TextStim(win, text=pass2_end_text, color="white", height=24, wrapWidth=800)
     pass2_end_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
+
 
 def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
     """
@@ -476,11 +574,11 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
         "  2) Extended/Explanatory version – after extended feedback, press SPACE to proceed\n\n"
         "Press SPACE to begin."
     )
-    intro_stim = visual.TextStim(win, text=intro_text, color='white', height=24, wrapWidth=800)
+    intro_stim = visual.TextStim(win, text=intro_text, color="white", height=24, wrapWidth=800)
     intro_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
     # ---------------------------------------------------------------------
@@ -492,11 +590,11 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
         f"From trial {n + 1} onward, a brief tick (✓) or cross (✗) will appear.\n\n"
         "Press SPACE to start PASS 1."
     )
-    pass1_stim = visual.TextStim(win, text=pass1_text, color='white', height=24, wrapWidth=800)
+    pass1_stim = visual.TextStim(win, text=pass1_text, color="white", height=24, wrapWidth=800)
     pass1_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
     nback_queue = []
@@ -506,7 +604,7 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
         # Present the dual stimulus.
         dual_stim = display_dual_stimulus(win, pos, img, grid_size, n_level=n, return_stim=True)
         grid, outline = create_grid(win, grid_size)
-        level_text = visual.TextStim(win, text=f"Level: {n}-back", color='white', height=24, pos=(-450, 350))
+        level_text = visual.TextStim(win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350))
 
         def draw_current_state():
             draw_grid()
@@ -532,7 +630,7 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
         # For trials > n, show brief feedback.
         if trial_num > n:
             old_pos, old_img = nback_queue[-n]
-            is_target = (pos == old_pos and img == old_img)
+            is_target = pos == old_pos and img == old_img
             draw_current_state()
             display_feedback(win, is_target, pos=(0, 400))
             win.flip()
@@ -547,11 +645,11 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
 
     draw_grid()
     pass1_end_text = "End of PASS 1.\nPress SPACE to continue to PASS 2 (Explanatory)."
-    pass1_end_stim = visual.TextStim(win, text=pass1_end_text, color='white', height=24, wrapWidth=800)
+    pass1_end_stim = visual.TextStim(win, text=pass1_end_text, color="white", height=24, wrapWidth=800)
     pass1_end_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
     # ---------------------------------------------------------------------
@@ -564,11 +662,11 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
         "alongside the current stimulus.\n\n"
         "Press SPACE to begin PASS 2."
     )
-    pass2_stim = visual.TextStim(win, text=pass2_text, color='white', height=24, wrapWidth=800)
+    pass2_stim = visual.TextStim(win, text=pass2_text, color="white", height=24, wrapWidth=800)
     pass2_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
     # Reset queue for PASS 2.
@@ -579,7 +677,7 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
         # Present the dual stimulus and don't clear it
         dual_stim = display_dual_stimulus(win, pos, img, grid_size, n_level=n, return_stim=True)
         grid, outline = create_grid(win, grid_size)
-        level_text = visual.TextStim(win, text=f"Level: {n}-back", color='white', height=24, pos=(-450, 350))
+        level_text = visual.TextStim(win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350))
 
         def draw_current_state(with_dual_stim=True):
             draw_grid()
@@ -601,7 +699,7 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
             core.wait(display_duration)  # Wait the display duration but keep stimulus visible
 
             old_pos, old_img = nback_queue[-n]
-            is_target = (pos == old_pos and img == old_img)
+            is_target = pos == old_pos and img == old_img
 
             # Redraw everything including current stimulus
             draw_current_state(True)
@@ -609,8 +707,14 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
             # If mismatch, also draw the old stimulus with an orange border
             if not is_target:
                 old_stim = display_dual_stimulus(win, old_pos, old_img, grid_size, n_level=n, return_stim=True)
-                old_border = visual.Rect(win, width=old_stim.size[0] + 10, height=old_stim.size[1] + 10,
-                                         pos=old_stim.pos, lineColor='orange', lineWidth=4)
+                old_border = visual.Rect(
+                    win,
+                    width=old_stim.size[0] + 10,
+                    height=old_stim.size[1] + 10,
+                    pos=old_stim.pos,
+                    lineColor="orange",
+                    lineWidth=4,
+                )
                 old_border.draw()
                 old_stim.draw()
 
@@ -619,7 +723,7 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
             else:
                 fb_text = f"If you remember, {n} steps back, that was a different dual stimulus. (✗)"
 
-            feedback_stim = visual.TextStim(win, text=fb_text, color='white', height=24, pos=(0, -250), wrapWidth=800)
+            feedback_stim = visual.TextStim(win, text=fb_text, color="white", height=24, pos=(0, -250), wrapWidth=800)
             feedback_stim.draw()
             display_feedback(win, is_target, pos=(0, 400))
 
@@ -628,13 +732,14 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
             else:
                 proceed_text = "Press SPACE to proceed to the next trial."
 
-            proceed_stim = visual.TextStim(win, text=proceed_text, color='white', height=24, wrapWidth=800,
-                                           pos=(0, -280))
+            proceed_stim = visual.TextStim(
+                win, text=proceed_text, color="white", height=24, wrapWidth=800, pos=(0, -280)
+            )
             proceed_stim.draw()
             win.flip()
 
-            keys = event.waitKeys(keyList=['space', 'escape', '5'])
-            if 'escape' in keys or '5' in keys:
+            keys = event.waitKeys(keyList=["space", "escape", "5"])
+            if "escape" in keys or "5" in keys:
                 return
         else:
             # For trials <= n, still wait display_duration but keep stimulus visible
@@ -648,13 +753,14 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
             else:
                 proceed_text = "Press SPACE to proceed to the next trial."
 
-            proceed_stim = visual.TextStim(win, text=proceed_text, color='white', height=24, wrapWidth=800,
-                                           pos=(0, -280))
+            proceed_stim = visual.TextStim(
+                win, text=proceed_text, color="white", height=24, wrapWidth=800, pos=(0, -280)
+            )
             proceed_stim.draw()
             win.flip()
 
-            keys = event.waitKeys(keyList=['space', 'escape', '5'])
-            if 'escape' in keys or '5' in keys:
+            keys = event.waitKeys(keyList=["space", "escape", "5"])
+            if "escape" in keys or "5" in keys:
                 return
 
         nback_queue.append((pos, img))
@@ -663,17 +769,26 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
 
     draw_grid()
     pass2_end_text = "End of PASS 2 (Explanatory).\nPress SPACE to finish the demo."
-    pass2_end_stim = visual.TextStim(win, text=pass2_end_text, color='white', height=24, wrapWidth=800)
+    pass2_end_stim = visual.TextStim(win, text=pass2_end_text, color="white", height=24, wrapWidth=800)
     pass2_end_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
 
 def compute_positions_ref(num_items, ref_index, spacing=110, center_x=0, y=0):
-    """
-    Compute evenly spaced horizontal positions for num_items such that the item at ref_index is at center_x.
+    """Compute evenly spaced horizontal positions with a reference index at center_x.
+
+    Args:
+        num_items (int): Total number of items to position.
+        ref_index (int): Index of the item to place at center_x.
+        spacing (int, optional): Distance between items in pixels. Defaults to 110.
+        center_x (int, optional): X-coordinate of the reference position. Defaults to 0.
+        y (int, optional): Y-coordinate for all positions. Defaults to 0.
+
+    Returns:
+        list: List of (x, y) tuples for each position.
     """
     positions = []
     for i in range(num_items):
@@ -683,8 +798,14 @@ def compute_positions_ref(num_items, ref_index, spacing=110, center_x=0, y=0):
 
 
 def draw_sequence(win, seq_images, positions, size=(100, 100), current_idx=None):
-    """
-    Draw each image from seq_images at its corresponding position.
+    """Draw a sequence of images at specified positions.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw on.
+        seq_images (list): List of image file names.
+        positions (list): List of (x, y) position tuples.
+        size (tuple, optional): Size (width, height) of each image. Defaults to (100, 100).
+        current_idx (int, optional): Index of the current image (for highlighting). Defaults to None.
     """
     for i, (img_file, pos) in enumerate(zip(seq_images, positions)):
         stim = visual.ImageStim(win, image=os.path.join(image_dir, img_file), pos=pos, size=size)
@@ -692,23 +813,32 @@ def draw_sequence(win, seq_images, positions, size=(100, 100), current_idx=None)
 
 
 def draw_center_frame(win, current_pos, size):
+    """Draw a white rectangular frame around the current stimulus.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw on.
+        current_pos (tuple): (x, y) position of the current stimulus.
+        size (tuple): (width, height) of the stimulus.
     """
-    Draw a rectangular frame only around the current trial stimulus.
-    """
-    frame = visual.Rect(win, width=size[0] + 20, height=size[1] + 20,
-                        pos=current_pos,
-                        lineColor='white', fillColor=None, lineWidth=2)
+    frame = visual.Rect(
+        win, width=size[0] + 20, height=size[1] + 20, pos=current_pos, lineColor="white", fillColor=None, lineWidth=2
+    )
     frame.draw()
 
 
 def draw_n_back_box(win, pos, size, is_match):
+    """Draw a colored box around the n-back position based on match status.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw on.
+        pos (tuple): (x, y) position of the n-back stimulus.
+        size (tuple): (width, height) of the stimulus.
+        is_match (bool): True if the n-back matches, False otherwise.
     """
-    Draw a box around the n-back position, colored based on whether it's a match.
-    Green for correct matches, red for incorrect.
-    """
-    border_color = 'green' if is_match else 'red'
-    border = visual.Rect(win, width=size[0] + 10, height=size[1] + 10,
-                         pos=pos, lineColor=border_color, lineWidth=4, fillColor=None)
+    border_color = "green" if is_match else "red"
+    border = visual.Rect(
+        win, width=size[0] + 10, height=size[1] + 10, pos=pos, lineColor=border_color, lineWidth=4, fillColor=None
+    )
     border.draw()
 
 
@@ -743,11 +873,11 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
         f"From trial {n + 1} onward, brief feedback (✓ or ✗) is shown.\n\n"
         "Press SPACE to start PASS 1."
     )
-    intro_stim = visual.TextStim(win, text=intro_text, color='white', height=24, wrapWidth=800)
+    intro_stim = visual.TextStim(win, text=intro_text, color="white", height=24, wrapWidth=800)
     intro_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
     # Use the same size for stimuli in both passes
@@ -767,11 +897,11 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
         # For trials > n, show brief feedback.
         if trial_num > n:
             ref_img = demo_sequence[i - n]
-            is_target = (img == ref_img)
+            is_target = img == ref_img
             if is_target:
-                fb = visual.TextStim(win, text="✓", color='green', height=48, pos=(0, 150))
+                fb = visual.TextStim(win, text="✓", color="green", height=48, pos=(0, 150))
             else:
-                fb = visual.TextStim(win, text="✗", color='red', height=48, pos=(0, 150))
+                fb = visual.TextStim(win, text="✗", color="red", height=48, pos=(0, 150))
             fb.draw()
             win.flip()
             core.wait(0.5)
@@ -779,12 +909,17 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
             core.wait(0.5)
         core.wait(0.2)
 
-    end_pass1 = visual.TextStim(win, text="End of PASS 1.\nPress SPACE to continue to PASS 2 (Explanatory).",
-                                color='white', height=24, wrapWidth=800)
+    end_pass1 = visual.TextStim(
+        win,
+        text="End of PASS 1.\nPress SPACE to continue to PASS 2 (Explanatory).",
+        color="white",
+        height=24,
+        wrapWidth=800,
+    )
     end_pass1.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
     # -------------- PASS 2: EXPLANATORY (MOVING WINDOW) --------------
@@ -796,11 +931,11 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
         "The 2-back position will be highlighted in green (if matched) or red (if not matched).\n\n"
         "Press SPACE to start PASS 2."
     )
-    pass2_stim = visual.TextStim(win, text=pass2_text, color='white', height=24, wrapWidth=800)
+    pass2_stim = visual.TextStim(win, text=pass2_text, color="white", height=24, wrapWidth=800)
     pass2_stim.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
 
     # Adjust spacing to match the larger stimuli size
@@ -818,7 +953,7 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
         shifted_positions = [(x - i * spacing, y) for (x, y) in positions0]
 
         # Draw level indicator
-        level_stim = visual.TextStim(win, text=f"Level: {n}-back", color='white', height=24, pos=(-450, 350))
+        level_stim = visual.TextStim(win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350))
         level_stim.draw()
 
         # Calculate current position (stimulus i in the sequence)
@@ -837,28 +972,30 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
             n_back_idx = current_idx - n
             n_back_pos = shifted_positions[n_back_idx]
 
-            is_match = (demo_sequence[i] == demo_sequence[i - n])
+            is_match = demo_sequence[i] == demo_sequence[i - n]
             draw_n_back_box(win, n_back_pos, pass2_stim_size, is_match)
 
             # Show tick or cross
             if is_match:
-                tick = visual.TextStim(win, text="✓", color='green', height=48, pos=(0, 150))
+                tick = visual.TextStim(win, text="✓", color="green", height=48, pos=(0, 150))
                 fb_text = "Correct match: Same as 2-back."
             else:
-                tick = visual.TextStim(win, text="✗", color='red', height=48, pos=(0, 150))
+                tick = visual.TextStim(win, text="✗", color="red", height=48, pos=(0, 150))
                 fb_text = "No match: Different from 2-back."
             tick.draw()
 
             # Show concise feedback text
-            feedback_stim = visual.TextStim(win, text=fb_text, color='white', height=24, pos=(0, -250))
+            feedback_stim = visual.TextStim(win, text=fb_text, color="white", height=24, pos=(0, -250))
             feedback_stim.draw()
         else:
             # For trials before or equal to n, explain why there's no reference yet
             if trial_num < n:
                 fb_text = f"Building up sequence ({trial_num}/{n} trials)."
             else:  # trial_num == n
-                fb_text = f"This is trial {n}. We need to wait until trial {n + 1} to have a complete {n}-back reference."
-            feedback_stim = visual.TextStim(win, text=fb_text, color='white', height=24, pos=(0, -250))
+                fb_text = (
+                    f"This is trial {n}. We need to wait until trial {n + 1} to have a complete {n}-back reference."
+                )
+            feedback_stim = visual.TextStim(win, text=fb_text, color="white", height=24, pos=(0, -250))
             feedback_stim.draw()
 
         # Show prompt for all trials
@@ -866,26 +1003,43 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
             prompt_text = "This was the final trial. Press SPACE to finish the demo."
         else:
             prompt_text = "Press SPACE to proceed to the next trial."
-        prompt_stim = visual.TextStim(win, text=prompt_text, color='white', height=24, pos=(0, -300))
+        prompt_stim = visual.TextStim(win, text=prompt_text, color="white", height=24, pos=(0, -300))
         prompt_stim.draw()
 
         # Display everything at once
         win.flip()
 
         # Wait for user input to proceed (all trials in Pass 2 require spacebar)
-        keys = event.waitKeys(keyList=['space', 'escape', '5'])
-        if 'escape' in keys or '5' in keys:
+        keys = event.waitKeys(keyList=["space", "escape", "5"])
+        if "escape" in keys or "5" in keys:
             return
 
     # Final message after the demo
-    end_pass2 = visual.TextStim(win, text="End of PASS 2 (Explanatory).\nPress SPACE to finish the demo.",
-                                color='white', height=24, wrapWidth=800)
+    end_pass2 = visual.TextStim(
+        win,
+        text="End of PASS 2 (Explanatory).\nPress SPACE to finish the demo.",
+        color="white",
+        height=24,
+        wrapWidth=800,
+    )
     end_pass2.draw()
     win.flip()
-    keys = event.waitKeys(keyList=['space', 'escape', '5'])
-    if 'escape' in keys or '5' in keys:
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys or "5" in keys:
         return
+
+
 def generate_positions_with_matches(num_positions, n, target_percentage=0.5):
+    """Generate a sequence of positions with specified target percentage.
+
+    Args:
+        num_positions (int): Total number of positions to generate.
+        n (int): The N-back level.
+        target_percentage (float, optional): Percentage of trials that are targets. Defaults to 0.5.
+
+    Returns:
+        list: Sequence of position indices (0-11).
+    """
     positions = list(range(12))
     sequence = [random.choice(positions) for _ in range(num_positions)]
 
@@ -897,17 +1051,37 @@ def generate_positions_with_matches(num_positions, n, target_percentage=0.5):
 
     return sequence
 
+
 def get_level_color(n_level):
+    """Return a color based on the N-back level.
+
+    Args:
+        n_level (int): The N-back level (1, 2, or 3).
+
+    Returns:
+        str: Color name ('white', 'lightblue', 'lightgreen', or 'white' for other levels).
+    """
     if n_level == 1:
-        return 'white'
+        return "white"
     elif n_level == 2:
-        return 'lightblue'
+        return "lightblue"
     elif n_level == 3:
-        return 'lightgreen'
+        return "lightgreen"
     else:
-        return 'white'
+        return "white"
+
 
 def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedback_text=None, lapse_feedback=None):
+    """Display a circular grid with optional highlighted position and feedback.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw on.
+        highlight_pos (int, optional): Index of position to highlight (0-11). Defaults to None.
+        highlight (bool, optional): Whether to highlight a position. Defaults to False.
+        n_level (int, optional): The N-back level for color. Defaults to None.
+        feedback_text (str, optional): Text to display as feedback. Defaults to None.
+        lapse_feedback (str, optional): Text to display for lapses. Defaults to None.
+    """
     radius = 150
     center = (0, 0)
     num_positions = 12
@@ -919,7 +1093,7 @@ def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedbac
 
     grid_color = get_level_color(n_level)
 
-    fixation_cross = visual.TextStim(win, text='+', color='white', height=32)
+    fixation_cross = visual.TextStim(win, text="+", color="white", height=32)
     fixation_cross.draw()
 
     for i, pos in enumerate(positions):
@@ -927,7 +1101,7 @@ def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedbac
         rect.draw()
 
     if highlight and highlight_pos is not None:
-        highlight_color = 'white'
+        highlight_color = "white"
         highlight = visual.Rect(win, width=50, height=50, pos=positions[highlight_pos], fillColor=highlight_color)
         highlight.draw()
 
@@ -936,14 +1110,31 @@ def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedbac
         feedback_message.draw()
 
     if lapse_feedback:
-        lapse_message = visual.TextStim(win, text=lapse_feedback, color='orange', height=24, pos=(0, 300))
+        lapse_message = visual.TextStim(win, text=lapse_feedback, color="orange", height=24, pos=(0, 300))
         lapse_message.draw()
 
     if n_level:
-        level_indicator = visual.TextStim(win, text=f'Level: {n_level}-back', color='white', height=24, pos=(-450, 350), alignText='left')
+        level_indicator = visual.TextStim(
+            win, text=f"Level: {n_level}-back", color="white", height=24, pos=(-450, 350), alignText="left"
+        )
         level_indicator.draw()
 
+
 def run_spatial_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.0):
+    """Run a single block of Spatial N-back practice.
+
+    Args:
+        n (int): The N-back level.
+        num_trials (int, optional): Number of trials in the block. Defaults to 50.
+        display_duration (float, optional): Duration to display each stimulus. Defaults to 1.0.
+        isi (float, optional): Inter-stimulus interval. Defaults to 1.0.
+
+    Returns:
+        tuple: (accuracy, correct_responses, incorrect_responses, lapses) for the block.
+
+    Raises:
+        SystemExit: If 'escape' is pressed, the program exits.
+    """
     global skip_to_next_stage
     positions = generate_positions_with_matches(num_trials, n)
     nback_queue = []
@@ -983,15 +1174,15 @@ def run_spatial_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.0):
         response_timer = core.Clock()
         response = None
         while response_timer.getTime() < isi:
-            keys = event.getKeys(keyList=['z', 'm', 'escape', '5'])
-            if 'escape' in keys:
+            keys = event.getKeys(keyList=["z", "m", "escape", "5"])
+            if "escape" in keys:
                 core.quit()
-            if '5' in keys:
+            if "5" in keys:
                 skip_to_next_stage = True
                 break
             if keys and response is None and i >= n:
                 reaction_time = response_timer.getTime()
-                response = 'z' in keys
+                response = "z" in keys
 
                 if response == is_target:
                     correct_responses += 1
@@ -1032,45 +1223,19 @@ def run_spatial_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.0):
 
     return accuracy, correct_responses, incorrect_responses, lapses
 
-# Updated display_grid function to include gridlines
-def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedback_text=None, lapse_feedback=None):
-    draw_grid()  # Add background grid
-    radius = 150
-    center = (0, 0)
-    num_positions = 12
-    angles = [i * (360 / num_positions) for i in range(num_positions)]
-    positions = [
-        (center[0] + radius * math.cos(math.radians(angle)), center[1] + radius * math.sin(math.radians(angle)))
-        for angle in angles
-    ]
-
-    grid_color = get_level_color(n_level)
-
-    fixation_cross = visual.TextStim(win, text='+', color='white', height=32)
-    fixation_cross.draw()
-
-    for i, pos in enumerate(positions):
-        rect = visual.Rect(win, width=50, height=50, pos=pos, lineColor=grid_color, lineWidth=2)
-        rect.draw()
-
-    if highlight and highlight_pos is not None:
-        highlight_color = 'white'
-        highlight = visual.Rect(win, width=50, height=50, pos=positions[highlight_pos], fillColor=highlight_color)
-        highlight.draw()
-
-    if feedback_text:
-        feedback_message = visual.TextStim(win, text=feedback_text, color=grid_color, height=24, pos=(0, 250))
-        feedback_message.draw()
-
-    if lapse_feedback:
-        lapse_message = visual.TextStim(win, text=lapse_feedback, color='orange', height=24, pos=(0, 300))
-        lapse_message.draw()
-
-    if n_level:
-        level_indicator = visual.TextStim(win, text=f'Level: {n_level}-back', color='white', height=24, pos=(-450, 350), alignText='left')
-        level_indicator.draw()
 
 def generate_dual_nback_sequence(num_trials, grid_size, n, target_rate=0.5):
+    """Generate a dual N-back sequence of positions and images.
+
+    Args:
+        num_trials (int): Number of trials to generate.
+        grid_size (int): Size of the grid (e.g., 3 for 3x3).
+        n (int): The N-back level.
+        target_rate (float, optional): Rate of target trials. Defaults to 0.5.
+
+    Returns:
+        tuple: (list of positions, list of image file names).
+    """
     positions = [(x, y) for x in range(grid_size) for y in range(grid_size)]
     pos_seq = [random.choice(positions) for _ in range(num_trials)]
     image_seq = [random.choice(image_files) for _ in range(num_trials)]
@@ -1084,16 +1249,33 @@ def generate_dual_nback_sequence(num_trials, grid_size, n, target_rate=0.5):
 
     return pos_seq, image_seq
 
+
 def display_dual_stimulus(win, pos, image_file, grid_size, n_level, return_stim=False):
+    """Display a dual stimulus (position and image) on a grid.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw on.
+        pos (tuple): (x, y) position on the grid.
+        image_file (str): Path or name of the image file.
+        grid_size (int): Size of the grid (e.g., 3 for 3x3).
+        n_level (int): The N-back level.
+        return_stim (bool, optional): Whether to return the stimulus object. Defaults to False.
+
+    Returns:
+        psychopy.visual.ImageStim: The stimulus object if return_stim is True.
+    """
     grid_length = 600 * 0.8
     cell_length = grid_length // grid_size
     top_left = (-grid_length // 2, grid_length // 2)
     x, y = top_left[0] + pos[0] * cell_length, top_left[1] - pos[1] * cell_length
 
     image_path = os.path.join(image_dir, image_file)
-    image_stim = visual.ImageStim(win, image=image_path,
-                                  pos=(x + cell_length // 2, y - cell_length // 2),
-                                  size=(cell_length - 10, cell_length - 10))
+    image_stim = visual.ImageStim(
+        win,
+        image=image_path,
+        pos=(x + cell_length // 2, y - cell_length // 2),
+        size=(cell_length - 10, cell_length - 10),
+    )
 
     if return_stim:
         return image_stim
@@ -1101,7 +1283,17 @@ def display_dual_stimulus(win, pos, image_file, grid_size, n_level, return_stim=
         image_stim.draw()
         win.flip()
 
+
 def create_grid(win, grid_size):
+    """Create a grid of rectangles for the Dual N-back task.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw on.
+        grid_size (int): Size of the grid (e.g., 3 for 3x3).
+
+    Returns:
+        tuple: (list of Rect objects, outline Rect object).
+    """
     grid_length = 600 * 0.8
     cell_length = grid_length // grid_size
     top_left = (-grid_length // 2, grid_length // 2)
@@ -1109,18 +1301,41 @@ def create_grid(win, grid_size):
     grid = []
     for i in range(grid_size):
         for j in range(grid_size):
-            rect = visual.Rect(win, width=cell_length, height=cell_length,
-                               pos=(top_left[0] + i * cell_length + cell_length // 2,
-                                    top_left[1] - j * cell_length - cell_length // 2),
-                               lineColor='white', fillColor=None)
+            rect = visual.Rect(
+                win,
+                width=cell_length,
+                height=cell_length,
+                pos=(
+                    top_left[0] + i * cell_length + cell_length // 2,
+                    top_left[1] - j * cell_length - cell_length // 2,
+                ),
+                lineColor="white",
+                fillColor=None,
+            )
             grid.append(rect)
 
-    outline = visual.Rect(win, width=grid_length, height=grid_length,
-                          pos=(0, 0), lineColor='white', fillColor=None, lineWidth=2)
+    outline = visual.Rect(
+        win, width=grid_length, height=grid_length, pos=(0, 0), lineColor="white", fillColor=None, lineWidth=2
+    )
 
     return grid, outline
 
+
 def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
+    """Run a single block of Dual N-back practice.
+
+    Args:
+        n (int): The N-back level.
+        num_trials (int, optional): Number of trials in the block. Defaults to 50.
+        display_duration (float, optional): Duration to display each stimulus. Defaults to 1.0.
+        isi (float, optional): Inter-stimulus interval. Defaults to 1.2.
+
+    Returns:
+        tuple: (accuracy, correct_responses, incorrect_responses, lapses) for the block.
+
+    Raises:
+        SystemExit: If 'escape' is pressed, the program exits.
+    """
     global skip_to_next_stage
     grid_size = 3
     positions, images = generate_dual_nback_sequence(num_trials, grid_size, n, target_rate=0.5)
@@ -1134,7 +1349,7 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
 
     grid, outline = create_grid(win, grid_size)
     level_color = get_level_color(n)
-    level_text = visual.TextStim(win, text=f"Level: {n}-back", color='white', height=24, pos=(-450, 350))
+    level_text = visual.TextStim(win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350))
 
     initial_feedback = f"No response required for the first {n} trials"
     draw_grid()  # Add background grid
@@ -1167,8 +1382,9 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
             if image_stim:
                 image_stim.draw()
             if lapse_feedback:
-                lapse_feedback_stim = visual.TextStim(win, text=lapse_feedback, color='orange', height=24,
-                                                      pos=(0, -350))
+                lapse_feedback_stim = visual.TextStim(
+                    win, text=lapse_feedback, color="orange", height=24, pos=(0, -350)
+                )
                 lapse_feedback_stim.draw()
             level_text.draw()
 
@@ -1185,15 +1401,15 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
         response_timer = core.Clock()
         response = None
         while response_timer.getTime() < isi:
-            keys = event.getKeys(keyList=['z', 'm', 'escape', '5'])
-            if 'escape' in keys:
+            keys = event.getKeys(keyList=["z", "m", "escape", "5"])
+            if "escape" in keys:
                 core.quit()
-            if '5' in keys:
+            if "5" in keys:
                 skip_to_next_stage = True
                 break
             if keys and response is None and i >= n:
                 reaction_time = response_timer.getTime()
-                response = 'z' in keys
+                response = "z" in keys
 
                 if response == is_target:
                     correct_responses += 1
@@ -1236,36 +1452,81 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
 
     return accuracy, correct_responses, incorrect_responses, lapses
 
-def show_break_screen(win, duration):
-   break_text = (
-       f"Take a {duration}-second break\n\n"
-       "Use this time to rest your eyes and relax\n\n"
-       "The task will continue automatically"
-   )
-   break_stim = visual.TextStim(win, text=break_text, color='white', height=24, wrapWidth=800)
 
-   timer = core.CountdownTimer(duration)
-   while timer.getTime() > 0:
-       break_stim.text = f"{break_text}\n\nTime remaining: {int(timer.getTime())} seconds"
-       break_stim.draw()
-       win.flip()
-       if event.getKeys(['escape']):
-           core.quit()
+def show_break_screen(win, duration):
+    """Display a break screen with a countdown timer.
+
+    Shows a message instructing the participant to rest, with a live countdown
+    of the remaining time. The task resumes automatically after the duration.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw the break screen on.
+        duration (float): Duration of the break in seconds.
+
+    Raises:
+        SystemExit: If 'escape' is pressed, the program exits.
+
+    Note:
+        The countdown updates every frame, showing the remaining seconds.
+    """
+    break_text = (
+        f"Take a {duration}-second break\n\n"
+        "Use this time to rest your eyes and relax\n\n"
+        "The task will continue automatically"
+    )
+    break_stim = visual.TextStim(win, text=break_text, color="white", height=24, wrapWidth=800)
+
+    timer = core.CountdownTimer(duration)
+    while timer.getTime() > 0:
+        break_stim.text = f"{break_text}\n\nTime remaining: {int(timer.getTime())} seconds"
+        break_stim.draw()
+        win.flip()
+        if event.getKeys(["escape"]):
+            core.quit()
+
 
 def check_level_change(block_results, current_level, window_size=2):
-   if len(block_results) < window_size:
-       return current_level
+    """Determine if the N-back level should change based on recent accuracy.
 
-   recent_accuracies = [block[2] for block in block_results[-window_size:]]
-   rolling_avg = sum(recent_accuracies) / window_size
+    Evaluates a rolling average of accuracy over the last `window_size` blocks to decide
+    if the N-back level should increase (from 2 to 3 if accuracy ≥ 82%) or decrease
+    (from 3 to 2 if accuracy < 70%).
 
-   if rolling_avg >= 82 and current_level == 2:
-       return 3
-   elif rolling_avg < 70 and current_level == 3:
-       return 2
-   return current_level
+    Args:
+        block_results (list): List of tuples (block_count, n_level, accuracy, avg_reaction_time)
+            representing past block results.
+        current_level (int): Current N-back level (2 or 3).
+        window_size (int, optional): Number of recent blocks to average. Defaults to 2.
+
+    Returns:
+        int: New N-back level (2 or 3) based on performance criteria.
+
+    Note:
+        Returns the current level if no change criteria are met.
+    """
+    if len(block_results) < window_size:
+        return current_level
+
+    recent_accuracies = [block[2] for block in block_results[-window_size:]]
+    rolling_avg = sum(recent_accuracies) / window_size
+
+    if rolling_avg >= 82 and current_level == 2:
+        return 3
+    elif rolling_avg < 70 and current_level == 3:
+        return 2
+    return current_level
+
 
 def check_plateau(block_results, variance_threshold=7):
+    """Check if performance has plateaued based on recent accuracy variance.
+
+    Args:
+        block_results (list): List of (block_count, n_level, accuracy, avg_reaction_time) tuples.
+        variance_threshold (float, optional): Maximum deviation for stability. Defaults to 7%.
+
+    Returns:
+        bool: True if performance has plateaued, False otherwise.
+    """
     if len(block_results) < 3:
         return False
 
@@ -1285,56 +1546,100 @@ def check_plateau(block_results, variance_threshold=7):
 
 
 def generate_sequential_image_sequence(num_trials, n, target_percentage=0.5):
-   available_images = image_files.copy()
-   sequence = []
-   max_consecutive_matches = 2
-   consecutive_count = 0
-   target_num_yes = int((num_trials - n) * target_percentage)
-   yes_positions = random.sample(range(n, num_trials), target_num_yes)
+    """Generate a sequence of images for the Sequential N-back task.
 
-   if n == 3:
-       misleading_positions = random.sample(
-           [p for p in range(n, num_trials) if p not in yes_positions],
-           int(target_num_yes * 0.3)
-       )
+    Creates a sequence with a specified target percentage, avoiding excessive consecutive matches
+    and incorporating misleading matches for n=3. Images are selected from the global `image_files`
+    list without replacement until exhausted, then recycled.
 
-   for i in range(num_trials):
-       if i in yes_positions and consecutive_count < max_consecutive_matches:
-           sequence.append(sequence[i - n])
-           consecutive_count += 1
-       elif n == 3 and i in misleading_positions:
-           sequence.append(sequence[i - 2])
-           consecutive_count = 0
-       else:
-           if not available_images:
-               available_images = image_files.copy()
-           non_matching_images = [img for img in available_images
-                              if img not in sequence[-n:] and
-                              (len(sequence) < 2 or img != sequence[-2])]
-           if not non_matching_images:
-               non_matching_images = available_images
-           chosen_image = random.choice(non_matching_images)
-           sequence.append(chosen_image)
-           available_images.remove(chosen_image)
-           consecutive_count = 0
+    Args:
+        num_trials (int): Number of trials to generate.
+        n (int): The N-back level.
+        target_percentage (float, optional): Percentage of trials that are targets. Defaults to 0.5.
 
-   return sequence, yes_positions
+    Returns:
+        tuple: (list of image file names, list of target indices).
+
+    Note:
+        For n=3, approximately 30% of non-target trials include a misleading match (n-1 back).
+        Limits consecutive matches to 2 to maintain task difficulty.
+    """
+    available_images = image_files.copy()
+    sequence = []
+    max_consecutive_matches = 2
+    consecutive_count = 0
+    target_num_yes = int((num_trials - n) * target_percentage)
+    yes_positions = random.sample(range(n, num_trials), target_num_yes)
+
+    if n == 3:
+        misleading_positions = random.sample(
+            [p for p in range(n, num_trials) if p not in yes_positions], int(target_num_yes * 0.3)
+        )
+
+    for i in range(num_trials):
+        if i in yes_positions and consecutive_count < max_consecutive_matches:
+            sequence.append(sequence[i - n])
+            consecutive_count += 1
+        elif n == 3 and i in misleading_positions:
+            sequence.append(sequence[i - 2])
+            consecutive_count = 0
+        else:
+            if not available_images:
+                available_images = image_files.copy()
+            non_matching_images = [
+                img
+                for img in available_images
+                if img not in sequence[-n:] and (len(sequence) < 2 or img != sequence[-2])
+            ]
+            if not non_matching_images:
+                non_matching_images = available_images
+            chosen_image = random.choice(non_matching_images)
+            sequence.append(chosen_image)
+            available_images.remove(chosen_image)
+            consecutive_count = 0
+
+    return sequence, yes_positions
+
 
 def display_image(win, image_file, feedback_text=None):
-   image_path = os.path.join(image_dir, image_file)
-   image_stim = visual.ImageStim(win, image=image_path, size=(350, 350))
-   image_stim.draw()
-   if feedback_text:
-       feedback_message = visual.TextStim(win, text=feedback_text, color='orange', height=24,
-                                      pos=(0, image_stim.size[1] / 2 + 20))
-       feedback_message.draw()
-   win.flip()
+    """Display a single image with optional feedback text in the Sequential N-back task.
+
+    Args:
+        win (psychopy.visual.Window): The PsychoPy window to draw the image on.
+        image_file (str): Name of the image file (relative to the image_dir).
+        feedback_text (str, optional): Text to display below the image, typically for lapse feedback.
+            Defaults to None.
+
+    Note:
+        The image is drawn centered with a fixed size of (350, 350) pixels.
+        Feedback text, if provided, is drawn in orange below the image.
+    """
+    image_path = os.path.join(image_dir, image_file)
+    image_stim = visual.ImageStim(win, image=image_path, size=(350, 350))
+    image_stim.draw()
+    if feedback_text:
+        feedback_message = visual.TextStim(
+            win, text=feedback_text, color="orange", height=24, pos=(0, image_stim.size[1] / 2 + 20)
+        )
+        feedback_message.draw()
+    win.flip()
+
 
 def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, display_duration=0.8, isi=1.0):
-    """
-    Runs a sequential N-back practice block with the ability to skip (press '5').
-    A white distractor appears on every 12th trial, in the middle of the ISI,
-    flashing for 200ms.
+    """Run a single block of Sequential N-back practice with distractors.
+
+    Args:
+        n (int): The N-back level.
+        num_trials (int, optional): Number of trials in the block. Defaults to 90.
+        target_percentage (float, optional): Percentage of target trials. Defaults to 0.5.
+        display_duration (float, optional): Duration to display each stimulus. Defaults to 0.8.
+        isi (float, optional): Inter-stimulus interval. Defaults to 1.0.
+
+    Returns:
+        tuple: (accuracy, avg_reaction_time) for the block.
+
+    Raises:
+        SystemExit: If 'escape' is pressed, the program exits.
     """
     global skip_to_next_stage
 
@@ -1350,15 +1655,11 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
     last_lapse = False
 
     # Fixation cross for after each stimulus
-    fixation_cross = visual.TextStim(win, text='+', color='white', height=32)
+    fixation_cross = visual.TextStim(win, text="+", color="white", height=32)
 
     # Create a level indicator just like in Spatial/Dual tasks
     level_text = visual.TextStim(
-        win,
-        text=f"Level: {n}-back",
-        color='white',
-        height=24,
-        pos=(-450, 350)  # same location as in spatial/dual
+        win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350)  # same location as in spatial/dual
     )
 
     # --- Display initial feedback screen ---
@@ -1369,7 +1670,7 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
     level_text.draw()
 
     # Then draw the initial feedback text
-    feedback_text = visual.TextStim(win, text=initial_feedback, color='white', height=24, pos=(0, 0))
+    feedback_text = visual.TextStim(win, text=initial_feedback, color="white", height=24, pos=(0, 0))
     feedback_text.draw()
     win.flip()
     core.wait(2)
@@ -1402,13 +1703,7 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
 
         # If there's a lapse prompt, draw it
         if prompt_text:
-            feedback_stim = visual.TextStim(
-                win,
-                text=prompt_text,
-                color='orange',
-                height=24,
-                pos=(0, 200)
-            )
+            feedback_stim = visual.TextStim(win, text=prompt_text, color="orange", height=24, pos=(0, 200))
             feedback_stim.draw()
 
         win.flip()
@@ -1429,12 +1724,12 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
         distractor_shown = False
 
         while response_timer.getTime() < isi:
-            keys = event.getKeys(keyList=['z', 'm', 'escape', '5'])
+            keys = event.getKeys(keyList=["z", "m", "escape", "5"])
 
             # 1) Early escape
-            if 'escape' in keys:
+            if "escape" in keys:
                 core.quit()
-            if '5' in keys:
+            if "5" in keys:
                 skip_to_next_stage = True
                 break
 
@@ -1446,12 +1741,7 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
                     level_text.draw()
 
                     distractor_square = visual.Rect(
-                        win,
-                        width=100,
-                        height=100,
-                        fillColor='white',  # White distractor
-                        lineColor=None,
-                        pos=(0, 0)
+                        win, width=100, height=100, fillColor="white", lineColor=None, pos=(0, 0)  # White distractor
                     )
                     distractor_square.draw()
                     win.flip()
@@ -1471,7 +1761,7 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
                 # Check if this is a 'target' trial
                 is_target = (len(nback_queue) >= n) and (img == nback_queue[-n])
                 # 'z' => True, 'm' => False
-                response = ('z' in keys)
+                response = "z" in keys
 
                 if response == is_target:
                     correct_responses += 1
@@ -1508,12 +1798,18 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
 
     return accuracy, avg_reaction_time
 
+
 def run_sequential_nback_until_plateau(starting_level):
-    """
-    Loops sequential N-back practice blocks until performance stabilises
-    (i.e. a plateau is reached) or a maximum number of blocks is completed.
-    Uses 90 trials per block and updates the n-back level based on a rolling
-    average of recent block accuracies.
+    """Run Sequential N-back practice until performance plateaus or max blocks are reached.
+
+    Args:
+        starting_level (int): Initial N-back level (2 or 3).
+
+    Returns:
+        tuple: (final_n_level, final_accuracy, final_avg_rt) from the last block.
+
+    Raises:
+        SystemExit: If 'escape' is pressed, the program exits.
     """
     global skip_to_next_stage
     n_level = starting_level
@@ -1529,10 +1825,7 @@ def run_sequential_nback_until_plateau(starting_level):
         num_trials = scored_trials
 
         # Run the practice block for the current level
-        accuracy, avg_reaction_time = run_sequential_nback_practice(
-            n_level,
-            num_trials=num_trials
-        )
+        accuracy, avg_reaction_time = run_sequential_nback_practice(n_level, num_trials=num_trials)
 
         if skip_to_next_stage:
             break  # User skipped the session
@@ -1547,17 +1840,17 @@ def run_sequential_nback_until_plateau(starting_level):
             f"Average Reaction Time: {avg_reaction_time:.2f} s\n\n"
             "Press 'space' to continue."
         )
-        summary_stim = visual.TextStim(win, text=summary_text, color='white', height=24, wrapWidth=800)
+        summary_stim = visual.TextStim(win, text=summary_text, color="white", height=24, wrapWidth=800)
         summary_stim.draw()
         win.flip()
-        event.waitKeys(keyList=['space'])
+        event.waitKeys(keyList=["space"])
 
         # Update the n-back level based on a rolling average of recent blocks.
         new_level = check_level_change(block_results, n_level, window_size=2)
         if new_level != n_level:
             n_level = new_level
             level_change_text = f"Level change: Now switching to {n_level}-back."
-            level_change_stim = visual.TextStim(win, text=level_change_text, color='white', height=24, wrapWidth=800)
+            level_change_stim = visual.TextStim(win, text=level_change_text, color="white", height=24, wrapWidth=800)
             level_change_stim.draw()
             win.flip()
             core.wait(2)
@@ -1573,10 +1866,10 @@ def run_sequential_nback_until_plateau(starting_level):
                 "Participant may have unstable performance across blocks.\n\n"
                 "Press 'space' to continue."
             )
-            warning_stim = visual.TextStim(win, text=warning_text, color='orange', height=24, wrapWidth=800)
+            warning_stim = visual.TextStim(win, text=warning_text, color="orange", height=24, wrapWidth=800)
             warning_stim.draw()
             win.flip()
-            event.waitKeys(keyList=['space'])
+            event.waitKeys(keyList=["space"])
 
     # Determine final results from the last block recorded
     if block_results:
@@ -1593,6 +1886,14 @@ def run_sequential_nback_until_plateau(starting_level):
 
 
 def main():
+    """Execute the complete WAND practice protocol.
+
+    Runs Spatial, Dual, and Sequential N-back tasks with demos and practice blocks.
+    Ends with a summary screen prompting the researcher to note the final level.
+
+    Raises:
+        Exception: Any unhandled errors are caught and printed with traceback.
+    """
     global skip_to_next_stage
     try:
 
@@ -1628,10 +1929,10 @@ def main():
                         "You will try the Spatial N-back blocks again.\n\n"
                         "Press 'space' to continue."
                     )
-                    retry_text = visual.TextStim(win, text=retry_message, color='white', height=24, wrapWidth=800)
+                    retry_text = visual.TextStim(win, text=retry_message, color="white", height=24, wrapWidth=800)
                     retry_text.draw()
                     win.flip()
-                    event.waitKeys(keyList=['space'])
+                    event.waitKeys(keyList=["space"])
 
         skip_to_next_stage = False  # Reset the skip flag
 
@@ -1667,10 +1968,10 @@ def main():
                         "You will try the Dual N-back blocks again.\n\n"
                         "Press 'space' to continue."
                     )
-                    retry_text = visual.TextStim(win, text=retry_message, color='white', height=24, wrapWidth=800)
+                    retry_text = visual.TextStim(win, text=retry_message, color="white", height=24, wrapWidth=800)
                     retry_text.draw()
                     win.flip()
-                    event.waitKeys(keyList=['space'])
+                    event.waitKeys(keyList=["space"])
 
         skip_to_next_stage = False  # Reset the skip flag
 
@@ -1687,15 +1988,13 @@ def main():
         # === Final Summary Screen ===
         final_summary = (
             f"Practice Session Completed!\n\n"
-            f"Final Sequential N-back level: {final_n_level}\n"
-            f"Final Accuracy: {final_accuracy:.2f}%\n"
-            f"Final Average Reaction Time: {final_avg_rt:.2f} s\n\n"
+            f"Please note this level for the main induction.\n"
             f"Press 'space' to exit."
         )
-        final_summary_text = visual.TextStim(win, text=final_summary, color='white', height=24, wrapWidth=800)
+        final_summary_text = visual.TextStim(win, text=final_summary, color="white", height=24, wrapWidth=800)
         final_summary_text.draw()
         win.flip()
-        event.waitKeys(keyList=['space'])
+        event.waitKeys(keyList=["space"])
 
     except Exception as e:
         print(f"Error in main: {e}")
