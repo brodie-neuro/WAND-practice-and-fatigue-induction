@@ -3,9 +3,8 @@ message: "If you use this software, please cite it as below."
 authors:
   - family-names: Mangan
     given-names: Brodie
-    orcid: ""
 title: "WAND - Practice-and-Fatigue-Induction Suite"
 version: "1.0"
-date-released: 2025-05-08
-doi: ""    
+date-released: 2025-05-12
+DOI: [10.5281/zenodo.15389893](https://doi.org/10.5281/zenodo.15389893)  
 url: "https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction"
