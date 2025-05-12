@@ -1,0 +1,15 @@
+Seed Used,42
+Participant ID,Task,Block,N-back Level,Measure,Value
+dummySeq,Sequential 2-back,dummy,2,Correct Responses,23
+dummySeq,Sequential 2-back,dummy,2,Incorrect Responses,7
+dummySeq,Sequential 2-back,dummy,2,Lapses,3
+dummySeq,Sequential 2-back,dummy,2,Accuracy,69.6969697
+dummySeq,Sequential 2-back,dummy,2,Total Reaction Time,23.462095900089484
+dummySeq,Sequential 2-back,dummy,2,Average Reaction Time,0.7820869683353611
+dummySeq,Sequential 2-back,dummy,2,Overall D-Prime,0.99820117125128863
+dummySeq,Sequential 2-back,dummy,2,Pre-Distractor Accuracy,100
+dummySeq,Sequential 2-back,dummy,2,Pre-Distractor Avg RT,0.6662616444337699
+dummySeq,Sequential 2-back,dummy,2,Pre-Distractor A-Prime,0.9999949999499999
+dummySeq,Sequential 2-back,dummy,2,Post-Distractor Accuracy,44.44444444444444
+dummySeq,Sequential 2-back,dummy,2,Post-Distractor Avg RT,0.7297677428627918
+dummySeq,Sequential 2-back,dummy,2,Post-Distractor A-Prime,0.5
