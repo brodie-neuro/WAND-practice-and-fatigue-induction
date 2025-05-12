@@ -49,7 +49,7 @@ WAND consists of three PsychoPy scripts designed to induce and measure "active" 
 | **Adaptive N-back** | Increases/decreases difficulty (↑n at ≥82% accuracy, ↓n at ≤65%) to maintain 70-80% performance range |
 | **Timing compression** | -30ms presentation and -50ms ISI per block (capped at -150ms) forces sustained vigilance |
 | **Grey background grid** | 100px spacing, 20% opacity creates irrelevant visual texture participants must actively ignore |
-| **Mini-distractor flashes** | 2180–220ms white square on 12-16 trial jitter causes inhibitory processes |
+| **Mini-distractor flashes** | 180–220ms white square on 12-16 trial jitter causes inhibitory processes |
 | **Misleading trials** | 30% of trials in 3-back match 2-back item to probe proactive vs reactive control |
 
 ## Subjective Measurements
