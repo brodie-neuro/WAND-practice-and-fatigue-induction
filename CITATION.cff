@@ -6,5 +6,6 @@ authors:
 title: "WAND – Practice-and-Fatigue-Induction Suite"
 version: "1.0.0"
 date-released: 2025-05-12
-doi: 10.5281/zenodo.15389893
-url: https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction
+doi: 10.5281/zenodo.15390080
+url: https://doi.org/10.5281/zenodo.15390080
+version: "1.0.1"
