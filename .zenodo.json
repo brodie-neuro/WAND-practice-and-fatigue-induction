@@ -7,6 +7,10 @@
   "license": "MIT",
   "keywords": ["cognitive fatigue", "working memory", "N-back", "PsychoPy"],
   "related_identifiers": [
-    { "identifier": "10.5281/zenodo.XXXXXXX", "relation": "isSupplementTo", "scheme": "doi" }
+    {
+      "identifier": "10.5281/zenodo.15389893",
+      "relation": "isIdenticalTo",
+      "scheme": "doi"
+    }
   ]
 }
