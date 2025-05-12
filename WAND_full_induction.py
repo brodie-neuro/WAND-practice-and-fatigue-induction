@@ -6,6 +6,7 @@ import os
 import random
 import sys
 import time
+import argparse
 
 from psychopy import core, event, visual
 
@@ -26,6 +27,20 @@ Version: 1.0
 """
 
 # Licensed under the MIT License (see LICENSE file for full text)
+
+# --------------- CLI FLAGS (dummy‑run only) ---------------
+import argparse, random
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument("--seed", type=int, default=None)          # still allowed but GUI will override
+parser.add_argument("--distractors", choices=["on", "off"], default=None)
+parser.add_argument("--dummy", action="store_true",
+                    help="Run 20‑trial test then exit")
+args, _ = parser.parse_known_args()
+
+# placeholders – will be overwritten by the GUI wizard later
+GLOBAL_SEED = args.seed                    # None → random each run
+DISTRACTORS_ENABLED = (args.distractors != "off") if args.distractors else True
+
 
 try:
     from scipy.stats import norm
@@ -262,71 +277,70 @@ def send_trigger(trigger_code):
 
 def get_participant_info(win):
     """
-    Prompt for Participant ID text entry, then 2- or 3-back selection.
-
-    Args:
-        win (visual.Window): PsychoPy window for rendering prompts.
-
-    Returns:
-        dict:
-            {
-              'Participant ID': str,
-              'N-back Level': int
-            }
+    On‑screen wizard that collects:
+        • Participant ID
+        • Starting Sequential N‑back level (2 or 3)
+        • RNG seed   (leave blank → random each run)
+        • Distractor flashes ON / OFF
+    Returns a dict with those four keys.
     """
     win.mouseVisible = False
+    text24 = dict(height=24, color="white", wrapWidth=900)
 
-    # First get participant ID
-    instruction_text = "Welcome to the experiment!\n\nPlease enter your Participant ID and press 'Enter'."
-    instructions = visual.TextStim(win, text=instruction_text, height=24, color="white", wrapWidth=800, pos=(0, 100))
-
-    box_width = 300
-    box_height = 40
-    input_box = visual.Rect(win, width=box_width, height=box_height, fillColor=None, lineColor="white", pos=(0, 0))
-
-    id_text = ""
-    text_stim = visual.TextStim(win, text=id_text, height=24, color="white", pos=(0, 0))
-
+    # — 1 Participant ID —
+    pid = ""
     while True:
-        instructions.draw()
-        input_box.draw()
-        text_stim.draw()
+        visual.TextStim(win, text="Enter Participant ID then press return", **text24, pos=(0, 120)).draw()
+        box = visual.Rect(win, width=380, height=50, lineColor="white", pos=(0, 40)); box.draw()
+        visual.TextStim(win, text=pid, **text24, pos=(0, 40)).draw()
         win.flip()
-
         keys = event.waitKeys()
-
-        if "return" in keys and id_text:
-            participant_id = id_text
+        if "return" in keys and pid:
             break
-        elif "backspace" in keys:
-            id_text = id_text[:-1]
-        elif "escape" in keys:
-            core.quit()
+        if "backspace" in keys:
+            pid = pid[:-1]
         elif len(keys[0]) == 1:
-            id_text += keys[0]
+            pid += keys[0]
 
-        text_stim.setText(id_text)
-
-    # Now get N-back level selection
-    level_text = "\n\nSelect Sequential N-back Level:\n\n" "Press '2' for 2-back\n" "Press '3' for 3-back"
-    level_instructions = visual.TextStim(win, text=level_text, height=24, color="white", wrapWidth=800, pos=(0, 0))
-
+    # — 2 Select N‑back level —
     while True:
-        level_instructions.draw()
+        prompt = "Select Sequential N‑back level\n\nPress 2 or 3"
+        visual.TextStim(win, text=prompt, **text24).draw(); win.flip()
+        key = event.waitKeys(keyList=["2", "3"])[0]
+        n_level = int(key); break
+
+    # — 3 Seed entry (optional) —
+    seed_txt = ""
+    while True:
+        msg = "Optional: enter RNG seed (blank = random) then press return"
+        visual.TextStim(win, text=msg, **text24, pos=(0, 120)).draw()
+        box = visual.Rect(win, width=380, height=50, lineColor="white", pos=(0, 40)); box.draw()
+        visual.TextStim(win, text=seed_txt, **text24, pos=(0, 40)).draw()
         win.flip()
-
-        keys = event.waitKeys(keyList=["2", "3", "escape"])
-
-        if "2" in keys:
-            n_back_level = 2
+        keys = event.waitKeys()
+        if "return" in keys:
+            seed_val = int(seed_txt) if seed_txt.isdigit() else None
             break
-        elif "3" in keys:
-            n_back_level = 3
-            break
-        elif "escape" in keys:
-            core.quit()
+        if "backspace" in keys:
+            seed_txt = seed_txt[:-1]
+        elif keys[0].isdigit():
+            seed_txt += keys[0]
 
-    return {"Participant ID": participant_id, "N-back Level": n_back_level}
+    # — 4 Distractor toggle —
+    while True:
+        prompt = "Enable 200 ms distractor flashes?\n\nPress Y for ON   |   N for OFF"
+        visual.TextStim(win, text=prompt, **text24).draw(); win.flip()
+        key = event.waitKeys(keyList=["y", "n"])[0]
+        distractors = (key == "y"); break
+
+    win.flip()
+    return {
+        "Participant ID":   pid,
+        "N-back Level":     n_level,
+        "Seed":             seed_val,
+        "Distractors":      distractors,
+    }
+
 
 
 def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
@@ -339,18 +353,17 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
             Each dict must have keys:
               – 'Participant ID', 'Task', 'Block', 'Results' (nested dict of metrics).
         subjective_measures (dict, optional):
-            Mapping of time-point labels to lists of four subjective scores
+            Mapping of time‑point labels to four scores
             [Mental Fatigue, Task Effort, Mind Wandering, Overwhelmed].
-        mode (str): File mode, either 'w' to write (with headers) or 'a' to append rows.
+        mode (str): File mode, either 'w' (write new file) or 'a' (append).
 
     Returns:
-        str or None:
-            Full path to the saved CSV on success, or None if saving failed.
+        str | None: Full path to the saved CSV, or None on failure.
     """
 
     logging.info(f"Starting to save results to {filename}")
     data_dir = os.path.join(base_dir, "data")
-    os.makedirs(data_dir, exist_ok=True)  # Ensure the directory exists
+    os.makedirs(data_dir, exist_ok=True)
 
     full_path = os.path.join(data_dir, filename)
     logging.info(f"Saving results to: {full_path}")
@@ -359,68 +372,72 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
         with open(full_path, mode=mode, newline="") as file:
             writer = csv.writer(file)
 
-            # Write headers if in write mode
+            # ─────────────────────────────────────────────────────────
+            #   first‑time header rows  (only if we are *creating* file)
+            # ─────────────────────────────────────────────────────────
             if mode == "w":
-                writer.writerow(["Participant ID", "Task", "Block", "N-back Level", "Measure", "Value"])
-                logging.debug("Headers written")
+                # provenance row: record the seed or the fact it was random
+                writer.writerow(["Seed Used", GLOBAL_SEED if GLOBAL_SEED is not None else "random"])
+                # standard behavioural header row
+                writer.writerow(
+                    ["Participant ID", "Task", "Block", "N-back Level", "Measure", "Value"]
+                )
+                logging.debug("Headers + seed row written")
 
-            # Process results (unchanged)
+            # ─────────────────────────────────────────────────────────
+            #   behavioural results blocks
+            # ─────────────────────────────────────────────────────────
             for i, result in enumerate(results):
                 logging.debug(f"Processing result {i + 1}")
                 try:
                     participant_id = result.get("Participant ID", "Unknown")
-                    task = result.get("Task", "Unknown Task")
-                    block = result.get("Block", "Unknown Block")
-                    n_back_level = result.get("N-back Level", "Unknown")
-                    data = result.get("Results")
+                    task           = result.get("Task",        "Unknown Task")
+                    block          = result.get("Block",       "Unknown Block")
+                    n_back_level   = result.get("N-back Level", "Unknown")
+                    data           = result.get("Results")
 
                     if isinstance(data, dict):
-                        # Overall metrics
-                        overall_metrics = [
-                            "Correct Responses",
-                            "Incorrect Responses",
-                            "Lapses",
-                            "Accuracy",
-                            "Total Reaction Time",
-                            "Average Reaction Time",
-                            "Overall D-Prime",
-                        ]
-                        for measure in overall_metrics:
-                            value = data.get(measure, "N/A")
-                            writer.writerow([participant_id, task, block, n_back_level, measure, value])
+                        # overall metrics
+                        for measure in [
+                            "Correct Responses", "Incorrect Responses", "Lapses",
+                            "Accuracy", "Total Reaction Time",
+                            "Average Reaction Time", "Overall D-Prime",
+                        ]:
+                            writer.writerow([participant_id, task, block, n_back_level,
+                                             measure, data.get(measure, "N/A")])
 
-                        # Pre-distractor metrics
-                        pre_metrics = ["Pre-Distractor Accuracy", "Pre-Distractor Avg RT", "Pre-Distractor A-Prime"]
-                        for measure in pre_metrics:
-                            value = data.get(measure, "N/A")
-                            writer.writerow([participant_id, task, block, n_back_level, measure, value])
-
-                        # Post-distractor metrics
-                        post_metrics = ["Post-Distractor Accuracy", "Post-Distractor Avg RT", "Post-Distractor A-Prime"]
-                        for measure in post_metrics:
-                            value = data.get(measure, "N/A")
-                            writer.writerow([participant_id, task, block, n_back_level, measure, value])
+                        # pre‑ & post‑distractor metrics
+                        for section in [("Pre",  ["Accuracy", "Avg RT", "A-Prime"]),
+                                        ("Post", ["Accuracy", "Avg RT", "A-Prime"])]:
+                            prefix, keys = section
+                            for k in keys:
+                                col_name = f"{prefix}-Distractor {k}"
+                                writer.writerow([participant_id, task, block, n_back_level,
+                                                 col_name, data.get(col_name, "N/A")])
                     else:
                         logging.warning(f"Result {i + 1} has unexpected format: {data}")
+
                 except Exception as e:
                     logging.error(f"Error processing result {i + 1}: {e}")
                     logging.debug(f"Faulty result data: {result}")
-                    continue  # Skip to the next result
+                    continue  # skip to next result
 
-            # Process subjective measures
+            # ─────────────────────────────────────────────────────────
+            #   subjective measures block (optional)
+            # ─────────────────────────────────────────────────────────
             if subjective_measures:
                 logging.info("Writing subjective measures")
-                writer.writerow([])  # Empty row for separation
+                writer.writerow([])  # blank line separator
                 writer.writerow(["Participant ID", "Time Point", "Measure", "Value"])
 
                 for time_point, measures in subjective_measures.items():
                     try:
                         writer.writerow([participant_id, time_point, "Mental Fatigue", measures[0]])
-                        writer.writerow([participant_id, time_point, "Task Effort", measures[1]])
+                        writer.writerow([participant_id, time_point, "Task Effort",     measures[1]])
                         writer.writerow([participant_id, time_point, "Mind Wandering", measures[2]])
-                        writer.writerow([participant_id, time_point, "Overwhelmed", measures[3]])  # New fourth measure
+                        writer.writerow([participant_id, time_point, "Overwhelmed",    measures[3]])
                     except Exception as e:
-                        logging.error(f"Error saving subjective measures for time point {time_point}: {e}")
+                        logging.error(f"Error saving subjective measures for {time_point}: {e}")
                         continue
 
         logging.info(f"Results and subjective measures saved to {full_path}")
@@ -428,7 +445,7 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
 
     except Exception as e:
         logging.error(f"Failed to save results to {full_path}: {e}")
-        # Display an error message in the window
+        # fail‑safe: display error to participant if the window exists
         try:
             error_stim = visual.TextStim(
                 win,
@@ -441,7 +458,7 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
             win.flip()
             event.waitKeys()
         except Exception as inner_e:
-            logging.error(f"Error displaying save failure message: {inner_e}")
+            logging.error(f"Error displaying save‑failure message: {inner_e}")
 
         return None
 
@@ -1059,17 +1076,53 @@ def run_sequential_nback_block(
         alignText="left",
     )
 
-    # Determine where distractors will occur
-    distractor_trials = []
-    next_distractor = random.randint(12, 16)
-    while next_distractor < total_trials - 3:
-        distractor_trials.append(next_distractor)
-        next_distractor += random.randint(12, 16)
-    logging.info(f"Block {block_number}: Distractor positions → {sorted(distractor_trials)}")
+    # ─────────────────────────────────────────────────────────────
+    #  Determine where distractors will occur  ─ hard‑cap = 13
+    #      • never during the initial non‑response trials
+    #      • leave 3 scored trials before the first flash
+    #      • leave 3 scored trials after the last flash
+    #      • ≥ 6 trials between successive flashes
+    # ─────────────────────────────────────────────────────────────
+    DISTRACTORS_PER_BLOCK = 13  # hard cap
+    MIN_GAP_BETWEEN = 6  # trials
+    # skip_responses = n (defined above).  +3 scored trials before first flash
+    FIRST_SCORABLE_TRIAL = skip_responses + 1
+    EARLIEST_DISTRACTOR = FIRST_SCORABLE_TRIAL + 3
+    LATEST_DISTRACTOR = total_trials - 3  # keep 3 at the end flash‑free
 
-    # If first block, show a “no response required” notice
+    if (
+            DISTRACTORS_ENABLED
+            and LATEST_DISTRACTOR - EARLIEST_DISTRACTOR + 1 >= 1
+    ):
+        # build a shuffled pool of candidate trials
+        candidate_trials = list(range(EARLIEST_DISTRACTOR, LATEST_DISTRACTOR + 1))
+        random.shuffle(candidate_trials)
+
+        distractor_trials = []
+        for t in candidate_trials:
+            # honour minimum gap constraint
+            if all(abs(t - prev) >= MIN_GAP_BETWEEN for prev in distractor_trials):
+                distractor_trials.append(t)
+                if len(distractor_trials) == DISTRACTORS_PER_BLOCK:
+                    break
+
+        distractor_trials.sort()
+        if len(distractor_trials) < DISTRACTORS_PER_BLOCK:
+            logging.warning(
+                f"Block {block_number}: could only place "
+                f"{len(distractor_trials)} / {DISTRACTORS_PER_BLOCK} distractors "
+                f"with current constraints."
+            )
+        logging.info(f"Block {block_number}: Distractor positions → {distractor_trials}")
+    else:
+        distractor_trials = []
+        logging.info(f"Block {block_number}: Distractors disabled")
+
+    # ─────────────────────────────────────────────────────────────
+    #  First‑block notice (for the initial n non‑response trials)
+    # ─────────────────────────────────────────────────────────────
     if is_first_encounter:
-        msg = f"No response required for the first {n} trials"
+        msg = f"No response required for the first {n} trials"
         feedback_text = visual.TextStim(win, text=msg, color="white", height=24, units="pix")
         draw_grid()
         level_indicator.draw()
@@ -1271,6 +1324,7 @@ def show_level_change_screen(win, task_name, old_level, new_level, is_first_bloc
         new_level (int): Updated N-back level.
         is_first_block (bool, optional): Whether this is the first block of the task.
     """
+    # determine phrasing of the level change
     if new_level > old_level:
         change_text = f"increasing from {old_level}-back to {new_level}-back"
     elif new_level < old_level:
@@ -1278,20 +1332,36 @@ def show_level_change_screen(win, task_name, old_level, new_level, is_first_bloc
     else:
         change_text = f"continuing at {old_level}-back"
 
+    # first‐trial notice
     feedback_text = f"No response required for the first {new_level} trials"
 
+    # status indicators
+    seed_status = (
+        f"Seed: fixed ({GLOBAL_SEED})"
+        if GLOBAL_SEED is not None
+        else "Seed: random"
+    )
+    dist_status = "Distractors: ON" if DISTRACTORS_ENABLED else "Distractors: OFF"
+
+    # assemble full on‐screen message
     message = (
         f"Based on your performance, the difficulty level is {change_text}.\n\n"
         f"The task will now be at {new_level}-back level.\n\n"
         f"{feedback_text}\n\n"
+        f"{seed_status} | {dist_status}\n\n"
         f"After that, respond if the current stimulus matches the {new_level} steps back.\n\n"
-        "This screen will automatically advance in 10 seconds.\nPress 'space' to continue immediately."
+        "This screen will automatically advance in 10 seconds.\n"
+        "Press 'space' to continue immediately."
     )
 
-    level_change_stim = visual.TextStim(win, text=message, color="white", height=24, wrapWidth=750)
+    # draw & display
+    level_change_stim = visual.TextStim(
+        win, text=message, color="white", height=24, wrapWidth=750
+    )
     level_change_stim.draw()
     win.flip()
 
+    # wait with early‐exit
     timer = core.Clock()
     while timer.getTime() < 10:
         keys = event.getKeys(keyList=["space", "escape"])
@@ -1300,6 +1370,7 @@ def show_level_change_screen(win, task_name, old_level, new_level, is_first_bloc
         elif "escape" in keys:
             core.quit()
     event.clearEvents()
+
 
 
 def print_debug_info(sequence, n, is_dual=False):
@@ -2164,6 +2235,19 @@ def main_task_flow():
         participant_id = exp_info["Participant ID"]
         n_back_level = exp_info["N-back Level"]
 
+        # -- apply GUI seed / distractor choices ------------
+        global GLOBAL_SEED, DISTRACTORS_ENABLED
+        GLOBAL_SEED = exp_info["Seed"]
+        DISTRACTORS_ENABLED = exp_info["Distractors"]
+
+        if GLOBAL_SEED is not None:
+            random.seed(GLOBAL_SEED)
+            try:
+                import numpy as np
+                np.random.seed(GLOBAL_SEED)
+            except ModuleNotFoundError:
+                pass
+
         # Set up the base directory and data directory
         if getattr(sys, "frozen", False):
             base_dir = sys._MEIPASS
@@ -2604,5 +2688,10 @@ def main_task_flow():
     core.quit()
 
 
+
 if __name__ == "__main__":
+    if args.dummy:
+        run_dummy_session(win, n_back_level=2, num_trials=20)
+    else:
         main_task_flow()
+

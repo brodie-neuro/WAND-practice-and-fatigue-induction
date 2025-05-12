@@ -4,6 +4,7 @@ import os
 import random
 import sys
 import traceback
+import argparse
 
 from psychopy import core, event, visual
 
@@ -25,9 +26,28 @@ Version: 1.0
 
 # Licensed under the MIT License (see LICENSE file for full text)
 
-# determine where this script lives on _any_ machine
-import os
-import sys
+# --------------- CLI FLAGS (dummy‑run placeholders) ---------------
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument("--seed",        type=int,            default=None,      help="Fix RNG (blank = random)")
+parser.add_argument("--distractors", choices=["on","off"], default=None,     help="Toggle mini‑distractor flashes")
+args, _ = parser.parse_known_args()
+
+# Global flags that the on‑screen wizard can overwrite later
+GLOBAL_SEED          = args.seed
+DISTRACTORS_ENABLED  = (args.distractors != "off") if args.distractors else True
+
+
+def _apply_seed(seed_val):
+    """Seed Python & NumPy RNGs once, if a seed is provided."""
+    if seed_val is None:
+        return
+    random.seed(seed_val)
+    try:
+        import numpy as np
+        np.random.seed(seed_val)
+    except ModuleNotFoundError:
+        pass
+
 
 if getattr(sys, "frozen", False):
     # if you’ve bundled into an executable
@@ -146,6 +166,42 @@ def prompt_starting_level():
             starting_level = 3
     return starting_level
 
+def get_practice_options(win):
+    """
+    On‑screen wizard (same look‑and‑feel as the main script) that asks for:
+        • RNG seed   (optional, blank = random)
+        • Distractor flashes ON / OFF
+    Returns dict {"Seed": int|None, "Distractors": bool}
+    """
+    win.mouseVisible = False
+    txt = dict(height=24, color="white", wrapWidth=900)
+
+    # 1) Seed entry
+    seed_str = ""
+    while True:
+        visual.TextStim(win, text="Optional: enter RNG seed  (Blank = Random) then press return", **txt, pos=(0, 120)).draw()
+        visual.Rect(win, width=380, height=50, lineColor="white", pos=(0, 40)).draw()
+        visual.TextStim(win, text=seed_str, **txt, pos=(0, 40)).draw()
+        win.flip()
+        keys = event.waitKeys()
+        if "return" in keys:
+            seed_val = int(seed_str) if seed_str.isdigit() else None
+            break
+        if "backspace" in keys:
+            seed_str = seed_str[:-1]
+        elif keys[0].isdigit():
+            seed_str += keys[0]
+
+    # 2) Distractor toggle
+    while True:
+        prompt = "Enable 200 ms distractor flashes?\n\nPress Y for ON   |   N for OFF"
+        visual.TextStim(win, text=prompt, **txt).draw(); win.flip()
+        key = event.waitKeys(keyList=["y", "n"])[0]
+        distractors = (key == "y"); break
+
+    win.flip()
+    return {"Seed": seed_val, "Distractors": distractors}
+
 
 def error_catcher(type, value, tb):
     """Custom exception hook to handle and display errors gracefully.
@@ -180,15 +236,23 @@ except Exception as e:
     input("Press Enter to exit...")
     sys.exit(1)
 
-event.globalKeys.add(key="escape", func=core.quit)
-# point at the stimuli folder next to this script
-image_dir = os.path.join(base_dir, "Abstract Stimuli", "apophysis")
+# ────────────────────────────────────────────────────────────────
+#  Step 3: on‑screen wizard → update globals → seed the RNGs
+# ────────────────────────────────────────────────────────────────
+options               = get_practice_options(win)   # ask Seed & Distractors
+GLOBAL_SEED           = options["Seed"]
+DISTRACTORS_ENABLED   = options["Distractors"]
+_apply_seed(GLOBAL_SEED)                            # seed Python + NumPy
 
+# ────────────────────────────────────────────────────────────────
+event.globalKeys.add(key="escape", func=core.quit)
+
+# point at the stimuli folder next to this script
+image_dir   = os.path.join(base_dir, "Abstract Stimuli", "apophysis")
 image_files = [f for f in os.listdir(image_dir) if f.endswith(".png")]
 
 if len(image_files) < 22:
-    error_message = "Not enough images found in directory"
-    print(error_message)
+    print("Not enough images found in directory")
     sys.exit(1)
 
 
@@ -212,6 +276,7 @@ def show_pilot_entry_screen():
     pilot_message.draw()
     win.flip()
     event.waitKeys(keyList=["space"])
+
 
 
 def show_task_instructions(win, task_name, n_back_level=None):
@@ -240,7 +305,7 @@ def show_task_instructions(win, task_name, n_back_level=None):
             "**Important:**\n"
             "- A grid will be displayed in the background during the task. This grid is **not part of the task**. "
             "Please **ignore it** and focus solely on the images.\n"
-            "- Occasionally, a brief distractor image (a coloured square) will appear. "
+            "- Occasionally, a brief distractor image (a square) will appear. "
             "**Ignore these distractors** and stay focused on the main task.\n\n"
             "Respond as quickly and accurately as possible.\n"
         )
@@ -1720,7 +1785,7 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
         response = None
 
         # We'll handle the distractor if it's the 12th trial
-        show_distractor = (i > 0) and (i % 12 == 0)
+        show_distractor = DISTRACTORS_ENABLED and (i > 0) and (i % 12 == 0)
         distractor_shown = False
 
         while response_timer.getTime() < isi:
