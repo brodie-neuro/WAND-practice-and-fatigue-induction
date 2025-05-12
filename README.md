@@ -153,7 +153,7 @@ If you use WAND in a publication, please cite:
 
 ```
 Mangan B., 2025. Working-memory Adaptive-fatigue with N-back Difficulty (WAND) – Practice-and-Induction Suite.
-DOI: [10.5281/zenodo.15389893](https://doi.org/10.5281/zenodo.15389893)
+DOI: [10.5281/zenodo.15390080](https://doi.org/10.5281/zenodo.15390080)
 ```
 
 ---
