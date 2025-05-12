@@ -65,4 +65,4 @@ Results are saved in the data/ directory (e.g., participant_dummy_n2_TestRun_<ti
 License
 This project is licensed under the MIT License. See LICENSE.txt for details.
 Citation
-If you use this script in your research, please cite:Mangan, B. (2025). WAND Practice and Fatigue Induction Suite. GitHub Repository: brodie_neuro/WAND-practice-and-fatigue-induction. doi: 10.5281/zenodo.15389893
+If you use this script in your research, please cite:Mangan, B. (2025). WAND Practice and Fatigue Induction Suite. GitHub Repository: brodie_neuro/WAND-practice-and-fatigue-induction. doi: 10.5281/zenodo.15390080
