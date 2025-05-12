@@ -4,7 +4,7 @@ This document provides detailed instructions for running the WAND_full_induction
 Requirements
 
 Python 3.8+
-PsychoPy (version 2024.2.1 or later)
+PsychoPy (version 2024.2.1)
 SciPy
 
 Installation
@@ -35,8 +35,10 @@ Save results per block and at the end in the data/ directory (e.g., participant_
 
 Monitor Configuration
 Update the MONITOR_NAME variable in WAND_full_induction.py to match your lab’s monitor profile in PsychoPy’s Monitor Center for accurate stimulus sizing. The default is 'testMonitor'. See PsychoPy’s documentation for setup instructions.
+
 EEG Notes
 EEG triggers are implemented as placeholders. To enable, set EEG_ENABLED = True in the script and modify the send_trigger function to interface with your EEG hardware (e.g., via a parallel port). Currently, send_trigger includes a 5ms delay as a dummy operation. Future integration will target N2 and P3 ERP components to assess cognitive control decline.
+
 Data Saving
 Results are saved twice for redundancy:
 
@@ -44,6 +46,7 @@ After each block (e.g., participant_<ID>_n<level>_Block_1_results.csv).
 At the end of the experiment (e.g., participant_<ID>_n<level>_results.csv).
 
 This ensures data integrity if the experiment is interrupted, a design choice made after data loss during piloting.
+
 Subjective Measures
 Participants complete subjective ratings at the start and every 15 minutes during the experiment, using a 1–8 Likert scale (1 = "not at all", 8 = "extremely"):
 
@@ -53,6 +56,7 @@ Do you currently find your mind wandering or becoming distracted?
 How overwhelmed do you feel by the task demands right now?
 
 These measures, saved in the data/ directory (e.g., participant_<ID>_subjective_<timestamp>.csv), complement behavioural data to assess active fatigue.
+
 Testing
 For testing, use the Dummy_Run.py script to verify setup and CSV logging. Run it with:
 python Dummy_Run.py
@@ -61,4 +65,4 @@ Results are saved in the data/ directory (e.g., participant_dummy_n2_TestRun_<ti
 License
 This project is licensed under the MIT License. See LICENSE.txt for details.
 Citation
-If you use this script in your research, please cite:Mangan, B. (2025). WAND Practice and Fatigue Induction Suite. GitHub Repository: brodie_neuro/WAND-practice-and-fatigue-induction.
+If you use this script in your research, please cite:Mangan, B. (2025). WAND Practice and Fatigue Induction Suite. GitHub Repository: brodie_neuro/WAND-practice-and-fatigue-induction. doi: 10.5281/zenodo.15389893
