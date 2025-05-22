@@ -1953,100 +1953,88 @@ def run_sequential_nback_until_plateau(starting_level):
 def main():
     """Execute the complete WAND practice protocol.
 
-    Runs Spatial, Dual, and Sequential N-back tasks with demos and practice blocks.
-    Ends with a summary screen prompting the researcher to note the final level.
+    Runs Spatial, Dual, and Sequential N-back tasks with demos and practice
+    blocks.  Spatial and Dual phases now demand *two consecutive* ≥ 65 % blocks
+    before progression.
 
-    Raises:
-        Exception: Any unhandled errors are caught and printed with traceback.
+    Any unhandled exception is caught and printed with traceback.
     """
     global skip_to_next_stage
     try:
-
         # === Start: Spatial N-back Demo Phase ===
         show_task_instructions(win, "Spatial")
         show_spatial_demo(win, n=2)
 
-        # === Start: Spatial N-back Practice Blocks ===
-        # (2 x 2-minute blocks, continue until one block ≥65% accuracy)
-        spatial_threshold_met = False
-        while not spatial_threshold_met and not skip_to_next_stage:
-            for block in range(2):
+        # === Start: Spatial N-back Practice Blocks (two successive ≥ 65 %) ===
+        passes = 0
+        while passes < 2 and not skip_to_next_stage:
+            for _ in range(2):   # always run two blocks per attempt
                 show_countdown()
-                accuracy, correct, incorrect, lapses = run_spatial_nback_practice(n=2, num_trials=60)
-                display_block_results("Spatial", accuracy, correct, incorrect, lapses)
+                acc, corr, incorr, lapses = run_spatial_nback_practice(n=2, num_trials=60)
+                display_block_results("Spatial", acc, corr, incorr, lapses)
 
-                if skip_to_next_stage:
-                    spatial_threshold_met = True  # Skip the accuracy requirement
-                    break  # Exit the block loop
-
-                if accuracy >= 65:
-                    spatial_threshold_met = True
-                    break  # Exit the block loop once threshold is met
-
-            if not spatial_threshold_met:
-                if skip_to_next_stage:
-                    spatial_threshold_met = True
+                if skip_to_next_stage:        # user aborted with ‘5’/Esc
+                    passes = 2                # force exit
                     break
-                else:
-                    # Inform participant to retry Spatial N-back practice
-                    retry_message = (
-                        "Performance below 65% accuracy threshold.\n\n"
-                        "You will try the Spatial N-back blocks again.\n\n"
-                        "Press 'space' to continue."
-                    )
-                    retry_text = visual.TextStim(win, text=retry_message, color="white", height=24, wrapWidth=800)
-                    retry_text.draw()
-                    win.flip()
-                    event.waitKeys(keyList=["space"])
 
-        skip_to_next_stage = False  # Reset the skip flag
+                passes = passes + 1 if acc >= 65 else 0
+                if passes == 2:               # criterion met
+                    break
+
+            if passes < 2 and not skip_to_next_stage:
+                visual.TextStim(
+                    win,
+                    text=f"Need 2 successive Spatial blocks ≥ 65 %.  "
+                         f"Current streak {passes}/2.\nPress SPACE to retry.",
+                    color="white",
+                    height=24,
+                    wrapWidth=800,
+                ).draw()
+                win.flip()
+                event.waitKeys(keyList=["space"])
+
+        skip_to_next_stage = False  # reset flag
 
         # === Start: Dual N-back Demo Phase ===
         show_task_instructions(win, "Dual")
         show_dual_demo(win, n=2)
 
-        # === Start: Dual N-back Practice Blocks ===
-        # (2 x 2-minute blocks, continue until one block ≥65% accuracy)
-        dual_threshold_met = False
-        while not dual_threshold_met and not skip_to_next_stage:
-            for block in range(2):
+        # === Start: Dual N-back Practice Blocks (two successive ≥ 65 %) ===
+        passes = 0
+        while passes < 2 and not skip_to_next_stage:
+            for _ in range(2):
                 show_countdown()
-                accuracy, correct, incorrect, lapses = run_dual_nback_practice(n=2, num_trials=60)
-                display_block_results("Dual", accuracy, correct, incorrect, lapses)
+                acc, corr, incorr, lapses = run_dual_nback_practice(n=2, num_trials=60)
+                display_block_results("Dual", acc, corr, incorr, lapses)
 
                 if skip_to_next_stage:
-                    dual_threshold_met = True  # Skip the accuracy requirement
-                    break  # Exit the block loop
-
-                if accuracy >= 65:
-                    dual_threshold_met = True
-                    break  # Exit the block loop once threshold is met
-
-            if not dual_threshold_met:
-                if skip_to_next_stage:
-                    dual_threshold_met = True
+                    passes = 2
                     break
-                else:
-                    # Inform participant to retry Dual N-back practice
-                    retry_message = (
-                        "Performance below 65% accuracy threshold.\n\n"
-                        "You will try the Dual N-back blocks again.\n\n"
-                        "Press 'space' to continue."
-                    )
-                    retry_text = visual.TextStim(win, text=retry_message, color="white", height=24, wrapWidth=800)
-                    retry_text.draw()
-                    win.flip()
-                    event.waitKeys(keyList=["space"])
 
-        skip_to_next_stage = False  # Reset the skip flag
+                passes = passes + 1 if acc >= 65 else 0
+                if passes == 2:
+                    break
+
+            if passes < 2 and not skip_to_next_stage:
+                visual.TextStim(
+                    win,
+                    text=f"Need 2 successive Dual blocks ≥ 65 %.  "
+                         f"Current streak {passes}/2.\nPress SPACE to retry.",
+                    color="white",
+                    height=24,
+                    wrapWidth=800,
+                ).draw()
+                win.flip()
+                event.waitKeys(keyList=["space"])
+
+        skip_to_next_stage = False
 
         # === Start: Sequential N-back Demo Phase ===
         show_task_instructions(win, "Sequential", n_back_level=2)
         show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=1.0)
 
         # === Start: Sequential N-back Adaptive Practice Phase ===
-        # (Practice continues until performance plateaus)
-        starting_level = prompt_starting_level()  # Get starting level from participant
+        starting_level = prompt_starting_level()
         show_countdown()
         final_n_level, final_accuracy, final_avg_rt = run_sequential_nback_until_plateau(starting_level)
 
@@ -2056,8 +2044,8 @@ def main():
             f"Please note this level for the main induction.\n"
             f"Press 'space' to exit."
         )
-        final_summary_text = visual.TextStim(win, text=final_summary, color="white", height=24, wrapWidth=800)
-        final_summary_text.draw()
+        visual.TextStim(win, text=final_summary, color="white",
+                        height=24, wrapWidth=800).draw()
         win.flip()
         event.waitKeys(keyList=["space"])
 

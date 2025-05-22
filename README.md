@@ -9,8 +9,8 @@ WAND consists of three PsychoPy scripts designed to induce and measure "active" 
 
 | Script | Purpose | Typical Duration |
 |--------|---------|------------------|
-| `WAND_practice_plateau.py` | Calibrates individual working-memory capacity through adaptive difficulty until performance stabilizes (≤7% variability) | 20–45 minutes |
-| `WAND_full_induction.py` | Induces mental fatigue through progressive overloading of working memory circuits via Sequential, Spatial, and Dual N-back tasks | 65-70 minutes (including breaks) |
+| `WAND_practice_plateau.py` | Calibrates individual N-Back capacity (a proxy for working memory capacity) through adaptive difficulty until performance stabilises (≤7% variability) | 20–60 minutes |
+| `WAND_full_induction.py` | Induces mental fatigue through progressive loading of non-verbal working memory circuits via Sequential, Spatial, and Dual N-back tasks | 65-70 minutes (including breaks) |
 | `Dummy_Run.py` | Lightweight script to verify sequential task logic and data logging | 3–5 minutes |
 
 ## Design Principles
@@ -18,11 +18,11 @@ WAND consists of three PsychoPy scripts designed to induce and measure "active" 
 | Feature | Purpose |
 |---------|---------|
 | **Task Modalities** | Sequential, Spatial, and Dual N-back tasks tax the same fronto-parietal networks in complementary ways |
-| **Adaptive Difficulty** | Automatic level adjustment and linear timing compression maintain optimal challenge for each participant |
-| **Mini-distractors** | Brief (180–220ms) visual disruptions probe inhibitory failure (13× per 164 trial block); compare A′/RT pre- vs post-distractor |
+| **Adaptive Difficulty** | Automatic level adjustment within block, and linear timing compression maintain high-level difficulty for each participant *Spatial and Dual only* |
+| **Mini-distractors** | Brief (200ms) visual disruptions probe inhibitory failure (13× per 164 trial block); compare A′/RT pre- vs post-distractor |
 | **Practice Plateau** | Ensures performance stability (≤7% variability over 3-5 blocks) to distinguish fatigue effects from learning |
 | **Balanced Target:Lure Ratio** | 50:50 ratio prevents response bias and ensures d′/A′ metrics reflect true sensitivity |
-| **Enhanced Engagement** | Lapse-cue system and color-coded N-levels prevent disengagement and maintain motivation |
+| **Enhanced Engagement** | Lapse-cue system and colour-coded N-levels reduce disengagement and maintain motivation |
 
 ## Task Algorithms
 
@@ -49,7 +49,7 @@ WAND consists of three PsychoPy scripts designed to induce and measure "active" 
 | **Adaptive N-back** | Increases/decreases difficulty (↑n at ≥82% accuracy, ↓n at ≤65%) to maintain 70-80% performance range |
 | **Timing compression** | -30ms presentation and -50ms ISI per block (capped at -150ms) forces sustained vigilance |
 | **Grey background grid** | 100px spacing, 20% opacity creates irrelevant visual texture participants must actively ignore |
-| **Mini-distractor flashes** | 180–220ms white square on 12-16 trial jitter causes inhibitory processes |
+| **Mini-distractor flashes** | 200 ms white square inserted pseudo-randomly throughout each block (max 13 per block, minimum 6 trials apart) |
 | **Misleading trials** | 30% of trials in 3-back match 2-back item to probe proactive vs reactive control |
 
 ## Subjective Measurements
@@ -146,15 +146,6 @@ The WAND suite employs a carefully curated set of 24 complex 3D fractal shapes g
 - **Visuospatial Working Memory Focus**: Ensures tasks target non-verbal cognitive circuits
 
 This approach addresses a critical methodological challenge in cognitive fatigue research: preventing participants from masking performance declines through verbal processing strategies.
-
-## Citation
-
-If you use WAND in a publication, please cite:
-
-```
-Mangan B., 2025. Working-memory Adaptive-fatigue with N-back Difficulty (WAND) – Practice-and-Induction Suite.
-DOI: pending
-```
 
 ---
 

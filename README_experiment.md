@@ -18,7 +18,7 @@ Abstract Stimuli/apophysis/: Folder containing at least 24 complex 3D fractal PN
 data/: Output directory for results (auto-created during execution).
 
 Practice Protocol Integration
-The WAND suite includes WAND_practice_plateau.py, which calibrates a participant's N-back capacity before the fatigue induction phase. This script runs adaptive N-back blocks until performance variability is ≤7% across three out of five consecutive blocks, typically taking 25–45 minutes. A dual-threshold system requires:
+The WAND suite includes WAND_practice_plateau.py, which calibrates a participant's N-back capacity before the fatigue induction phase. This script runs adaptive N-back blocks until performance variability is ≤7% across three out of five consecutive blocks, typically taking 25–60 minutes. A dual-threshold system requires:
 
 Level 2: Accuracy between 65% and 82%.
 Level 3: Transition from Level 2 by achieving an average accuracy above 82% for two consecutive blocks, then maintaining ≤7% variability across three out of five blocks.This classifies participants as "normal" or "high" performers. Run this script first and review its results (e.g., calibrated N-back level) in the data/ directory to set the initial difficulty for WAND_full_induction.py. For detailed instructions, see the main README.md.
@@ -30,7 +30,7 @@ python WAND_full_induction.py
 The script will:
 
 Prompt for a Participant ID and N-back level (2 or 3, based on practice calibration).
-Execute five sequential (5 minutes each), four spatial (4.5 minutes each), and four dual N-back (4.5 minutes each) blocks with adaptive difficulty and mini-distractors.
+Execute five sequential (5 minutes each), four spatial (4.5 minutes each), and four dual N-back (4.5 minutes each) blocks with adaptive difficulty (Spatial and Dual) and mini-distractors (Sequential).
 Save results per block and at the end in the data/ directory (e.g., participant_<ID>_n<level>_results.csv).
 
 Monitor Configuration
@@ -60,5 +60,6 @@ python Dummy_Run.py
 Results are saved in the data/ directory (e.g., participant_dummy_n2_TestRun_<timestamp>.csv).
 License
 This project is licensed under the MIT License. See LICENSE.txt for details.
+
 Citation
 If you use this script in your research, please cite:Mangan, B. (2025). WAND Practice and Fatigue Induction Suite. GitHub Repository: brodie_neuro/WAND-practice-and-fatigue-induction.
