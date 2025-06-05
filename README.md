@@ -1,4 +1,5 @@
 # WAND — Working-memory Adaptive-fatigue with N-back Difficulty
+*Current release: v1.0.1 – see CHANGELOG for details*  
 ### A Practice-and-Fatigue-Induction Suite
 
 ## Overview
@@ -12,6 +13,13 @@ WAND consists of three PsychoPy scripts designed to induce and measure "active" 
 | `WAND_practice_plateau.py` | Calibrates individual N-Back capacity (a proxy for working memory capacity) through adaptive difficulty until performance stabilises (≤7% variability) | 20–60 minutes |
 | `WAND_full_induction.py` | Induces mental fatigue through progressive loading of non-verbal working memory circuits via Sequential, Spatial, and Dual N-back tasks | 65-70 minutes (including breaks) |
 | `Dummy_Run.py` | Lightweight script to verify sequential task logic and data logging | 3–5 minutes |
+| `Dummy_Run_Practice.py` | Lightweight script to verify sequential task functionality and data logging |2-3 minutes |
+
+New in v1.0.1 
+
+Slow-phase on-ramp (1.5 × timings) lets low-performers find rhythm before normal speed
+
+Participant-ID dialog  →  per-block CSV logger (data/seq_<PID>.csv)
 
 ## Design Principles
 
@@ -29,6 +37,7 @@ WAND consists of three PsychoPy scripts designed to induce and measure "active" 
 ### 1. Sequential N-back
 - Image list of N = 24 abstract PNGs
 - Sequence of 164 trials per block
+- Baseline timings: 0.80 s presentation, 1.00 s ISI
 - Targets ≈ 50% of eligible positions, never > 2 in a row
 - If n == 3, 30% of non-target slots copy the 2-back item (misleading lure)
 
@@ -40,7 +49,7 @@ WAND consists of three PsychoPy scripts designed to induce and measure "active" 
 
 ### 3. Dual N-back
 - 3 × 3 grid + image overlay
-- Same timing equation as Spatial but ISI starts at 1.2s
+- Timing compression per normal‑speed block (same slope as Spatial) presentation = 1.00 s − 0.03 s·block       - (min 0.85 s)ISI = 1.20 s − 0.05 s·block   (min 0.95 s)
 
 ## Key Features for Fatigue Induction
 
@@ -67,6 +76,8 @@ Responses are collected using 1–8 Likert scales and stored alongside behaviora
 
 WAND requires Python 3.8.x:
 
+download the ZIP from GitHub/Zenodo, and then navigate into the project directory
+
 ```bash
 # Create and activate virtual environment
 python -m venv venv
@@ -79,6 +90,10 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 ```
+## Post-installation check:
+
+- Run `Dummy_Run.py` to verify the environment is configured correctly and dependencies are working before launching a full experiment.
+- Ensure a `data/` folder exists in the project root. This is where output files (performance and subjective ratings) are saved. The script will attempt to create this if it does not exist, but you may create it manually.
 
 ## Running the Scripts
 
@@ -87,7 +102,11 @@ pip install -r requirements.txt
 python WAND_practice_plateau.py
 
 # Fully reproducible run, no distractors
-python WAND_practice_plateau.py --seed 1234 --distractors off
+python WAND_full_induction.py --seed 1234 --distractors off
+
+# Test run and saving confirmation 
+python Dummy_Run.py
+
 ```
 
 ### Hot-keys During an Experiment
@@ -104,6 +123,7 @@ python WAND_practice_plateau.py --seed 1234 --distractors off
 | `WAND_practice_plateau.py` | Practice protocol for pre-fatigue calibration via adaptive N-back loops |
 | `WAND_full_induction.py` | Full fatigue induction sequence with escalating task load |
 | `Dummy_Run.py` | Quick verification script for sequential N-back logic and CSV output |
+ `Dummy_Run_Practice.py`| Quick verification script for sequential N-back logic and CSV output |
 | `requirements.txt` | Runtime dependencies |
 | `requirements_dev.txt` | Development dependencies |
 | `README.md` | Project overview and usage instructions |
@@ -123,7 +143,8 @@ Repository structure should be:
 /
 ├── WAND_practice_plateau.py
 ├── WAND_full_induction.py
-├── Sequential_test_logger.py
+├── Dummy_Run.py
+├── Dummy_Run_Practice.py
 ├── requirements.txt
 ├── requirements_dev.txt
 ├── README.md

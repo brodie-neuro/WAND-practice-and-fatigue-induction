@@ -26,15 +26,175 @@ Version: 1.0
 
 # Licensed under the MIT License (see LICENSE file for full text)
 
-# --------------- CLI FLAGS (dummy‑run placeholders) ---------------
+if getattr(sys, "frozen", False):
+    # if you’ve bundled into an executable
+    base_dir = sys._MEIPASS
+else:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+# ────────────────────────────────────────────────────────────────
+#  ▶▶  SEQUENTIAL BLOCK LOGGER  ◀◀
+#      • ask for Participant ID immediately
+#      • create ./data if missing
+#      • write rows:  PID,level,block,accuracy,lapses,errors
+#      • whenever the N-back level changes, start a new section
+# ────────────────────────────────────────────────────────────────
+import csv, datetime
+data_dir = os.path.join(base_dir, "data")
+os.makedirs(data_dir, exist_ok=True)
+
+def _prompt_participant_id(win) -> str:
+    """
+    Prompt the experimenter for a participant-ID via an on-screen textbox.
+
+    A minimal text editor is drawn in the centre of the PsychoPy window.
+    Characters are appended one-by-one; **Backspace** deletes the last
+    character.  The routine returns only when the user presses
+    **Return / Enter** *and* at least one character has been typed.
+
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        The active PsychoPy window.
+
+    Returns
+    -------
+    str
+        A non-empty participant identifier.
+
+    Notes
+    -----
+    * The routine purposefully ignores *Escape* so the experiment cannot
+      proceed without an ID.
+    * The textbox width is fixed at 380 px; text wraps automatically
+      after 900 px to avoid runaway lines.
+    """
+    txt = dict(height=24, color="white", wrapWidth=900)
+    pid = ""
+    while True:
+        visual.TextStim(win,
+                        text="Enter Participant ID then press Return",
+                        **txt, pos=(0, 120)).draw()
+        visual.Rect(win, width=380, height=50,
+                    lineColor="white", pos=(0, 40)).draw()
+        visual.TextStim(win, text=pid, **txt, pos=(0, 40)).draw()
+        win.flip()
+
+        keys = event.waitKeys()
+        if "return" in keys and pid:
+            return pid
+        if "backspace" in keys:
+            pid = pid[:-1]
+        elif len(keys[0]) == 1:
+            pid += keys[0]
+
+
+def init_seq_logger(win):
+    """
+    Initialise the Sequential-N-back CSV logger **once** per session.
+
+    The function performs four steps:
+
+    1. Calls :func:`_prompt_participant_id` to obtain an identifier.
+    2. Ensures a ``data/`` sub-directory exists next to the script or
+       bundled executable.
+    3. Constructs an absolute path of the form
+       ``./data/seq_<PID>.csv`` and stores it in the global ``CSV_PATH``.
+    4. Resets the private section tracker ``_last_logged_level`` so the
+       very first call to :func:`log_seq_block` starts a fresh section.
+
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        The active PsychoPy window (needed for the ID prompt).
+
+    Returns
+    -------
+    tuple(str, str)
+        ``(PARTICIPANT_ID, CSV_PATH)`` – both are also placed in
+        globals of the same names for downstream helpers.
+    """
+    global PARTICIPANT_ID, CSV_PATH, _last_logged_level
+
+    PARTICIPANT_ID = _prompt_participant_id(win)
+
+    data_dir = os.path.join(base_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+
+    CSV_PATH = os.path.join(data_dir, f"seq_{PARTICIPANT_ID}.csv")
+    _last_logged_level = None        # reset section tracker
+
+    return PARTICIPANT_ID, CSV_PATH
+
+
+def log_seq_block(level: int, block_no: int,
+                  accuracy: float, errors: int, lapses: int) -> None:
+    """
+    Append a one-line summary of a Sequential-N-back block to
+    ``seq_<PID>.csv``.
+
+    Parameters
+    ----------
+    level : int
+        The N-back level of the block (2 or 3).
+    block_no : int
+        Sequential counter of *normal-speed* blocks (starts at 1).
+    accuracy : float
+        Block accuracy **in percent** (e.g. 78.34).
+    errors : int
+        Number of incorrect key presses.
+    lapses : int
+        Number of missed responses (no key press before deadline).
+
+    Notes
+    -----
+    * A new blank-line-separated *section* – complete with a header row –
+      is started whenever the N-back level changes. This keeps 2-back and
+      3-back data visually distinct.
+    * On the very first invocation the function also writes a provenance
+      header with a timestamp and participant ID.
+    """
+    global _last_logged_level
+
+    new_section = (_last_logged_level is None) or (_last_logged_level != level)
+    _last_logged_level = level
+
+    file_exists = os.path.isfile(CSV_PATH)
+    with open(CSV_PATH, "a", newline="") as f:
+        w = csv.writer(f)
+
+        # very first write → provenance header
+        if not file_exists:
+            w.writerow([f"Created {datetime.datetime.now():%Y-%m-%d %H:%M}",
+                        "Participant", PARTICIPANT_ID])
+            w.writerow(["level", "block", "accuracy_pct", "errors", "lapses"])
+
+        # start a new section if the N-back level just changed
+        if new_section and file_exists:
+            w.writerow([])   # visual gap
+            w.writerow(["level", "block", "accuracy_pct", "errors", "lapses"])
+
+        w.writerow([level, block_no, f"{accuracy:.2f}", errors, lapses])
+
+
+# --------------- CLI FLAGS (optional; wizard falls back) ---------------
 parser = argparse.ArgumentParser(add_help=False)
-parser.add_argument("--seed",        type=int,            default=None,      help="Fix RNG (blank = random)")
-parser.add_argument("--distractors", choices=["on","off"], default=None,     help="Toggle mini‑distractor flashes")
+
+parser.add_argument(
+    "--seed", type=int,
+    help="Fix RNG. If omitted, the wizard will ask for one."
+)
+parser.add_argument(
+    "--distractors", choices=["on", "off"],
+    help="Toggle 200-ms distractor flashes. If omitted, the wizard will ask."
+)
+
 args, _ = parser.parse_known_args()
 
-# Global flags that the on‑screen wizard can overwrite later
-GLOBAL_SEED          = args.seed
-DISTRACTORS_ENABLED  = (args.distractors != "off") if args.distractors else True
+# May still be None – that’s OK.
+GLOBAL_SEED = args.seed
+# None  → wizard asks.  'on'/'off' → use immediately.
+DISTRACTORS_ENABLED = None if args.distractors is None else (args.distractors != "off")
 
 
 def _apply_seed(seed_val):
@@ -49,16 +209,9 @@ def _apply_seed(seed_val):
         pass
 
 
-if getattr(sys, "frozen", False):
-    # if you’ve bundled into an executable
-    base_dir = sys._MEIPASS
-else:
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-
 skip_to_next_stage = False
 
 grid_lines = []
-
 
 def create_grid_lines(win, grid_spacing=100, grid_color="gray", opacity=0.2):
     """Create a grid of lines for the background of the N-back tasks.
@@ -99,6 +252,7 @@ def create_grid_lines(win, grid_spacing=100, grid_color="gray", opacity=0.2):
         lines.append(line)
 
     return lines
+
 
 
 def draw_grid():
@@ -168,36 +322,47 @@ def prompt_starting_level():
 
 def get_practice_options(win):
     """
-    On‑screen wizard (same look‑and‑feel as the main script) that asks for:
-        • RNG seed   (optional, blank = random)
-        • Distractor flashes ON / OFF
+    Wizard that fills in any *unset* runtime options:
+        1) RNG seed
+        2) Distractor flashes
+        3) (unchanged) initial speed profile
     Returns dict {"Seed": int|None, "Distractors": bool}
     """
     win.mouseVisible = False
     txt = dict(height=24, color="white", wrapWidth=900)
 
-    # 1) Seed entry
-    seed_str = ""
-    while True:
-        visual.TextStim(win, text="Optional: enter RNG seed  (Blank = Random) then press return", **txt, pos=(0, 120)).draw()
-        visual.Rect(win, width=380, height=50, lineColor="white", pos=(0, 40)).draw()
-        visual.TextStim(win, text=seed_str, **txt, pos=(0, 40)).draw()
-        win.flip()
-        keys = event.waitKeys()
-        if "return" in keys:
-            seed_val = int(seed_str) if seed_str.isdigit() else None
-            break
-        if "backspace" in keys:
-            seed_str = seed_str[:-1]
-        elif keys[0].isdigit():
-            seed_str += keys[0]
+    # 1) Seed entry  ── only if not given at CLI ───────────────────────────
+    seed_val = GLOBAL_SEED
+    if seed_val is None:                     # <<< new guard
+        seed_str = ""
+        while True:
+            visual.TextStim(
+                win,
+                text="Optional: enter RNG seed  (blank = random) then press Return",
+                **txt, pos=(0, 120)
+            ).draw()
+            visual.Rect(win, width=380, height=50, lineColor="white", pos=(0, 40)).draw()
+            visual.TextStim(win, text=seed_str, **txt, pos=(0, 40)).draw()
+            win.flip()
+            keys = event.waitKeys()
+            if "return" in keys:
+                seed_val = int(seed_str) if seed_str.isdigit() else None
+                break
+            if "backspace" in keys:
+                seed_str = seed_str[:-1]
+            elif keys[0].isdigit():
+                seed_str += keys[0]
 
-    # 2) Distractor toggle
-    while True:
-        prompt = "Enable 200 ms distractor flashes?\n\nPress Y for ON   |   N for OFF"
-        visual.TextStim(win, text=prompt, **txt).draw(); win.flip()
-        key = event.waitKeys(keyList=["y", "n"])[0]
-        distractors = (key == "y"); break
+    # 2) Distractor toggle  ── only if not given at CLI ────────────────────
+    distractors = DISTRACTORS_ENABLED
+    if distractors is None:                  # <<< new guard
+        while True:
+            prompt = "Enable 200 ms distractor flashes?\n\nPress Y for ON   |   N for OFF"
+            visual.TextStim(win, text=prompt, **txt).draw()
+            win.flip()
+            key = event.waitKeys(keyList=["y", "n"])[0]
+            distractors = (key == "y")
+            break
 
     win.flip()
     return {"Seed": seed_val, "Distractors": distractors}
@@ -229,23 +394,92 @@ print("Creating window...")
 
 try:
     win = visual.Window(fullscr=False, color="black", units="pix")
-    print("Window created successfully.")
     grid_lines = create_grid_lines(win)
+
+    # ─── logger bootstrap ───
+    PARTICIPANT_ID, CSV_PATH = init_seq_logger(win)
+
 except Exception as e:
     print(f"Error creating window: {e}")
     input("Press Enter to exit...")
     sys.exit(1)
 
-# ────────────────────────────────────────────────────────────────
-#  Step 3: on‑screen wizard → update globals → seed the RNGs
-# ────────────────────────────────────────────────────────────────
-options               = get_practice_options(win)   # ask Seed & Distractors
-GLOBAL_SEED           = options["Seed"]
-DISTRACTORS_ENABLED   = options["Distractors"]
-_apply_seed(GLOBAL_SEED)                            # seed Python + NumPy
+# ───── speed helpers for the PRACTICE blocks only ─────
+def _set_speed(profile: str):
+    """Update the global timing profile.
+
+        Sets the two module-level globals that control timing:
+
+        * ``SPEED_PROFILE`` – literal string ``"normal"`` or ``"slow"``
+        * ``SPEED_MULT``     – scalar multiplier (1.0 or 1.5)
+
+        Args:
+            profile: Desired speed profile – must be ``"normal"`` or ``"slow"``.
+        """
+    global SPEED_PROFILE, SPEED_MULT
+    SPEED_PROFILE = profile
+    SPEED_MULT    = 1.0 if profile == "normal" else 1.5
+
+# NEW  ➜  default is normal until the participant picks otherwise
+SPEED_PROFILE = "normal"
+SPEED_MULT    = 1.0
+
+def choose_practice_speed(win, current_profile):
+    """Ask the participant to select *Normal* or *Slow* timing.
+
+    A blocking, on-screen prompt shown **once per task phase** (Spatial,
+    Dual, Sequential) immediately before the first practice block.
+
+    Args:
+        win: The active PsychoPy window.
+        current_profile: The speed currently in effect when the
+            function is called (``"normal"`` or ``"slow"``) – displayed
+            so the participant knows what they are switching from.
+
+    Returns:
+        str: The participant’s choice – ``"normal"`` or ``"slow"``.
+    """
+    txt = dict(height=24, color="white", wrapWidth=900)
+    while True:
+        msg = (f"Practice-speed selection\n\n"
+               f"Current setting: {current_profile.upper()}\n\n"
+               "N  =  Normal speed\n"
+               "S  =  Slow speed (50 % slower)\n\n"
+               "Press N or S to continue")
+        visual.TextStim(win, text=msg, **txt).draw()
+        win.flip()
+        key = event.waitKeys(keyList=["n", "s", "escape"])[0]
+        if key == "escape":
+            core.quit()
+        return "slow" if key == "s" else "normal"
+
 
 # ────────────────────────────────────────────────────────────────
-event.globalKeys.add(key="escape", func=core.quit)
+#  Step 3: wizard → globals → seed the RNGs
+# ────────────────────────────────────────────────────────────────
+options               = get_practice_options(win)
+GLOBAL_SEED           = options["Seed"]
+DISTRACTORS_ENABLED   = options["Distractors"]
+
+def T(sec: float) -> float:
+    """Scale a duration by the current speed multiplier.
+
+    All stimulus-presentation and ISI timings in the practice blocks
+    should be wrapped with ``T()`` so that a *slow* profile automatically
+    lengthens them by 50 %.
+
+    Args:
+        sec: Base duration in seconds (at *normal* speed).
+
+    Returns:
+        float: Duration in seconds after applying ``SPEED_MULT``.
+    """
+    return sec * SPEED_MULT
+
+
+_apply_seed(GLOBAL_SEED)
+
+
 
 # point at the stimuli folder next to this script
 image_dir   = os.path.join(base_dir, "Abstract Stimuli", "apophysis")
@@ -375,29 +609,20 @@ def display_feedback(win, correct, pos=(0, 400)):
     feedback_stim.draw()
 
 
-def display_block_results(task_name, accuracy, num_correct, num_incorrect, num_lapses):
-    """Display performance summary after each N-back practice block.
+def display_block_results(win, task_name, accuracy, *_):
+    """
+    Show a *minimal* block summary: accuracy only.
 
-    Args:
-        task_name (str): The task type ('Spatial', 'Dual', or 'Sequential').
-        accuracy (float): Percentage accuracy of the block.
-        num_correct (int): Number of correct responses.
-        num_incorrect (int): Number of incorrect responses.
-        num_lapses (int): Number of missed responses.
-
-    Raises:
-        SystemExit: If 'escape' is pressed, the program exits.
+    Extra positional arguments (correct / incorrect / lapses) are accepted
+    but ignored, so existing calls need **no changes**.
     """
     results_text = (
         f"{task_name} N-back Block Results\n\n"
-        f"Accuracy: {accuracy:.1f}%\n"
-        f"Correct Responses: {num_correct}\n"
-        f"Incorrect Responses: {num_incorrect}\n"
-        f"Missed Responses: {num_lapses}\n\n"
+        f"Accuracy: {accuracy:.1f}%\n\n"
         "Press 'space' to continue."
     )
-    results_stim = visual.TextStim(win, text=results_text, color="white", height=24, wrapWidth=800)
-    results_stim.draw()
+    visual.TextStim(win, text=results_text,
+                    color="white", height=24, wrapWidth=800).draw()
     win.flip()
     event.waitKeys(keyList=["space"])
 
@@ -1200,6 +1425,8 @@ def run_spatial_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.0):
     Raises:
         SystemExit: If 'escape' is pressed, the program exits.
     """
+    display_duration = T(display_duration)
+    isi = T(isi)
     global skip_to_next_stage
     positions = generate_positions_with_matches(num_trials, n)
     nback_queue = []
@@ -1401,6 +1628,8 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
     Raises:
         SystemExit: If 'escape' is pressed, the program exits.
     """
+    display_duration = T(display_duration)
+    isi = T(isi)
     global skip_to_next_stage
     grid_size = 3
     positions, images = generate_dual_nback_sequence(num_trials, grid_size, n, target_rate=0.5)
@@ -1519,20 +1748,15 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
 
 
 def show_break_screen(win, duration):
-    """Display a break screen with a countdown timer.
+    """Pause the experiment for a timed break with a live countdown.
 
-    Shows a message instructing the participant to rest, with a live countdown
-    of the remaining time. The task resumes automatically after the duration.
+    A centred message instructs the participant to rest; the remaining
+    seconds are updated every frame.  The next phase starts automatically
+    once *duration* elapses, or the experimenter can abort with Esc.
 
     Args:
-        win (psychopy.visual.Window): The PsychoPy window to draw the break screen on.
-        duration (float): Duration of the break in seconds.
-
-    Raises:
-        SystemExit: If 'escape' is pressed, the program exits.
-
-    Note:
-        The countdown updates every frame, showing the remaining seconds.
+        win: Active PsychoPy window.
+        duration: Break length in seconds.
     """
     break_text = (
         f"Take a {duration}-second break\n\n"
@@ -1691,21 +1915,33 @@ def display_image(win, image_file, feedback_text=None):
 
 
 def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, display_duration=0.8, isi=1.0):
-    """Run a single block of Sequential N-back practice with distractors.
-
-    Args:
-        n (int): The N-back level.
-        num_trials (int, optional): Number of trials in the block. Defaults to 90.
-        target_percentage (float, optional): Percentage of target trials. Defaults to 0.5.
-        display_duration (float, optional): Duration to display each stimulus. Defaults to 0.8.
-        isi (float, optional): Inter-stimulus interval. Defaults to 1.0.
-
-    Returns:
-        tuple: (accuracy, avg_reaction_time) for the block.
-
-    Raises:
-        SystemExit: If 'escape' is pressed, the program exits.
     """
+    Run one block of **Sequential N-back practice** (with optional 200 ms distractors).
+
+    Parameters
+    ----------
+    n : int
+        The current N-back level (2 or 3).
+    num_trials : int, default 90
+        Total trials in this block.
+    target_percentage : float, default 0.5
+        Proportion of target trials (matches).
+    display_duration : float, default 0.8
+        Seconds each stimulus is shown.
+    isi : float, default 1.0
+        Inter-stimulus interval *before* any speed multiplier is applied.
+
+    Returns
+    -------
+    tuple
+        ``(accuracy_pct, errors, lapses, avg_reaction_time)``
+        * accuracy_pct  – percent correct (0-100)
+        * errors        – number of wrong key presses
+        * lapses        – number of missed responses
+        * avg_reaction_time – mean RT for scored trials (s)
+    """
+    display_duration = T(display_duration)
+    isi = T(isi)
     global skip_to_next_stage
 
     # Generate the sequence
@@ -1861,7 +2097,7 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
     accuracy = (correct_responses / total_responses) * 100 if total_responses > 0 else 0
     avg_reaction_time = (sum(reaction_times) / len(reaction_times)) if reaction_times else 0
 
-    return accuracy, avg_reaction_time
+    return accuracy, incorrect_responses, lapses, avg_reaction_time
 
 
 def run_sequential_nback_until_plateau(starting_level):
@@ -1883,6 +2119,9 @@ def run_sequential_nback_until_plateau(starting_level):
     scored_trials = 90
     block_count = 0
 
+    # ─── HOOK A ───
+    slow_phase = False
+
     while block_count < max_blocks:
         block_count += 1
 
@@ -1890,7 +2129,13 @@ def run_sequential_nback_until_plateau(starting_level):
         num_trials = scored_trials
 
         # Run the practice block for the current level
-        accuracy, avg_reaction_time = run_sequential_nback_practice(n_level, num_trials=num_trials)
+        accuracy, errors, lapses, avg_reaction_time = (
+            run_sequential_nback_practice(n_level, num_trials=num_trials)
+        )
+
+        # ─── HOOK B ───  (log only normal-speed blocks)
+        if not slow_phase:
+            log_seq_block(n_level, block_count, accuracy, errors, lapses)
 
         if skip_to_next_stage:
             break  # User skipped the session
@@ -1961,82 +2206,178 @@ def main():
     """
     global skip_to_next_stage
     try:
-        # === Start: Spatial N-back Demo Phase ===
+        # === Spatial N-back DEMO phase ===
         show_task_instructions(win, "Spatial")
         show_spatial_demo(win, n=2)
 
-        # === Start: Spatial N-back Practice Blocks (two successive ≥ 65 %) ===
-        passes = 0
-        while passes < 2 and not skip_to_next_stage:
-            for _ in range(2):   # always run two blocks per attempt
+        # ── Participant chooses a speed **now**, not earlier ──
+        _set_speed(choose_practice_speed(win, SPEED_PROFILE))
+
+        # ---------- PRACTICE ----------
+        #
+        #  STEP A  (slow mode, 60-trial blocks)
+        #  ────────────────────────────────
+        #  Keep running slow blocks until the first one ≥ 65 %.
+        #  When that happens, switch to normal speed automatically.
+        #
+        if SPEED_PROFILE == "slow":  # they picked slow a moment ago
+            while True:
                 show_countdown()
                 acc, corr, incorr, lapses = run_spatial_nback_practice(n=2, num_trials=60)
-                display_block_results("Spatial", acc, corr, incorr, lapses)
+                display_block_results("Spatial-slow", acc, corr, incorr, lapses)
 
-                if skip_to_next_stage:        # user aborted with ‘5’/Esc
-                    passes = 2                # force exit
-                    break
+                if acc >= 65:  # promotion criterion
+                    _set_speed("normal")  # flip the global speed
+                    visual.TextStim(
+                        win,
+                        text="Great – accuracy ≥ 65 %. Switching to NORMAL speed.",
+                        color="white", height=24, wrapWidth=800
+                    ).draw()
+                    win.flip()
+                    core.wait(2)
 
-                passes = passes + 1 if acc >= 65 else 0
-                if passes == 2:               # criterion met
-                    break
+                    break  # leave the slow loop
+                # else: repeat another slow block
 
-            if passes < 2 and not skip_to_next_stage:
+        #  STEP B  (normal mode, still 60-trial blocks)
+        #  ────────────────────────────────────────────
+        #  Need **two successive** normal-speed blocks ≥ 65 %.
+        #
+        passes = 0  # counts the current streak
+        while passes < 2 and not skip_to_next_stage:
+            show_countdown()
+            acc, corr, incorr, lapses = run_spatial_nback_practice(n=2, num_trials=60)
+            display_block_results("Spatial", acc, corr, incorr, lapses)
+
+            if skip_to_next_stage:  # user hit ‘5’ or Esc
+                break
+
+            passes = passes + 1 if acc >= 65 else 0
+
+            if passes < 2:  # did not finish criterion yet
                 visual.TextStim(
                     win,
-                    text=f"Need 2 successive Spatial blocks ≥ 65 %.  "
-                         f"Current streak {passes}/2.\nPress SPACE to retry.",
-                    color="white",
-                    height=24,
-                    wrapWidth=800,
+                    text=f"Need 2 successive Spatial blocks ≥ 65 %.\n"
+                         f"Current streak: {passes}/2.\n\nPress SPACE to continue.",
+                    color="white", height=24, wrapWidth=800,
                 ).draw()
                 win.flip()
                 event.waitKeys(keyList=["space"])
 
-        skip_to_next_stage = False  # reset flag
+        # ==== leave the Spatial phase ====
+        skip_to_next_stage = False  # always reset the flag
 
-        # === Start: Dual N-back Demo Phase ===
+        # === Dual N-back DEMO phase ===
         show_task_instructions(win, "Dual")
         show_dual_demo(win, n=2)
 
-        # === Start: Dual N-back Practice Blocks (two successive ≥ 65 %) ===
-        passes = 0
-        while passes < 2 and not skip_to_next_stage:
-            for _ in range(2):
+        _set_speed(choose_practice_speed(win, SPEED_PROFILE))
+
+        # ---------- PRACTICE ----------
+        if SPEED_PROFILE == "slow":
+            while True:
                 show_countdown()
                 acc, corr, incorr, lapses = run_dual_nback_practice(n=2, num_trials=60)
-                display_block_results("Dual", acc, corr, incorr, lapses)
+                display_block_results("Dual-slow", acc, corr, incorr, lapses)
 
-                if skip_to_next_stage:
-                    passes = 2
+                if acc >= 65:
+                    _set_speed("normal")
+                    visual.TextStim(
+                        win,
+                        text="Great – accuracy ≥ 65 %. Switching to NORMAL speed.",
+                        color="white", height=24, wrapWidth=800
+                    ).draw()
+                    win.flip()
+                    core.wait(2)
+
                     break
 
-                passes = passes + 1 if acc >= 65 else 0
-                if passes == 2:
-                    break
+        passes = 0
+        while passes < 2 and not skip_to_next_stage:
+            show_countdown()
+            acc, corr, incorr, lapses = run_dual_nback_practice(n=2, num_trials=60)
+            display_block_results("Dual", acc, corr, incorr, lapses)
 
-            if passes < 2 and not skip_to_next_stage:
+            if skip_to_next_stage:
+                break
+
+            passes = passes + 1 if acc >= 65 else 0
+
+            if passes < 2:
                 visual.TextStim(
                     win,
-                    text=f"Need 2 successive Dual blocks ≥ 65 %.  "
-                         f"Current streak {passes}/2.\nPress SPACE to retry.",
-                    color="white",
-                    height=24,
-                    wrapWidth=800,
+                    text=f"Need 2 successive Dual blocks ≥ 65 %.\n"
+                         f"Current streak: {passes}/2.\n\nPress SPACE to continue.",
+                    color="white", height=24, wrapWidth=800,
                 ).draw()
                 win.flip()
                 event.waitKeys(keyList=["space"])
 
         skip_to_next_stage = False
 
-        # === Start: Sequential N-back Demo Phase ===
+        # === Sequential N-back DEMO phase ===
         show_task_instructions(win, "Sequential", n_back_level=2)
-        show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=1.0)
+        show_sequential_demo(win, n=2,
+                             num_demo_trials=6,
+                             display_duration=0.8,
+                             isi=1.0)
 
-        # === Start: Sequential N-back Adaptive Practice Phase ===
-        starting_level = prompt_starting_level()
-        show_countdown()
-        final_n_level, final_accuracy, final_avg_rt = run_sequential_nback_until_plateau(starting_level)
+        # ── Participant chooses speed *now* ──
+        _set_speed(choose_practice_speed(win, SPEED_PROFILE))
+
+        # ─────────────────────────────────────────────────────────────
+        #  PRACTICE logic
+        #  -----------------------------------------------------------
+        #  • If they picked **slow**, keep giving 60-trial slow blocks
+        #    until *one* hits 65 % — then flip to normal.
+        #  • Normal speed then feeds straight into the adaptive
+        #    plateau routine (run_sequential_nback_until_plateau).
+        # ─────────────────────────────────────────────────────────────
+
+        if SPEED_PROFILE == "slow":
+            while True:
+                show_countdown()
+                acc, _, _, _ = run_sequential_nback_practice(n=2,  # always 2-back for the gate
+                                                             num_trials=20)      # 60-trial slow block
+                display_block_results("Sequential-slow", acc, 0, 0, 0)
+
+                if skip_to_next_stage:  # participant pressed ‘5’ / Esc
+                    break
+
+                if acc >= 65:  # promotion criterion
+                    _set_speed("normal")  # flip global speed to normal
+                    visual.TextStim(
+                        win,
+                        text="Great – accuracy ≥ 65 %. Switching to NORMAL speed.",
+                        color="white", height=24, wrapWidth=800
+                    ).draw()
+                    win.flip()
+                    core.wait(2)
+
+                    break  # leave the slow-loop
+
+                # otherwise we loop again automatically
+                visual.TextStim(
+                    win,
+                    text="Below 65 %. Another slow block will start.\n"
+                         "Press SPACE to continue.",
+                    color="white", height=24, wrapWidth=800,
+                ).draw()
+                win.flip()
+                event.waitKeys(keyList=["space"])
+
+        # —— If user aborted during the slow phase, skip the rest ——
+        if not skip_to_next_stage:
+            #  Prompt for starting level (2- vs 3-back) **after** any slow gating
+            starting_level = prompt_starting_level()
+
+            show_countdown()
+
+            final_n_level, final_accuracy, final_avg_rt = (
+                run_sequential_nback_until_plateau(starting_level)
+            )
+
+        skip_to_next_stage = False  # reset for the final summary screen
 
         # === Final Summary Screen ===
         final_summary = (

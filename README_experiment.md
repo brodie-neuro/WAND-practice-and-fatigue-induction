@@ -17,11 +17,29 @@ WAND_full_induction.py: Main script for the fatigue induction experiment.
 Abstract Stimuli/apophysis/: Folder containing at least 24 complex 3D fractal PNG images generated with Apophysis software for N-back tasks (included in the repository).
 data/: Output directory for results (auto-created during execution).
 
-Practice Protocol Integration
-The WAND suite includes WAND_practice_plateau.py, which calibrates a participant's N-back capacity before the fatigue induction phase. This script runs adaptive N-back blocks until performance variability is ≤7% across three out of five consecutive blocks, typically taking 25–60 minutes. A dual-threshold system requires:
+Practice Protocol Integration (v1.0.1)
+Before running the main fatigue induction protocol, use WAND_practice_plateau.py to calibrate each participant’s N-back capacity. The practice script now includes:
 
-Level 2: Accuracy between 65% and 82%.
-Level 3: Transition from Level 2 by achieving an average accuracy above 82% for two consecutive blocks, then maintaining ≤7% variability across three out of five blocks.This classifies participants as "normal" or "high" performers. Run this script first and review its results (e.g., calibrated N-back level) in the data/ directory to set the initial difficulty for WAND_full_induction.py. For detailed instructions, see the main README.md.
+Slow-phase (Speed-Gate): Practice begins with 60-trial blocks at slow speed (1.5× longer timing) until the first block reaches ≥65% accuracy, then auto-switches to normal speed. This prevents early participant overwhelm and allows a gentle familiarization.
+
+Per-phase Speed Selection: Before each task phase (Spatial, Dual, Sequential), participants can select normal or slow timing for the first practice block.
+
+Global Skip Key: Pressing 5 skips the remainder of any demo or practice block (useful during piloting or if a participant struggles).
+
+Startup Wizard: At launch, the experimenter can set the RNG seed and toggle 200 ms distractor flashes (optional command-line flags are still supported).
+
+Participant ID Prompt & Logger: The script now prompts for participant ID and saves Sequential practice block data as data/seq_<ID>.csv for auditability.
+
+Calibration Logic:
+Adaptive N-back blocks continue until accuracy variance is ≤7% across three out of five consecutive blocks.
+
+Start at Level 2 (2-back): Require two consecutive blocks ≥65% accuracy.
+
+If mean accuracy rises above 82% for two consecutive blocks, advance to Level 3 (3-back).
+
+Classification: “normal” or “high” performer, used to set initial difficulty in the induction script.
+
+After running the practice protocol, review the /data/ outputs. Enter the recommended N-back level (2 or 3) when prompted by WAND_full_induction.py.
 
 Running the Script
 To run the full experiment (approximately 65–70 minutes, including short breaks):
@@ -35,8 +53,10 @@ Save results per block and at the end in the data/ directory (e.g., participant_
 
 Monitor Configuration
 Update the MONITOR_NAME variable in WAND_full_induction.py to match your lab’s monitor profile in PsychoPy’s Monitor Center for accurate stimulus sizing. The default is 'testMonitor'. See PsychoPy’s documentation for setup instructions.
+
 EEG Notes
 EEG triggers are implemented as placeholders. To enable, set EEG_ENABLED = True in the script and modify the send_trigger function to interface with your EEG hardware (e.g., via a parallel port). Currently, send_trigger includes a 5ms delay as a dummy operation. Future integration will target N2 and P3 ERP components to assess cognitive control decline.
+
 Data Saving
 Results are saved twice for redundancy:
 
@@ -44,6 +64,7 @@ After each block (e.g., participant_<ID>_n<level>_Block_1_results.csv).
 At the end of the experiment (e.g., participant_<ID>_n<level>_results.csv).
 
 This ensures data integrity if the experiment is interrupted, a design choice made after data loss during piloting.
+
 Subjective Measures
 Participants complete subjective ratings at the start and every 15 minutes during the experiment, using a 1–8 Likert scale (1 = "not at all", 8 = "extremely"):
 
@@ -53,6 +74,7 @@ Do you currently find your mind wandering or becoming distracted?
 How overwhelmed do you feel by the task demands right now?
 
 These measures, saved in the data/ directory (e.g., participant_<ID>_subjective_<timestamp>.csv), complement behavioural data to assess active fatigue.
+
 Testing
 For testing, use the Dummy_Run.py script to verify setup and CSV logging. Run it with:
 python Dummy_Run.py

@@ -58,7 +58,7 @@ else:
 
 
 # === Experiment Settings ===
-FULLSCREEN = False  # Set to False for windowed mode during testing
+FULLSCREEN = True  # Set to False for windowed mode during testing
 WINDOW_SIZE = (1200, 800)  # Only used if FULLSCREEN = False
 MONITOR_NAME = "testMonitor"  # Update to match lab monitor profile if necessary
 BACKGROUND_COLOR = "black"  # Background colour of experiment window
