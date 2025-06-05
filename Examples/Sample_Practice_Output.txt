@@ -1,0 +1,4 @@
+Created 2025-06-05 15:44	Participant	seq15dummy		
+level	block	accuracy_pct	errors	lapses
+2	1	38.46	6	2
+2	2	60	6	0
