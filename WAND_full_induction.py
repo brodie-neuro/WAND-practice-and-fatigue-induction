@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import csv
 import logging
 import math
@@ -6,7 +7,6 @@ import os
 import random
 import sys
 import time
-import argparse
 
 from psychopy import core, event, visual
 
@@ -29,7 +29,8 @@ Version: 1.0
 # Licensed under the MIT License (see LICENSE file for full text)
 
 # --------------- CLI FLAGS (dummy‑run only) ---------------
-import argparse, random
+import argparse
+import random
 
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument("--seed", type=int, default=None)  # still allowed but GUI will override

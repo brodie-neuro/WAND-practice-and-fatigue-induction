@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
+import argparse
 import math
 import os
 import random
 import sys
 import traceback
-import argparse
 
 from psychopy import core, event, visual
 
@@ -39,7 +39,8 @@ else:
 #      • write rows:  PID,level,block,accuracy,lapses,errors
 #      • whenever the N-back level changes, start a new section
 # ────────────────────────────────────────────────────────────────
-import csv, datetime
+import csv
+import datetime
 
 data_dir = os.path.join(base_dir, "data")
 os.makedirs(data_dir, exist_ok=True)

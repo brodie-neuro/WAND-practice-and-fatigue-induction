@@ -24,7 +24,7 @@ import os
 import time
 from typing import List, Tuple
 
-from psychopy import visual, core, event
+from psychopy import core, event, visual
 
 
 # ──────────────────────────────────────────────────────────────
