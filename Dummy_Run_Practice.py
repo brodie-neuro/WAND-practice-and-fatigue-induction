@@ -131,20 +131,12 @@ def main() -> None:
         --pid      Participant ID for the CSV rows.
         --mode     'windowed' or 'fullscreen'.
     """
-    parser = argparse.ArgumentParser(
-        description="Run quick Sequential N-back smoke test"
-    )
-    parser.add_argument(
-        "--module", default="WAND_practice_plateau", help="Practice module to import"
-    )
-    parser.add_argument(
-        "--level", type=int, default=2, choices=[2, 3], help="N-back level"
-    )
+    parser = argparse.ArgumentParser(description="Run quick Sequential N-back smoke test")
+    parser.add_argument("--module", default="WAND_practice_plateau", help="Practice module to import")
+    parser.add_argument("--level", type=int, default=2, choices=[2, 3], help="N-back level")
     parser.add_argument("--blocks", type=int, default=2, help="Number of blocks")
     parser.add_argument("--trials", type=int, default=10, help="Trials per block")
-    parser.add_argument(
-        "--pid", default="seqQuick", help="Participant ID used in the CSV"
-    )
+    parser.add_argument("--pid", default="seqQuick", help="Participant ID used in the CSV")
     parser.add_argument(
         "--mode",
         choices=["windowed", "fullscreen"],
@@ -158,9 +150,7 @@ def main() -> None:
 
     # 2; set up logging globals
     practice.PARTICIPANT_ID = args.pid
-    practice.CSV_PATH = os.path.join(
-        practice.data_dir, f"seq_{practice.PARTICIPANT_ID}.csv"
-    )
+    practice.CSV_PATH = os.path.join(practice.data_dir, f"seq_{practice.PARTICIPANT_ID}.csv")
     practice._last_logged_level = None
 
     # 3; window handling; reuse if already present
@@ -182,9 +172,7 @@ def main() -> None:
             num_trials=args.trials,
             block_no=block_no,
         )
-        show_summary(
-            win, block_no, args.blocks, args.level, args.trials, acc, errs, lapses, rt
-        )
+        show_summary(win, block_no, args.blocks, args.level, args.trials, acc, errs, lapses, rt)
 
     # 6; clean exit
     win.close()

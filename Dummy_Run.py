@@ -88,12 +88,8 @@ def run_dummy_sequential(n_back_level: int = 2, num_trials: int = 35) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Quick dummy Sequential N‑back test")
-    parser.add_argument(
-        "--level", type=int, default=2, help="N‑back level (default = 2)"
-    )
-    parser.add_argument(
-        "--trials", type=int, default=35, help="Number of trials (default = 35)"
-    )
+    parser.add_argument("--level", type=int, default=2, help="N‑back level (default = 2)")
+    parser.add_argument("--trials", type=int, default=35, help="Number of trials (default = 35)")
     args = parser.parse_args()
 
     run_dummy_sequential(n_back_level=args.level, num_trials=args.trials)
