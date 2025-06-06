@@ -27,6 +27,26 @@ jobs:
         with:
           python-version: '3.8'
 
+      - name: Install system-level dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libglib2.0-dev \
+            libjpeg-dev \
+            libsm6 \
+            libxrender1 \
+            libxext6 \
+            libgl1-mesa-glx \
+            libavformat-dev \
+            libswscale-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            libopenjpeg-dev \
+            libssl-dev \
+            libpulse-dev \
+            libasound2-dev
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
