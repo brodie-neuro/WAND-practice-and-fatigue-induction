@@ -23,8 +23,7 @@ import sys
 import time
 
 # Import required functions and constants from the main induction script
-from WAND_full_induction import (base_dir, run_sequential_nback_block,
-                                 save_results_to_csv, win)
+from WAND_full_induction import base_dir, run_sequential_nback_block, save_results_to_csv, win
 
 
 def run_dummy_sequential(n_back_level: int = 2, num_trials: int = 35) -> None:
