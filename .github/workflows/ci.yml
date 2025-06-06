@@ -47,7 +47,8 @@ jobs:
             PyYAML==6.0.1 \
             psutil==5.9.8 \
             pyserial==3.5 \
-            json-tricks==3.17.3
+            json-tricks==3.17.3 \
+            python-bidi==0.4.2
 
       - name: Install lint-and-test tools
         run: |
@@ -61,6 +62,5 @@ jobs:
         run: |
           find . -name '*.py' | xargs isort --check-only
 
-      # THIS IS THE MODIFIED STEP
       - name: Run tests with a virtual screen
         run: xvfb-run -a pytest --maxfail=1 --disable-warnings -q
