@@ -40,8 +40,10 @@ else:
 #      • whenever the N-back level changes, start a new section
 # ────────────────────────────────────────────────────────────────
 import csv, datetime
+
 data_dir = os.path.join(base_dir, "data")
 os.makedirs(data_dir, exist_ok=True)
+
 
 def _prompt_participant_id(win) -> str:
     """
@@ -72,11 +74,10 @@ def _prompt_participant_id(win) -> str:
     txt = dict(height=24, color="white", wrapWidth=900)
     pid = ""
     while True:
-        visual.TextStim(win,
-                        text="Enter Participant ID then press Return",
-                        **txt, pos=(0, 120)).draw()
-        visual.Rect(win, width=380, height=50,
-                    lineColor="white", pos=(0, 40)).draw()
+        visual.TextStim(
+            win, text="Enter Participant ID then press Return", **txt, pos=(0, 120)
+        ).draw()
+        visual.Rect(win, width=380, height=50, lineColor="white", pos=(0, 40)).draw()
         visual.TextStim(win, text=pid, **txt, pos=(0, 40)).draw()
         win.flip()
 
@@ -122,13 +123,14 @@ def init_seq_logger(win):
     os.makedirs(data_dir, exist_ok=True)
 
     CSV_PATH = os.path.join(data_dir, f"seq_{PARTICIPANT_ID}.csv")
-    _last_logged_level = None        # reset section tracker
+    _last_logged_level = None  # reset section tracker
 
     return PARTICIPANT_ID, CSV_PATH
 
 
-def log_seq_block(level: int, block_no: int,
-                  accuracy: float, errors: int, lapses: int) -> None:
+def log_seq_block(
+    level: int, block_no: int, accuracy: float, errors: int, lapses: int
+) -> None:
     """
     Append a one-line summary of a Sequential-N-back block to
     ``seq_<PID>.csv``.
@@ -165,13 +167,18 @@ def log_seq_block(level: int, block_no: int,
 
         # very first write → provenance header
         if not file_exists:
-            w.writerow([f"Created {datetime.datetime.now():%Y-%m-%d %H:%M}",
-                        "Participant", PARTICIPANT_ID])
+            w.writerow(
+                [
+                    f"Created {datetime.datetime.now():%Y-%m-%d %H:%M}",
+                    "Participant",
+                    PARTICIPANT_ID,
+                ]
+            )
             w.writerow(["level", "block", "accuracy_pct", "errors", "lapses"])
 
         # start a new section if the N-back level just changed
         if new_section and file_exists:
-            w.writerow([])   # visual gap
+            w.writerow([])  # visual gap
             w.writerow(["level", "block", "accuracy_pct", "errors", "lapses"])
 
         w.writerow([level, block_no, f"{accuracy:.2f}", errors, lapses])
@@ -181,12 +188,12 @@ def log_seq_block(level: int, block_no: int,
 parser = argparse.ArgumentParser(add_help=False)
 
 parser.add_argument(
-    "--seed", type=int,
-    help="Fix RNG. If omitted, the wizard will ask for one."
+    "--seed", type=int, help="Fix RNG. If omitted, the wizard will ask for one."
 )
 parser.add_argument(
-    "--distractors", choices=["on", "off"],
-    help="Toggle 200-ms distractor flashes. If omitted, the wizard will ask."
+    "--distractors",
+    choices=["on", "off"],
+    help="Toggle 200-ms distractor flashes. If omitted, the wizard will ask.",
 )
 
 args, _ = parser.parse_known_args()
@@ -204,6 +211,7 @@ def _apply_seed(seed_val):
     random.seed(seed_val)
     try:
         import numpy as np
+
         np.random.seed(seed_val)
     except ModuleNotFoundError:
         pass
@@ -212,6 +220,7 @@ def _apply_seed(seed_val):
 skip_to_next_stage = False
 
 grid_lines = []
+
 
 def create_grid_lines(win, grid_spacing=100, grid_color="gray", opacity=0.2):
     """Create a grid of lines for the background of the N-back tasks.
@@ -241,18 +250,27 @@ def create_grid_lines(win, grid_spacing=100, grid_color="gray", opacity=0.2):
 
     for x in x_positions:
         line = visual.Line(
-            win, start=(x, -half_height), end=(x, half_height), lineColor=grid_color, opacity=opacity, units="pix"
+            win,
+            start=(x, -half_height),
+            end=(x, half_height),
+            lineColor=grid_color,
+            opacity=opacity,
+            units="pix",
         )
         lines.append(line)
 
     for y in y_positions:
         line = visual.Line(
-            win, start=(-half_width, y), end=(half_width, y), lineColor=grid_color, opacity=opacity, units="pix"
+            win,
+            start=(-half_width, y),
+            end=(half_width, y),
+            lineColor=grid_color,
+            opacity=opacity,
+            units="pix",
         )
         lines.append(line)
 
     return lines
-
 
 
 def draw_grid():
@@ -306,7 +324,9 @@ def prompt_starting_level():
         "Press '3' for 3-back\n\n"
         "Press the corresponding key to begin."
     )
-    instruction_text = visual.TextStim(win, text=instructions, color="white", height=24, wrapWidth=800)
+    instruction_text = visual.TextStim(
+        win, text=instructions, color="white", height=24, wrapWidth=800
+    )
     instruction_text.draw()
     win.flip()
     starting_level = None
@@ -319,6 +339,7 @@ def prompt_starting_level():
         elif "3" in keys:
             starting_level = 3
     return starting_level
+
 
 def get_practice_options(win):
     """
@@ -333,15 +354,18 @@ def get_practice_options(win):
 
     # 1) Seed entry  ── only if not given at CLI ───────────────────────────
     seed_val = GLOBAL_SEED
-    if seed_val is None:                     # <<< new guard
+    if seed_val is None:  # <<< new guard
         seed_str = ""
         while True:
             visual.TextStim(
                 win,
                 text="Optional: enter RNG seed  (blank = random) then press Return",
-                **txt, pos=(0, 120)
+                **txt,
+                pos=(0, 120),
             ).draw()
-            visual.Rect(win, width=380, height=50, lineColor="white", pos=(0, 40)).draw()
+            visual.Rect(
+                win, width=380, height=50, lineColor="white", pos=(0, 40)
+            ).draw()
             visual.TextStim(win, text=seed_str, **txt, pos=(0, 40)).draw()
             win.flip()
             keys = event.waitKeys()
@@ -355,13 +379,15 @@ def get_practice_options(win):
 
     # 2) Distractor toggle  ── only if not given at CLI ────────────────────
     distractors = DISTRACTORS_ENABLED
-    if distractors is None:                  # <<< new guard
+    if distractors is None:  # <<< new guard
         while True:
-            prompt = "Enable 200 ms distractor flashes?\n\nPress Y for ON   |   N for OFF"
+            prompt = (
+                "Enable 200 ms distractor flashes?\n\nPress Y for ON   |   N for OFF"
+            )
             visual.TextStim(win, text=prompt, **txt).draw()
             win.flip()
             key = event.waitKeys(keyList=["y", "n"])[0]
-            distractors = (key == "y")
+            distractors = key == "y"
             break
 
     win.flip()
@@ -404,25 +430,28 @@ except Exception as e:
     input("Press Enter to exit...")
     sys.exit(1)
 
+
 # ───── speed helpers for the PRACTICE blocks only ─────
 def _set_speed(profile: str):
     """Update the global timing profile.
 
-        Sets the two module-level globals that control timing:
+    Sets the two module-level globals that control timing:
 
-        * ``SPEED_PROFILE`` – literal string ``"normal"`` or ``"slow"``
-        * ``SPEED_MULT``     – scalar multiplier (1.0 or 1.5)
+    * ``SPEED_PROFILE`` – literal string ``"normal"`` or ``"slow"``
+    * ``SPEED_MULT``     – scalar multiplier (1.0 or 1.5)
 
-        Args:
-            profile: Desired speed profile – must be ``"normal"`` or ``"slow"``.
-        """
+    Args:
+        profile: Desired speed profile – must be ``"normal"`` or ``"slow"``.
+    """
     global SPEED_PROFILE, SPEED_MULT
     SPEED_PROFILE = profile
-    SPEED_MULT    = 1.0 if profile == "normal" else 1.5
+    SPEED_MULT = 1.0 if profile == "normal" else 1.5
+
 
 # NEW  ➜  default is normal until the participant picks otherwise
 SPEED_PROFILE = "normal"
-SPEED_MULT    = 1.0
+SPEED_MULT = 1.0
+
 
 def choose_practice_speed(win, current_profile):
     """Ask the participant to select *Normal* or *Slow* timing.
@@ -441,11 +470,13 @@ def choose_practice_speed(win, current_profile):
     """
     txt = dict(height=24, color="white", wrapWidth=900)
     while True:
-        msg = (f"Practice-speed selection\n\n"
-               f"Current setting: {current_profile.upper()}\n\n"
-               "N  =  Normal speed\n"
-               "S  =  Slow speed (50 % slower)\n\n"
-               "Press N or S to continue")
+        msg = (
+            f"Practice-speed selection\n\n"
+            f"Current setting: {current_profile.upper()}\n\n"
+            "N  =  Normal speed\n"
+            "S  =  Slow speed (50 % slower)\n\n"
+            "Press N or S to continue"
+        )
         visual.TextStim(win, text=msg, **txt).draw()
         win.flip()
         key = event.waitKeys(keyList=["n", "s", "escape"])[0]
@@ -457,9 +488,10 @@ def choose_practice_speed(win, current_profile):
 # ────────────────────────────────────────────────────────────────
 #  Step 3: wizard → globals → seed the RNGs
 # ────────────────────────────────────────────────────────────────
-options               = get_practice_options(win)
-GLOBAL_SEED           = options["Seed"]
-DISTRACTORS_ENABLED   = options["Distractors"]
+options = get_practice_options(win)
+GLOBAL_SEED = options["Seed"]
+DISTRACTORS_ENABLED = options["Distractors"]
+
 
 def T(sec: float) -> float:
     """Scale a duration by the current speed multiplier.
@@ -480,9 +512,8 @@ def T(sec: float) -> float:
 _apply_seed(GLOBAL_SEED)
 
 
-
 # point at the stimuli folder next to this script
-image_dir   = os.path.join(base_dir, "Abstract Stimuli", "apophysis")
+image_dir = os.path.join(base_dir, "Abstract Stimuli", "apophysis")
 image_files = [f for f in os.listdir(image_dir) if f.endswith(".png")]
 
 if len(image_files) < 22:
@@ -506,11 +537,12 @@ def show_pilot_entry_screen():
         "3. Sequential N-back (until performance stabilises)\n\n"
         "Press 'space' to begin."
     )
-    pilot_message = visual.TextStim(win, text=pilot_text, color="white", height=24, wrapWidth=800)
+    pilot_message = visual.TextStim(
+        win, text=pilot_text, color="white", height=24, wrapWidth=800
+    )
     pilot_message.draw()
     win.flip()
     event.waitKeys(keyList=["space"])
-
 
 
 def show_task_instructions(win, task_name, n_back_level=None):
@@ -525,7 +557,9 @@ def show_task_instructions(win, task_name, n_back_level=None):
         SystemExit: If 'escape' is pressed, the program exits.
     """
     welcome_text = f"Welcome to the {task_name} Task\n\n"
-    welcome_text += "You will first complete a demonstration, followed by a practice session.\n\n"
+    welcome_text += (
+        "You will first complete a demonstration, followed by a practice session.\n\n"
+    )
 
     if task_name.lower() == "sequential":
         nb = n_back_level if n_back_level in [2, 3] else 2
@@ -570,7 +604,9 @@ def show_task_instructions(win, task_name, n_back_level=None):
     else:
         welcome_text += "(No specific instructions available for this task.)\n\n"
 
-    instruction_text = visual.TextStim(win, text=welcome_text, color="white", height=24, wrapWidth=800)
+    instruction_text = visual.TextStim(
+        win, text=welcome_text, color="white", height=24, wrapWidth=800
+    )
     instruction_text.draw()
     win.flip()
 
@@ -605,7 +641,9 @@ def display_feedback(win, correct, pos=(0, 400)):
     """
     feedback_symbol = "✓" if correct else "✗"
     feedback_color = "green" if correct else "red"
-    feedback_stim = visual.TextStim(win, text=feedback_symbol, color=feedback_color, height=48, pos=pos)
+    feedback_stim = visual.TextStim(
+        win, text=feedback_symbol, color=feedback_color, height=48, pos=pos
+    )
     feedback_stim.draw()
 
 
@@ -621,8 +659,9 @@ def display_block_results(win, task_name, accuracy, *_):
         f"Accuracy: {accuracy:.1f}%\n\n"
         "Press 'space' to continue."
     )
-    visual.TextStim(win, text=results_text,
-                    color="white", height=24, wrapWidth=800).draw()
+    visual.TextStim(
+        win, text=results_text, color="white", height=24, wrapWidth=800
+    ).draw()
     win.flip()
     event.waitKeys(keyList=["space"])
 
@@ -645,7 +684,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
     """
 
     # Generate a 6-trial sequence (using ~40% targets)
-    demo_positions = generate_positions_with_matches(num_demo_trials, n, target_percentage=0.4)
+    demo_positions = generate_positions_with_matches(
+        num_demo_trials, n, target_percentage=0.4
+    )
 
     # ---------------------------------------------------------------------
     # INTRO SCREEN
@@ -657,7 +698,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
         "  2) Slowed/Explanatory version – after extended feedback, press SPACE to proceed\n\n"
         "Press SPACE to begin."
     )
-    intro_stim = visual.TextStim(win, text=intro_text, color="white", height=24, wrapWidth=800)
+    intro_stim = visual.TextStim(
+        win, text=intro_text, color="white", height=24, wrapWidth=800
+    )
     intro_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -673,7 +716,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
         f"From trial {n + 1} onward, a brief ✓ or ✗ will appear.\n\n"
         "Press SPACE to start PASS 1."
     )
-    pass1_stim = visual.TextStim(win, text=pass1_text, color="white", height=24, wrapWidth=800)
+    pass1_stim = visual.TextStim(
+        win, text=pass1_text, color="white", height=24, wrapWidth=800
+    )
     pass1_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -713,7 +758,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
     # End of PASS 1
     draw_grid()
     pass1_end_text = "End of PASS 1.\nPress SPACE to continue to PASS 2 (Explanatory)."
-    pass1_end_stim = visual.TextStim(win, text=pass1_end_text, color="white", height=24, wrapWidth=800)
+    pass1_end_stim = visual.TextStim(
+        win, text=pass1_end_text, color="white", height=24, wrapWidth=800
+    )
     pass1_end_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -729,7 +776,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
         "If there's a mismatch, the old square will be highlighted in orange alongside the current square.\n\n"
         "Press SPACE to begin PASS 2."
     )
-    pass2_stim = visual.TextStim(win, text=pass2_text, color="white", height=24, wrapWidth=800)
+    pass2_stim = visual.TextStim(
+        win, text=pass2_text, color="white", height=24, wrapWidth=800
+    )
     pass2_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -746,7 +795,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
         angles = [idx * (360 / 12) for idx in range(12)]
         cur_x = radius * math.cos(math.radians(angles[current_pos]))
         cur_y = radius * math.sin(math.radians(angles[current_pos]))
-        current_rect = visual.Rect(win, width=50, height=50, pos=(cur_x, cur_y), fillColor="white")
+        current_rect = visual.Rect(
+            win, width=50, height=50, pos=(cur_x, cur_y), fillColor="white"
+        )
 
         # Display grid with highlighted current position
         display_grid(win, highlight_pos=current_pos, highlight=True, n_level=n)
@@ -767,26 +818,44 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
             if not is_target:
                 old_x = radius * math.cos(math.radians(angles[old_pos]))
                 old_y = radius * math.sin(math.radians(angles[old_pos]))
-                mismatch_rect = visual.Rect(win, width=50, height=50, pos=(old_x, old_y), fillColor="orange")
+                mismatch_rect = visual.Rect(
+                    win, width=50, height=50, pos=(old_x, old_y), fillColor="orange"
+                )
                 mismatch_rect.draw()
 
             if is_target:
                 fb_text = f"If you remember, {n} steps back, this was the highlighted square. (✓)"
             else:
-                fb_text = f"If you remember, {n} steps back, that was a different square. (✗)"
+                fb_text = (
+                    f"If you remember, {n} steps back, that was a different square. (✗)"
+                )
 
-            feedback_stim = visual.TextStim(win, text=fb_text, color="white", height=24, pos=(0, -250), wrapWidth=800)
+            feedback_stim = visual.TextStim(
+                win,
+                text=fb_text,
+                color="white",
+                height=24,
+                pos=(0, -250),
+                wrapWidth=800,
+            )
             feedback_stim.draw()
             display_feedback(win, is_target, pos=(0, 400))
 
             # Add the prompt for the next step
             if trial_num == num_demo_trials:
-                proceed_text = "This was the final trial. Press SPACE to finish the demo."
+                proceed_text = (
+                    "This was the final trial. Press SPACE to finish the demo."
+                )
             else:
                 proceed_text = "Press SPACE to proceed to the next trial."
 
             proceed_stim = visual.TextStim(
-                win, text=proceed_text, color="white", height=24, wrapWidth=800, pos=(0, -280)
+                win,
+                text=proceed_text,
+                color="white",
+                height=24,
+                wrapWidth=800,
+                pos=(0, -280),
             )
             proceed_stim.draw()
             win.flip()
@@ -799,12 +868,19 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
             display_grid(win, highlight_pos=current_pos, highlight=True, n_level=n)
 
             if trial_num == num_demo_trials:
-                proceed_text = "This was the final trial. Press SPACE to finish the demo."
+                proceed_text = (
+                    "This was the final trial. Press SPACE to finish the demo."
+                )
             else:
                 proceed_text = "Press SPACE to proceed to the next trial."
 
             proceed_stim = visual.TextStim(
-                win, text=proceed_text, color="white", height=24, wrapWidth=800, pos=(0, -280)
+                win,
+                text=proceed_text,
+                color="white",
+                height=24,
+                wrapWidth=800,
+                pos=(0, -280),
             )
             proceed_stim.draw()
             win.flip()
@@ -820,7 +896,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
     # End of PASS 2
     draw_grid()
     pass2_end_text = "End of PASS 2 (Explanatory).\nPress SPACE to finish the demo."
-    pass2_end_stim = visual.TextStim(win, text=pass2_end_text, color="white", height=24, wrapWidth=800)
+    pass2_end_stim = visual.TextStim(
+        win, text=pass2_end_text, color="white", height=24, wrapWidth=800
+    )
     pass2_end_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -852,7 +930,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
     """
     # Generate a 6-trial demo sequence using your dual task generator.
     grid_size = 3
-    demo_positions, demo_images = generate_dual_nback_sequence(num_demo_trials, grid_size, n, target_rate=0.4)
+    demo_positions, demo_images = generate_dual_nback_sequence(
+        num_demo_trials, grid_size, n, target_rate=0.4
+    )
 
     # ---------------------------------------------------------------------
     # INTRO SCREEN
@@ -864,7 +944,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
         "  2) Extended/Explanatory version – after extended feedback, press SPACE to proceed\n\n"
         "Press SPACE to begin."
     )
-    intro_stim = visual.TextStim(win, text=intro_text, color="white", height=24, wrapWidth=800)
+    intro_stim = visual.TextStim(
+        win, text=intro_text, color="white", height=24, wrapWidth=800
+    )
     intro_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -880,7 +962,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
         f"From trial {n + 1} onward, a brief tick (✓) or cross (✗) will appear.\n\n"
         "Press SPACE to start PASS 1."
     )
-    pass1_stim = visual.TextStim(win, text=pass1_text, color="white", height=24, wrapWidth=800)
+    pass1_stim = visual.TextStim(
+        win, text=pass1_text, color="white", height=24, wrapWidth=800
+    )
     pass1_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -892,9 +976,13 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
         trial_num = i + 1
 
         # Present the dual stimulus.
-        dual_stim = display_dual_stimulus(win, pos, img, grid_size, n_level=n, return_stim=True)
+        dual_stim = display_dual_stimulus(
+            win, pos, img, grid_size, n_level=n, return_stim=True
+        )
         grid, outline = create_grid(win, grid_size)
-        level_text = visual.TextStim(win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350))
+        level_text = visual.TextStim(
+            win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350)
+        )
 
         def draw_current_state():
             draw_grid()
@@ -935,7 +1023,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
 
     draw_grid()
     pass1_end_text = "End of PASS 1.\nPress SPACE to continue to PASS 2 (Explanatory)."
-    pass1_end_stim = visual.TextStim(win, text=pass1_end_text, color="white", height=24, wrapWidth=800)
+    pass1_end_stim = visual.TextStim(
+        win, text=pass1_end_text, color="white", height=24, wrapWidth=800
+    )
     pass1_end_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -952,7 +1042,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
         "alongside the current stimulus.\n\n"
         "Press SPACE to begin PASS 2."
     )
-    pass2_stim = visual.TextStim(win, text=pass2_text, color="white", height=24, wrapWidth=800)
+    pass2_stim = visual.TextStim(
+        win, text=pass2_text, color="white", height=24, wrapWidth=800
+    )
     pass2_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -965,9 +1057,13 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
         trial_num = i + 1
 
         # Present the dual stimulus and don't clear it
-        dual_stim = display_dual_stimulus(win, pos, img, grid_size, n_level=n, return_stim=True)
+        dual_stim = display_dual_stimulus(
+            win, pos, img, grid_size, n_level=n, return_stim=True
+        )
         grid, outline = create_grid(win, grid_size)
-        level_text = visual.TextStim(win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350))
+        level_text = visual.TextStim(
+            win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350)
+        )
 
         def draw_current_state(with_dual_stim=True):
             draw_grid()
@@ -986,7 +1082,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
 
         # For trials > n, show extended feedback without clearing stimulus
         if trial_num > n:
-            core.wait(display_duration)  # Wait the display duration but keep stimulus visible
+            core.wait(
+                display_duration
+            )  # Wait the display duration but keep stimulus visible
 
             old_pos, old_img = nback_queue[-n]
             is_target = pos == old_pos and img == old_img
@@ -996,7 +1094,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
 
             # If mismatch, also draw the old stimulus with an orange border
             if not is_target:
-                old_stim = display_dual_stimulus(win, old_pos, old_img, grid_size, n_level=n, return_stim=True)
+                old_stim = display_dual_stimulus(
+                    win, old_pos, old_img, grid_size, n_level=n, return_stim=True
+                )
                 old_border = visual.Rect(
                     win,
                     width=old_stim.size[0] + 10,
@@ -1009,21 +1109,37 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
                 old_stim.draw()
 
             if is_target:
-                fb_text = f"If you remember, {n} steps back, this was the dual stimulus. (✓)"
+                fb_text = (
+                    f"If you remember, {n} steps back, this was the dual stimulus. (✓)"
+                )
             else:
                 fb_text = f"If you remember, {n} steps back, that was a different dual stimulus. (✗)"
 
-            feedback_stim = visual.TextStim(win, text=fb_text, color="white", height=24, pos=(0, -250), wrapWidth=800)
+            feedback_stim = visual.TextStim(
+                win,
+                text=fb_text,
+                color="white",
+                height=24,
+                pos=(0, -250),
+                wrapWidth=800,
+            )
             feedback_stim.draw()
             display_feedback(win, is_target, pos=(0, 400))
 
             if trial_num == num_demo_trials:
-                proceed_text = "This was the final trial. Press SPACE to finish the demo."
+                proceed_text = (
+                    "This was the final trial. Press SPACE to finish the demo."
+                )
             else:
                 proceed_text = "Press SPACE to proceed to the next trial."
 
             proceed_stim = visual.TextStim(
-                win, text=proceed_text, color="white", height=24, wrapWidth=800, pos=(0, -280)
+                win,
+                text=proceed_text,
+                color="white",
+                height=24,
+                wrapWidth=800,
+                pos=(0, -280),
             )
             proceed_stim.draw()
             win.flip()
@@ -1039,12 +1155,19 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
             draw_current_state(True)
 
             if trial_num == num_demo_trials:
-                proceed_text = "This was the final trial. Press SPACE to finish the demo."
+                proceed_text = (
+                    "This was the final trial. Press SPACE to finish the demo."
+                )
             else:
                 proceed_text = "Press SPACE to proceed to the next trial."
 
             proceed_stim = visual.TextStim(
-                win, text=proceed_text, color="white", height=24, wrapWidth=800, pos=(0, -280)
+                win,
+                text=proceed_text,
+                color="white",
+                height=24,
+                wrapWidth=800,
+                pos=(0, -280),
             )
             proceed_stim.draw()
             win.flip()
@@ -1059,7 +1182,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
 
     draw_grid()
     pass2_end_text = "End of PASS 2 (Explanatory).\nPress SPACE to finish the demo."
-    pass2_end_stim = visual.TextStim(win, text=pass2_end_text, color="white", height=24, wrapWidth=800)
+    pass2_end_stim = visual.TextStim(
+        win, text=pass2_end_text, color="white", height=24, wrapWidth=800
+    )
     pass2_end_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -1098,7 +1223,9 @@ def draw_sequence(win, seq_images, positions, size=(100, 100), current_idx=None)
         current_idx (int, optional): Index of the current image (for highlighting). Defaults to None.
     """
     for i, (img_file, pos) in enumerate(zip(seq_images, positions)):
-        stim = visual.ImageStim(win, image=os.path.join(image_dir, img_file), pos=pos, size=size)
+        stim = visual.ImageStim(
+            win, image=os.path.join(image_dir, img_file), pos=pos, size=size
+        )
         stim.draw()
 
 
@@ -1111,7 +1238,13 @@ def draw_center_frame(win, current_pos, size):
         size (tuple): (width, height) of the stimulus.
     """
     frame = visual.Rect(
-        win, width=size[0] + 20, height=size[1] + 20, pos=current_pos, lineColor="white", fillColor=None, lineWidth=2
+        win,
+        width=size[0] + 20,
+        height=size[1] + 20,
+        pos=current_pos,
+        lineColor="white",
+        fillColor=None,
+        lineWidth=2,
     )
     frame.draw()
 
@@ -1127,7 +1260,13 @@ def draw_n_back_box(win, pos, size, is_match):
     """
     border_color = "green" if is_match else "red"
     border = visual.Rect(
-        win, width=size[0] + 10, height=size[1] + 10, pos=pos, lineColor=border_color, lineWidth=4, fillColor=None
+        win,
+        width=size[0] + 10,
+        height=size[1] + 10,
+        pos=pos,
+        lineColor=border_color,
+        lineWidth=4,
+        fillColor=None,
     )
     border.draw()
 
@@ -1153,7 +1292,9 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
     Pressing "5" or "escape" at any prompt will skip the demo.
     """
     # Generate the demo sequence.
-    demo_sequence, _ = generate_sequential_image_sequence(num_demo_trials, n, target_percentage=0.4)
+    demo_sequence, _ = generate_sequential_image_sequence(
+        num_demo_trials, n, target_percentage=0.4
+    )
 
     # -------------- PASS 1: NORMAL --------------
     intro_text = (
@@ -1163,7 +1304,9 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
         f"From trial {n + 1} onward, brief feedback (✓ or ✗) is shown.\n\n"
         "Press SPACE to start PASS 1."
     )
-    intro_stim = visual.TextStim(win, text=intro_text, color="white", height=24, wrapWidth=800)
+    intro_stim = visual.TextStim(
+        win, text=intro_text, color="white", height=24, wrapWidth=800
+    )
     intro_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -1177,7 +1320,9 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
         trial_num = i + 1
         # Present the current image centered.
         img = demo_sequence[i]
-        stim = visual.ImageStim(win, image=os.path.join(image_dir, img), pos=(0, 0), size=stim_size)
+        stim = visual.ImageStim(
+            win, image=os.path.join(image_dir, img), pos=(0, 0), size=stim_size
+        )
         stim.draw()
         win.flip()
         core.wait(display_duration)
@@ -1189,9 +1334,13 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
             ref_img = demo_sequence[i - n]
             is_target = img == ref_img
             if is_target:
-                fb = visual.TextStim(win, text="✓", color="green", height=48, pos=(0, 150))
+                fb = visual.TextStim(
+                    win, text="✓", color="green", height=48, pos=(0, 150)
+                )
             else:
-                fb = visual.TextStim(win, text="✗", color="red", height=48, pos=(0, 150))
+                fb = visual.TextStim(
+                    win, text="✗", color="red", height=48, pos=(0, 150)
+                )
             fb.draw()
             win.flip()
             core.wait(0.5)
@@ -1221,7 +1370,9 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
         "The 2-back position will be highlighted in green (if matched) or red (if not matched).\n\n"
         "Press SPACE to start PASS 2."
     )
-    pass2_stim = visual.TextStim(win, text=pass2_text, color="white", height=24, wrapWidth=800)
+    pass2_stim = visual.TextStim(
+        win, text=pass2_text, color="white", height=24, wrapWidth=800
+    )
     pass2_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
@@ -1235,7 +1386,9 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
     pass2_stim_size = (270, 270)  # 10% smaller than 300x300
 
     # Compute initial positions so that the stimulus at index n-1 is centered.
-    positions0 = compute_positions_ref(num_demo_trials, ref_index=0, spacing=spacing, center_x=0, y=0)
+    positions0 = compute_positions_ref(
+        num_demo_trials, ref_index=0, spacing=spacing, center_x=0, y=0
+    )
 
     for i in range(num_demo_trials):
         trial_num = i + 1
@@ -1243,7 +1396,9 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
         shifted_positions = [(x - i * spacing, y) for (x, y) in positions0]
 
         # Draw level indicator
-        level_stim = visual.TextStim(win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350))
+        level_stim = visual.TextStim(
+            win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350)
+        )
         level_stim.draw()
 
         # Calculate current position (stimulus i in the sequence)
@@ -1267,25 +1422,31 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
 
             # Show tick or cross
             if is_match:
-                tick = visual.TextStim(win, text="✓", color="green", height=48, pos=(0, 150))
+                tick = visual.TextStim(
+                    win, text="✓", color="green", height=48, pos=(0, 150)
+                )
                 fb_text = "Correct match: Same as 2-back."
             else:
-                tick = visual.TextStim(win, text="✗", color="red", height=48, pos=(0, 150))
+                tick = visual.TextStim(
+                    win, text="✗", color="red", height=48, pos=(0, 150)
+                )
                 fb_text = "No match: Different from 2-back."
             tick.draw()
 
             # Show concise feedback text
-            feedback_stim = visual.TextStim(win, text=fb_text, color="white", height=24, pos=(0, -250))
+            feedback_stim = visual.TextStim(
+                win, text=fb_text, color="white", height=24, pos=(0, -250)
+            )
             feedback_stim.draw()
         else:
             # For trials before or equal to n, explain why there's no reference yet
             if trial_num < n:
                 fb_text = f"Building up sequence ({trial_num}/{n} trials)."
             else:  # trial_num == n
-                fb_text = (
-                    f"This is trial {n}. We need to wait until trial {n + 1} to have a complete {n}-back reference."
-                )
-            feedback_stim = visual.TextStim(win, text=fb_text, color="white", height=24, pos=(0, -250))
+                fb_text = f"This is trial {n}. We need to wait until trial {n + 1} to have a complete {n}-back reference."
+            feedback_stim = visual.TextStim(
+                win, text=fb_text, color="white", height=24, pos=(0, -250)
+            )
             feedback_stim.draw()
 
         # Show prompt for all trials
@@ -1293,7 +1454,9 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
             prompt_text = "This was the final trial. Press SPACE to finish the demo."
         else:
             prompt_text = "Press SPACE to proceed to the next trial."
-        prompt_stim = visual.TextStim(win, text=prompt_text, color="white", height=24, pos=(0, -300))
+        prompt_stim = visual.TextStim(
+            win, text=prompt_text, color="white", height=24, pos=(0, -300)
+        )
         prompt_stim.draw()
 
         # Display everything at once
@@ -1361,7 +1524,14 @@ def get_level_color(n_level):
         return "white"
 
 
-def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedback_text=None, lapse_feedback=None):
+def display_grid(
+    win,
+    highlight_pos=None,
+    highlight=False,
+    n_level=None,
+    feedback_text=None,
+    lapse_feedback=None,
+):
     """Display a circular grid with optional highlighted position and feedback.
 
     Args:
@@ -1377,7 +1547,10 @@ def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedbac
     num_positions = 12
     angles = [i * (360 / num_positions) for i in range(num_positions)]
     positions = [
-        (center[0] + radius * math.cos(math.radians(angle)), center[1] + radius * math.sin(math.radians(angle)))
+        (
+            center[0] + radius * math.cos(math.radians(angle)),
+            center[1] + radius * math.sin(math.radians(angle)),
+        )
         for angle in angles
     ]
 
@@ -1387,25 +1560,42 @@ def display_grid(win, highlight_pos=None, highlight=False, n_level=None, feedbac
     fixation_cross.draw()
 
     for i, pos in enumerate(positions):
-        rect = visual.Rect(win, width=50, height=50, pos=pos, lineColor=grid_color, lineWidth=2)
+        rect = visual.Rect(
+            win, width=50, height=50, pos=pos, lineColor=grid_color, lineWidth=2
+        )
         rect.draw()
 
     if highlight and highlight_pos is not None:
         highlight_color = "white"
-        highlight = visual.Rect(win, width=50, height=50, pos=positions[highlight_pos], fillColor=highlight_color)
+        highlight = visual.Rect(
+            win,
+            width=50,
+            height=50,
+            pos=positions[highlight_pos],
+            fillColor=highlight_color,
+        )
         highlight.draw()
 
     if feedback_text:
-        feedback_message = visual.TextStim(win, text=feedback_text, color=grid_color, height=24, pos=(0, 250))
+        feedback_message = visual.TextStim(
+            win, text=feedback_text, color=grid_color, height=24, pos=(0, 250)
+        )
         feedback_message.draw()
 
     if lapse_feedback:
-        lapse_message = visual.TextStim(win, text=lapse_feedback, color="orange", height=24, pos=(0, 300))
+        lapse_message = visual.TextStim(
+            win, text=lapse_feedback, color="orange", height=24, pos=(0, 300)
+        )
         lapse_message.draw()
 
     if n_level:
         level_indicator = visual.TextStim(
-            win, text=f"Level: {n_level}-back", color="white", height=24, pos=(-450, 350), alignText="left"
+            win,
+            text=f"Level: {n_level}-back",
+            color="white",
+            height=24,
+            pos=(-450, 350),
+            alignText="left",
         )
         level_indicator.draw()
 
@@ -1441,7 +1631,9 @@ def run_spatial_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.0):
 
     initial_feedback = f"No response required for the first {n} trials"
     draw_grid()  # Add background grid
-    feedback_text = visual.TextStim(win, text=initial_feedback, color=get_level_color(n), height=24, pos=(0, 0))
+    feedback_text = visual.TextStim(
+        win, text=initial_feedback, color=get_level_color(n), height=24, pos=(0, 0)
+    )
     feedback_text.draw()
     win.flip()
     core.wait(2)
@@ -1456,7 +1648,13 @@ def run_spatial_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.0):
 
         is_target = len(nback_queue) >= n and pos == nback_queue[-n]
 
-        display_grid(win, highlight_pos=pos, highlight=True, n_level=n, lapse_feedback=lapse_feedback)
+        display_grid(
+            win,
+            highlight_pos=pos,
+            highlight=True,
+            n_level=n,
+            lapse_feedback=lapse_feedback,
+        )
         win.flip()
         core.wait(display_duration)
 
@@ -1511,7 +1709,9 @@ def run_spatial_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.0):
 
     total_responses = correct_responses + incorrect_responses + lapses
     accuracy = (correct_responses / total_responses) * 100 if total_responses > 0 else 0
-    avg_reaction_time = sum(reaction_times) / len(reaction_times) if reaction_times else 0
+    avg_reaction_time = (
+        sum(reaction_times) / len(reaction_times) if reaction_times else 0
+    )
 
     return accuracy, correct_responses, incorrect_responses, lapses
 
@@ -1607,7 +1807,13 @@ def create_grid(win, grid_size):
             grid.append(rect)
 
     outline = visual.Rect(
-        win, width=grid_length, height=grid_length, pos=(0, 0), lineColor="white", fillColor=None, lineWidth=2
+        win,
+        width=grid_length,
+        height=grid_length,
+        pos=(0, 0),
+        lineColor="white",
+        fillColor=None,
+        lineWidth=2,
     )
 
     return grid, outline
@@ -1632,7 +1838,9 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
     isi = T(isi)
     global skip_to_next_stage
     grid_size = 3
-    positions, images = generate_dual_nback_sequence(num_trials, grid_size, n, target_rate=0.5)
+    positions, images = generate_dual_nback_sequence(
+        num_trials, grid_size, n, target_rate=0.5
+    )
     nback_queue = []
     responses = []
     correct_responses = 0
@@ -1643,11 +1851,15 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
 
     grid, outline = create_grid(win, grid_size)
     level_color = get_level_color(n)
-    level_text = visual.TextStim(win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350))
+    level_text = visual.TextStim(
+        win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350)
+    )
 
     initial_feedback = f"No response required for the first {n} trials"
     draw_grid()  # Add background grid
-    feedback_text = visual.TextStim(win, text=initial_feedback, color=level_color, height=24, pos=(0, 0))
+    feedback_text = visual.TextStim(
+        win, text=initial_feedback, color=level_color, height=24, pos=(0, 0)
+    )
     feedback_text.draw()
     win.flip()
     core.wait(2)
@@ -1662,9 +1874,15 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
         if skip_to_next_stage:
             break  # Exit the task early
 
-        is_target = len(nback_queue) >= n and pos == nback_queue[-n][0] and img == nback_queue[-n][1]
+        is_target = (
+            len(nback_queue) >= n
+            and pos == nback_queue[-n][0]
+            and img == nback_queue[-n][1]
+        )
 
-        image_stim = display_dual_stimulus(win, pos, img, grid_size, n_level=n, return_stim=True)
+        image_stim = display_dual_stimulus(
+            win, pos, img, grid_size, n_level=n, return_stim=True
+        )
 
         def draw_current_state():
             draw_grid()  # Add background grid
@@ -1742,7 +1960,9 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
 
     total_responses = correct_responses + incorrect_responses + lapses
     accuracy = (correct_responses / total_responses) * 100 if total_responses > 0 else 0
-    avg_reaction_time = sum(reaction_times) / len(reaction_times) if reaction_times else 0
+    avg_reaction_time = (
+        sum(reaction_times) / len(reaction_times) if reaction_times else 0
+    )
 
     return accuracy, correct_responses, incorrect_responses, lapses
 
@@ -1763,11 +1983,15 @@ def show_break_screen(win, duration):
         "Use this time to rest your eyes and relax\n\n"
         "The task will continue automatically"
     )
-    break_stim = visual.TextStim(win, text=break_text, color="white", height=24, wrapWidth=800)
+    break_stim = visual.TextStim(
+        win, text=break_text, color="white", height=24, wrapWidth=800
+    )
 
     timer = core.CountdownTimer(duration)
     while timer.getTime() > 0:
-        break_stim.text = f"{break_text}\n\nTime remaining: {int(timer.getTime())} seconds"
+        break_stim.text = (
+            f"{break_text}\n\nTime remaining: {int(timer.getTime())} seconds"
+        )
         break_stim.draw()
         win.flip()
         if event.getKeys(["escape"]):
@@ -1825,7 +2049,9 @@ def check_plateau(block_results, variance_threshold=7):
         return False  # Levels changed, so performance hasn't stabilised
 
     current_level = block_results[-1][1]
-    current_level_blocks = [block for block in block_results[-3:] if block[1] == current_level]
+    current_level_blocks = [
+        block for block in block_results[-3:] if block[1] == current_level
+    ]
 
     recent_accuracies = [block[2] for block in current_level_blocks]
     avg_accuracy = sum(recent_accuracies) / len(recent_accuracies)
@@ -1862,7 +2088,8 @@ def generate_sequential_image_sequence(num_trials, n, target_percentage=0.5):
 
     if n == 3:
         misleading_positions = random.sample(
-            [p for p in range(n, num_trials) if p not in yes_positions], int(target_num_yes * 0.3)
+            [p for p in range(n, num_trials) if p not in yes_positions],
+            int(target_num_yes * 0.3),
         )
 
     for i in range(num_trials):
@@ -1878,7 +2105,8 @@ def generate_sequential_image_sequence(num_trials, n, target_percentage=0.5):
             non_matching_images = [
                 img
                 for img in available_images
-                if img not in sequence[-n:] and (len(sequence) < 2 or img != sequence[-2])
+                if img not in sequence[-n:]
+                and (len(sequence) < 2 or img != sequence[-2])
             ]
             if not non_matching_images:
                 non_matching_images = available_images
@@ -1908,13 +2136,19 @@ def display_image(win, image_file, feedback_text=None):
     image_stim.draw()
     if feedback_text:
         feedback_message = visual.TextStim(
-            win, text=feedback_text, color="orange", height=24, pos=(0, image_stim.size[1] / 2 + 20)
+            win,
+            text=feedback_text,
+            color="orange",
+            height=24,
+            pos=(0, image_stim.size[1] / 2 + 20),
         )
         feedback_message.draw()
     win.flip()
 
 
-def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, display_duration=0.8, isi=1.0):
+def run_sequential_nback_practice(
+    n, num_trials=90, target_percentage=0.5, display_duration=0.8, isi=1.0
+):
     """
     Run one block of **Sequential N-back practice** (with optional 200 ms distractors).
 
@@ -1945,7 +2179,9 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
     global skip_to_next_stage
 
     # Generate the sequence
-    images, yes_positions = generate_sequential_image_sequence(num_trials, n, target_percentage)
+    images, yes_positions = generate_sequential_image_sequence(
+        num_trials, n, target_percentage
+    )
 
     nback_queue = []
     correct_responses = 0
@@ -1960,7 +2196,11 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
 
     # Create a level indicator just like in Spatial/Dual tasks
     level_text = visual.TextStim(
-        win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350)  # same location as in spatial/dual
+        win,
+        text=f"Level: {n}-back",
+        color="white",
+        height=24,
+        pos=(-450, 350),  # same location as in spatial/dual
     )
 
     # --- Display initial feedback screen ---
@@ -1971,7 +2211,9 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
     level_text.draw()
 
     # Then draw the initial feedback text
-    feedback_text = visual.TextStim(win, text=initial_feedback, color="white", height=24, pos=(0, 0))
+    feedback_text = visual.TextStim(
+        win, text=initial_feedback, color="white", height=24, pos=(0, 0)
+    )
     feedback_text.draw()
     win.flip()
     core.wait(2)
@@ -2004,7 +2246,9 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
 
         # If there's a lapse prompt, draw it
         if prompt_text:
-            feedback_stim = visual.TextStim(win, text=prompt_text, color="orange", height=24, pos=(0, 200))
+            feedback_stim = visual.TextStim(
+                win, text=prompt_text, color="orange", height=24, pos=(0, 200)
+            )
             feedback_stim.draw()
 
         win.flip()
@@ -2042,7 +2286,12 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
                     level_text.draw()
 
                     distractor_square = visual.Rect(
-                        win, width=100, height=100, fillColor="white", lineColor=None, pos=(0, 0)  # White distractor
+                        win,
+                        width=100,
+                        height=100,
+                        fillColor="white",
+                        lineColor=None,
+                        pos=(0, 0),  # White distractor
                     )
                     distractor_square.draw()
                     win.flip()
@@ -2095,7 +2344,9 @@ def run_sequential_nback_practice(n, num_trials=90, target_percentage=0.5, displ
     # Compute performance
     total_responses = correct_responses + incorrect_responses + lapses
     accuracy = (correct_responses / total_responses) * 100 if total_responses > 0 else 0
-    avg_reaction_time = (sum(reaction_times) / len(reaction_times)) if reaction_times else 0
+    avg_reaction_time = (
+        (sum(reaction_times) / len(reaction_times)) if reaction_times else 0
+    )
 
     return accuracy, incorrect_responses, lapses, avg_reaction_time
 
@@ -2114,7 +2365,9 @@ def run_sequential_nback_until_plateau(starting_level):
     """
     global skip_to_next_stage
     n_level = starting_level
-    block_results = []  # Each element: (block_count, n_level, accuracy, avg_reaction_time)
+    block_results = (
+        []
+    )  # Each element: (block_count, n_level, accuracy, avg_reaction_time)
     max_blocks = 12
     scored_trials = 90
     block_count = 0
@@ -2129,8 +2382,8 @@ def run_sequential_nback_until_plateau(starting_level):
         num_trials = scored_trials
 
         # Run the practice block for the current level
-        accuracy, errors, lapses, avg_reaction_time = (
-            run_sequential_nback_practice(n_level, num_trials=num_trials)
+        accuracy, errors, lapses, avg_reaction_time = run_sequential_nback_practice(
+            n_level, num_trials=num_trials
         )
 
         # ─── HOOK B ───  (log only normal-speed blocks)
@@ -2150,7 +2403,9 @@ def run_sequential_nback_until_plateau(starting_level):
             f"Average Reaction Time: {avg_reaction_time:.2f} s\n\n"
             "Press 'space' to continue."
         )
-        summary_stim = visual.TextStim(win, text=summary_text, color="white", height=24, wrapWidth=800)
+        summary_stim = visual.TextStim(
+            win, text=summary_text, color="white", height=24, wrapWidth=800
+        )
         summary_stim.draw()
         win.flip()
         event.waitKeys(keyList=["space"])
@@ -2160,7 +2415,9 @@ def run_sequential_nback_until_plateau(starting_level):
         if new_level != n_level:
             n_level = new_level
             level_change_text = f"Level change: Now switching to {n_level}-back."
-            level_change_stim = visual.TextStim(win, text=level_change_text, color="white", height=24, wrapWidth=800)
+            level_change_stim = visual.TextStim(
+                win, text=level_change_text, color="white", height=24, wrapWidth=800
+            )
             level_change_stim.draw()
             win.flip()
             core.wait(2)
@@ -2176,7 +2433,9 @@ def run_sequential_nback_until_plateau(starting_level):
                 "Participant may have unstable performance across blocks.\n\n"
                 "Press 'space' to continue."
             )
-            warning_stim = visual.TextStim(win, text=warning_text, color="orange", height=24, wrapWidth=800)
+            warning_stim = visual.TextStim(
+                win, text=warning_text, color="orange", height=24, wrapWidth=800
+            )
             warning_stim.draw()
             win.flip()
             event.waitKeys(keyList=["space"])
@@ -2223,7 +2482,9 @@ def main():
         if SPEED_PROFILE == "slow":  # they picked slow a moment ago
             while True:
                 show_countdown()
-                acc, corr, incorr, lapses = run_spatial_nback_practice(n=2, num_trials=60)
+                acc, corr, incorr, lapses = run_spatial_nback_practice(
+                    n=2, num_trials=60
+                )
                 display_block_results("Spatial-slow", acc, corr, incorr, lapses)
 
                 if acc >= 65:  # promotion criterion
@@ -2231,7 +2492,9 @@ def main():
                     visual.TextStim(
                         win,
                         text="Great – accuracy ≥ 65 %. Switching to NORMAL speed.",
-                        color="white", height=24, wrapWidth=800
+                        color="white",
+                        height=24,
+                        wrapWidth=800,
                     ).draw()
                     win.flip()
                     core.wait(2)
@@ -2258,8 +2521,10 @@ def main():
                 visual.TextStim(
                     win,
                     text=f"Need 2 successive Spatial blocks ≥ 65 %.\n"
-                         f"Current streak: {passes}/2.\n\nPress SPACE to continue.",
-                    color="white", height=24, wrapWidth=800,
+                    f"Current streak: {passes}/2.\n\nPress SPACE to continue.",
+                    color="white",
+                    height=24,
+                    wrapWidth=800,
                 ).draw()
                 win.flip()
                 event.waitKeys(keyList=["space"])
@@ -2285,7 +2550,9 @@ def main():
                     visual.TextStim(
                         win,
                         text="Great – accuracy ≥ 65 %. Switching to NORMAL speed.",
-                        color="white", height=24, wrapWidth=800
+                        color="white",
+                        height=24,
+                        wrapWidth=800,
                     ).draw()
                     win.flip()
                     core.wait(2)
@@ -2307,8 +2574,10 @@ def main():
                 visual.TextStim(
                     win,
                     text=f"Need 2 successive Dual blocks ≥ 65 %.\n"
-                         f"Current streak: {passes}/2.\n\nPress SPACE to continue.",
-                    color="white", height=24, wrapWidth=800,
+                    f"Current streak: {passes}/2.\n\nPress SPACE to continue.",
+                    color="white",
+                    height=24,
+                    wrapWidth=800,
                 ).draw()
                 win.flip()
                 event.waitKeys(keyList=["space"])
@@ -2317,10 +2586,7 @@ def main():
 
         # === Sequential N-back DEMO phase ===
         show_task_instructions(win, "Sequential", n_back_level=2)
-        show_sequential_demo(win, n=2,
-                             num_demo_trials=6,
-                             display_duration=0.8,
-                             isi=1.0)
+        show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=1.0)
 
         # ── Participant chooses speed *now* ──
         _set_speed(choose_practice_speed(win, SPEED_PROFILE))
@@ -2337,8 +2603,9 @@ def main():
         if SPEED_PROFILE == "slow":
             while True:
                 show_countdown()
-                acc, _, _, _ = run_sequential_nback_practice(n=2,  # always 2-back for the gate
-                                                             num_trials=20)      # 60-trial slow block
+                acc, _, _, _ = run_sequential_nback_practice(
+                    n=2, num_trials=20  # always 2-back for the gate
+                )  # 60-trial slow block
                 display_block_results("Sequential-slow", acc, 0, 0, 0)
 
                 if skip_to_next_stage:  # participant pressed ‘5’ / Esc
@@ -2349,7 +2616,9 @@ def main():
                     visual.TextStim(
                         win,
                         text="Great – accuracy ≥ 65 %. Switching to NORMAL speed.",
-                        color="white", height=24, wrapWidth=800
+                        color="white",
+                        height=24,
+                        wrapWidth=800,
                     ).draw()
                     win.flip()
                     core.wait(2)
@@ -2360,8 +2629,10 @@ def main():
                 visual.TextStim(
                     win,
                     text="Below 65 %. Another slow block will start.\n"
-                         "Press SPACE to continue.",
-                    color="white", height=24, wrapWidth=800,
+                    "Press SPACE to continue.",
+                    color="white",
+                    height=24,
+                    wrapWidth=800,
                 ).draw()
                 win.flip()
                 event.waitKeys(keyList=["space"])
@@ -2385,8 +2656,9 @@ def main():
             f"Please note this level for the main induction.\n"
             f"Press 'space' to exit."
         )
-        visual.TextStim(win, text=final_summary, color="white",
-                        height=24, wrapWidth=800).draw()
+        visual.TextStim(
+            win, text=final_summary, color="white", height=24, wrapWidth=800
+        ).draw()
         win.flip()
         event.waitKeys(keyList=["space"])
 

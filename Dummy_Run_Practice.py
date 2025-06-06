@@ -111,8 +111,7 @@ def show_summary(
         f"Mean RT:  {avg_rt:.2f} s\n\n"
         f"Press any key to {prompt}"
     )
-    visual.TextStim(win, text=txt, color="white", height=24,
-                    wrapWidth=800).draw()
+    visual.TextStim(win, text=txt, color="white", height=24, wrapWidth=800).draw()
     win.flip()
     event.waitKeys()
 
@@ -135,18 +134,23 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run quick Sequential N-back smoke test"
     )
-    parser.add_argument("--module", default="WAND_practice_plateau",
-                        help="Practice module to import")
-    parser.add_argument("--level", type=int, default=2, choices=[2, 3],
-                        help="N-back level")
-    parser.add_argument("--blocks", type=int, default=2,
-                        help="Number of blocks")
-    parser.add_argument("--trials", type=int, default=10,
-                        help="Trials per block")
-    parser.add_argument("--pid", default="seqQuick",
-                        help="Participant ID used in the CSV")
-    parser.add_argument("--mode", choices=["windowed", "fullscreen"],
-                        default="windowed", help="Display mode")
+    parser.add_argument(
+        "--module", default="WAND_practice_plateau", help="Practice module to import"
+    )
+    parser.add_argument(
+        "--level", type=int, default=2, choices=[2, 3], help="N-back level"
+    )
+    parser.add_argument("--blocks", type=int, default=2, help="Number of blocks")
+    parser.add_argument("--trials", type=int, default=10, help="Trials per block")
+    parser.add_argument(
+        "--pid", default="seqQuick", help="Participant ID used in the CSV"
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["windowed", "fullscreen"],
+        default="windowed",
+        help="Display mode",
+    )
     args = parser.parse_args()
 
     # 1; import the practice module
@@ -161,7 +165,7 @@ def main() -> None:
 
     # 3; window handling; reuse if already present
     if hasattr(practice, "win") and practice.win:
-        win = practice.win           # reuse existing window
+        win = practice.win  # reuse existing window
     else:
         win = build_window(fullscreen=(args.mode == "fullscreen"))
         practice.win = win
@@ -178,8 +182,9 @@ def main() -> None:
             num_trials=args.trials,
             block_no=block_no,
         )
-        show_summary(win, block_no, args.blocks, args.level,
-                     args.trials, acc, errs, lapses, rt)
+        show_summary(
+            win, block_no, args.blocks, args.level, args.trials, acc, errs, lapses, rt
+        )
 
     # 6; clean exit
     win.close()

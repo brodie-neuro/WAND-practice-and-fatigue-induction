@@ -68,12 +68,14 @@ def run_dummy_sequential(n_back_level: int = 2, num_trials: int = 35) -> None:
     # 2. Save results
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     fname = f"dummySeq_n{n_back_level}_{timestamp}.csv"
-    data_row = [{
-        "Participant ID": "dummySeq",
-        "Task": f"Sequential {n_back_level}-back",
-        "Block": "dummy",
-        "Results": results,
-    }]
+    data_row = [
+        {
+            "Participant ID": "dummySeq",
+            "Task": f"Sequential {n_back_level}-back",
+            "Block": "dummy",
+            "Results": results,
+        }
+    ]
     csv_path = save_results_to_csv(fname, data_row)
 
     # 3. Notify user
@@ -86,8 +88,12 @@ def run_dummy_sequential(n_back_level: int = 2, num_trials: int = 35) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Quick dummy Sequential N‑back test")
-    parser.add_argument("--level", type=int, default=2, help="N‑back level (default = 2)")
-    parser.add_argument("--trials", type=int, default=35, help="Number of trials (default = 35)")
+    parser.add_argument(
+        "--level", type=int, default=2, help="N‑back level (default = 2)"
+    )
+    parser.add_argument(
+        "--trials", type=int, default=35, help="Number of trials (default = 35)"
+    )
     args = parser.parse_args()
 
     run_dummy_sequential(n_back_level=args.level, num_trials=args.trials)
