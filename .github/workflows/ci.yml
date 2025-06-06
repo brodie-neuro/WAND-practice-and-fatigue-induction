@@ -49,7 +49,8 @@ jobs:
             pyserial==3.5 \
             json-tricks==3.17.3 \
             python-bidi==0.4.2 \
-            arabic-reshaper==3.0.0
+            arabic-reshaper==3.0.0 \
+            freetype-py==2.4.0
 
       - name: Install lint-and-test tools
         run: |
