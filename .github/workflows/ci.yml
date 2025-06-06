@@ -27,10 +27,10 @@ jobs:
         with:
           python-version: '3.8'
 
-      - name: Install system dependencies for pyglet
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libglu1-mesa
+          sudo apt-get install -y libglu1-mesa xvfb
 
       - name: Install headless PsychoPy + core dependencies
         run: |
@@ -61,5 +61,6 @@ jobs:
         run: |
           find . -name '*.py' | xargs isort --check-only
 
-      - name: Run tests
-        run: pytest --maxfail=1 --disable-warnings -q
+      # THIS IS THE MODIFIED STEP
+      - name: Run tests with a virtual screen
+        run: xvfb-run -a pytest --maxfail=1 --disable-warnings -q
