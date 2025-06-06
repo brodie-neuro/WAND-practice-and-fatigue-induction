@@ -45,10 +45,12 @@ jobs:
           pip install black==22.10.0 isort==5.12.0 pytest
 
       - name: Run black (check only)
-        run: black --check --line-length 120 .
+        run: |
+          find . -name '*.py' | xargs black --check --line-length 120
 
       - name: Run isort (check only)
-        run: isort --check-only .
+        run: |
+          find . -name '*.py' | xargs isort --check-only
 
       - name: Run tests
         run: pytest --maxfail=1 --disable-warnings -q
