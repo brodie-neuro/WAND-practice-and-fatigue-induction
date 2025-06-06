@@ -5,12 +5,10 @@ on:
   push:
     paths:
       - '**.py'
-      - 'requirements.txt'
       - '.github/workflows/**'
   pull_request:
     paths:
       - '**.py'
-      - 'requirements.txt'
       - '.github/workflows/**'
 
 jobs:
@@ -32,18 +30,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libglu1-mesa xvfb
 
-      - name: Install headless PsychoPy + core dependencies
+      # THIS IS THE NEW, COMPLETE INSTALLATION STEP
+      - name: Install PsychoPy and ALL its dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install psychopy==2024.2.1 --no-deps
+          # Install psychopy first, but allow its dependencies this time
+          pip install psychopy==2024.2.1
+          # The following list pins key versions for Python 3.8 compatibility
+          # and ensures all other required packages are present.
           pip install \
-            numpy>=1.20 \
             scipy==1.9.3 \
-            pillow==10.3.0 \
-            pygame==2.5.2 \
-            tzdata==2024.1 \
             pandas==2.0.3 \
             pyglet==1.4.11 \
+            # The rest are direct dependencies of PsychoPy
             PyYAML==6.0.1 \
             psutil==5.9.8 \
             pyserial==3.5 \
@@ -51,11 +50,20 @@ jobs:
             python-bidi==0.4.2 \
             arabic-reshaper==3.0.0 \
             freetype-py==2.4.0 \
-            requests==2.32.3
+            requests==2.32.3 \
+            pytables==3.9.2 \
+            moviepy==1.0.3 \
+            soundfile==0.12.1 \
+            speechrecognition==3.10.4 \
+            gitpython==3.1.43 \
+            pyqt6==6.7.0 \
+            pyqt6-webengine==6.7.0 \
+            markdown-it-py==3.0.0 \
+            questplus==2024.1.1
 
       - name: Install lint-and-test tools
         run: |
-          pip install black==22.10.0 isort==5.12.0 pytest
+          pip install black==22.10.0 isort==5.12.0 pytest pytest-mock
 
       - name: Run black (check only)
         run: |
