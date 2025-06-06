@@ -1,11 +1,12 @@
 # Tests/test_script.py
-import sys
-import os
 import csv
+import os
+import sys
+
 import pytest
 
 # This line ensures Python can find your WAND_practice_plateau.py script
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # --- The Mocking Fix ---
 from unittest.mock import MagicMock
@@ -18,10 +19,10 @@ mock_visual = MagicMock()
 mock_visual.Window.return_value.size = (800, 600)
 
 # Now, replace the real psychopy modules with our fakes
-sys.modules['psychopy'] = MagicMock()
-sys.modules['psychopy.visual'] = mock_visual  # Use our configured mock
-sys.modules['psychopy.event'] = MagicMock()
-sys.modules['psychopy.core'] = MagicMock()
+sys.modules["psychopy"] = MagicMock()
+sys.modules["psychopy.visual"] = mock_visual  # Use our configured mock
+sys.modules["psychopy.event"] = MagicMock()
+sys.modules["psychopy.core"] = MagicMock()
 # --- End of Fix ---
 
 # Now this import is safe
@@ -60,13 +61,19 @@ def test_run_block_creates_csv(tmp_path, n_level, num_trials, block_no):
 
     # Get the fake data from our stubbed function
     accuracy, errors, lapses, avg_rt = practice.run_sequential_nback_practice(
-        n=n_level, num_trials=num_trials, target_percentage=0.5,
-        display_duration=0.8, isi=1.0,
+        n=n_level,
+        num_trials=num_trials,
+        target_percentage=0.5,
+        display_duration=0.8,
+        isi=1.0,
     )
     # Call the real logging function with the fake data
     practice.log_seq_block(
-        level=n_level, block_no=block_no, accuracy=accuracy,
-        errors=errors, lapses=lapses,
+        level=n_level,
+        block_no=block_no,
+        accuracy=accuracy,
+        errors=errors,
+        lapses=lapses,
     )
 
     # ─── 5. Check if the logging function did its job correctly ───
@@ -76,7 +83,9 @@ def test_run_block_creates_csv(tmp_path, n_level, num_trials, block_no):
         reader = csv.reader(f)
         all_rows = list(reader)
 
-    data_rows = [row for row in all_rows if len(row) == 5 and row[0] not in ("level", "")]
+    data_rows = [
+        row for row in all_rows if len(row) == 5 and row[0] not in ("level", "")
+    ]
     assert data_rows, f"No data row found in {practice.CSV_PATH}"
 
     first_data = data_rows[0]
