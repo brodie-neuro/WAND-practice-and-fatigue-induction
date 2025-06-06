@@ -25,9 +25,16 @@ jobs:
         with:
           python-version: '3.8'
 
-      - name: Install testing tools
+      # No system dependencies like xvfb or libgtk are needed with mocking.
+
+      - name: Install dependencies for testing
         run: |
           python -m pip install --upgrade pip
+          # Install the top-level psychopy package WITHOUT its heavy dependencies.
+          # This makes `import psychopy` work. The mocking in the test script
+          # will handle the rest.
+          pip install psychopy --no-deps
+          # Now install our testing tools
           pip install pytest pytest-mock black==22.10.0 isort==5.12.0
 
       - name: Run black (check only)
