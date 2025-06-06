@@ -41,7 +41,8 @@ jobs:
             pyglet==1.4.11 \
             PyYAML==6.0.1 \
             psutil==5.9.8 \
-            pyserial==3.5
+            pyserial==3.5 \
+            json-tricks==3.17.3
 
       - name: Install lint-and-test tools
         run: |
