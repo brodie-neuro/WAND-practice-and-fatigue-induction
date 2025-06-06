@@ -28,21 +28,16 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libglu1-mesa xvfb
+          sudo apt-get install -y libglu1-mesa xvfb libgtk-3-dev
 
-      # THIS IS THE NEW, COMPLETE INSTALLATION STEP
       - name: Install PsychoPy and ALL its dependencies
         run: |
           python -m pip install --upgrade pip
-          # Install psychopy first, but allow its dependencies this time
           pip install psychopy==2024.2.1
-          # The following list pins key versions for Python 3.8 compatibility
-          # and ensures all other required packages are present.
           pip install \
             scipy==1.9.3 \
             pandas==2.0.3 \
             pyglet==1.4.11 \
-            # The rest are direct dependencies of PsychoPy
             PyYAML==6.0.1 \
             psutil==5.9.8 \
             pyserial==3.5 \
