@@ -46,7 +46,7 @@ jobs:
 
       - name: Run black (check only)
         run: |
-          find . -name '*.py' | xargs black --check --line-length 120
+          find . -name '*.py' | xargs black --check 
 
       - name: Run isort (check only)
         run: |
