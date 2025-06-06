@@ -1,4 +1,11 @@
 # Tests/test_smoke.py
+import sys
+import os
+
+# ensure the project root (where WAND_practice_plateau.py lives) is on sys.path:
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
+
+
 
 import csv
 import os
