@@ -2644,9 +2644,11 @@ def main():
 
             show_countdown()
 
-            final_n_level, final_accuracy, final_avg_rt = (
-                run_sequential_nback_until_plateau(starting_level)
-            )
+            (
+                final_n_level,
+                final_accuracy,
+                final_avg_rt,
+            ) = run_sequential_nback_until_plateau(starting_level)
 
         skip_to_next_stage = False  # reset for the final summary screen
 
