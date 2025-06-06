@@ -1,7 +1,8 @@
 # Tests/test_smoke.py
 
-import os
 import csv
+import os
+
 import pytest
 
 # Import your real practice script:
