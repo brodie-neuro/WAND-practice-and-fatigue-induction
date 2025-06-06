@@ -5,10 +5,12 @@ on:
   push:
     paths:
       - '**.py'
+      - 'requirements.txt'
       - '.github/workflows/**'
   pull_request:
     paths:
       - '**.py'
+      - 'requirements.txt'
       - '.github/workflows/**'
 
 jobs:
@@ -30,31 +32,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libglu1-mesa xvfb libgtk-3-dev
 
-      - name: Install PsychoPy and ALL its dependencies
+      # This is the new, simplified installation step
+      - name: Install dependencies from requirements.txt
         run: |
           python -m pip install --upgrade pip
-          pip install psychopy==2024.2.1
-          pip install \
-            scipy==1.9.3 \
-            pandas==2.0.3 \
-            pyglet==1.4.11 \
-            PyYAML==6.0.1 \
-            psutil==5.9.8 \
-            pyserial==3.5 \
-            json-tricks==3.17.3 \
-            python-bidi==0.4.2 \
-            arabic-reshaper==3.0.0 \
-            freetype-py==2.4.0 \
-            requests==2.32.3 \
-            pytables==3.9.2 \
-            moviepy==1.0.3 \
-            soundfile==0.12.1 \
-            speechrecognition==3.10.4 \
-            gitpython==3.1.43 \
-            pyqt6==6.7.0 \
-            pyqt6-webengine==6.7.0 \
-            markdown-it-py==3.0.0 \
-            questplus==2024.1.1
+          pip install -r requirements.txt
 
       - name: Install lint-and-test tools
         run: |
