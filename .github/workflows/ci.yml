@@ -30,16 +30,14 @@ jobs:
       - name: Install headless PsychoPy + core dependencies
         run: |
           python -m pip install --upgrade pip
-          # Install PsychoPy without pulling in wxPython or other GUI libs:
           pip install psychopy==2024.2.1 --no-deps
-          # Now install only the minimal dependencies needed for headless operation:
           pip install \
             numpy>=1.20 \
             scipy==1.10.1 \
             pillow==10.4.0 \
             pygame==2.5.2 \
             tzdata==2024.1 \
-            pandas==2.2.3 \
+            pandas==2.0.3 \
             pyglet==1.4.11
 
       - name: Install lint-and-test tools
