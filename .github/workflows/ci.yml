@@ -1,3 +1,4 @@
+# .github/workflows/ci.yml
 name: CI
 
 on:
@@ -29,17 +30,14 @@ jobs:
       - name: Install headless PsychoPy + core dependencies
         run: |
           python -m pip install --upgrade pip
-          # 1) Install PsychoPy itself without pulling in GUI toolkits (wxPython, etc.)
           pip install psychopy==2024.2.1 --no-deps
-
-          # 2) Install exactly the other dependencies you need in one shot:
           pip install \
             numpy>=1.20 \
-            scipy==1.10.1 \
+            scipy==1.9.3 \
             pillow==10.3.0 \
             pygame==2.5.2 \
             tzdata==2024.1 \
-            pandas==2.2.3 \
+            pandas==2.0.3 \
             pyglet==1.4.11 \
             PyYAML==6.0.1
 
@@ -56,5 +54,4 @@ jobs:
           find . -name '*.py' | xargs isort --check-only
 
       - name: Run tests
-        run: |
-          pytest --maxfail=1 --disable-warnings -q
+        run: pytest --maxfail=1 --disable-warnings -q

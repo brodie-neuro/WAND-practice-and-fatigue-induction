@@ -4,7 +4,7 @@
 
 ## Overview
 
-WAND consists of three PsychoPy scripts designed to induce and measure "active" mental fatigue by targeting working memory systems. This suite provides a standardised protocol for calibrating individual N-Back Capacity (proxy for working memory capacity) and then systematically inducing cognitive fatigue.
+WAND consists of Four PsychoPy scripts designed to induce and measure "active" mental fatigue by targeting working memory systems. This suite provides a standardised protocol for calibrating individual N-Back Capacity (proxy for working memory capacity) and then systematically inducing cognitive fatigue.
 
 ## Task Components
 
