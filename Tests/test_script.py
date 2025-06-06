@@ -1,29 +1,30 @@
 # Tests/test_script.py
-import csv
-import os
 import sys
-
+import os
+import csv
 import pytest
 
 # This line ensures Python can find your WAND_practice_plateau.py script
-# by adding the project's root folder to the path.
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # --- The Mocking Fix ---
-# This is the most important part. We trick Python by creating fake, empty
-# modules. When your script tries to `import psychopy.visual`, Python finds
-# our harmless fake object first and stops, never loading the real library.
-# This prevents any windows from being created or any errors related to graphics.
 from unittest.mock import MagicMock
 
-sys.modules["psychopy"] = MagicMock()
-sys.modules["psychopy.visual"] = MagicMock()
-sys.modules["psychopy.event"] = MagicMock()
-sys.modules["psychopy.core"] = MagicMock()
+# Create a fake object for the 'visual' module
+mock_visual = MagicMock()
+
+# IMPORTANT FIX: Configure the fake Window object. Tell it that when its
+# .size attribute is accessed, it should return a tuple (800, 600).
+mock_visual.Window.return_value.size = (800, 600)
+
+# Now, replace the real psychopy modules with our fakes
+sys.modules['psychopy'] = MagicMock()
+sys.modules['psychopy.visual'] = mock_visual  # Use our configured mock
+sys.modules['psychopy.event'] = MagicMock()
+sys.modules['psychopy.core'] = MagicMock()
 # --- End of Fix ---
 
-# Now, this import is safe. It will load your script's logic, but any
-# PsychoPy calls within it will go to our fake objects and do nothing.
+# Now this import is safe
 import WAND_practice_plateau as practice
 
 
@@ -50,8 +51,6 @@ def test_run_block_creates_csv(tmp_path, n_level, num_trials, block_no):
     practice._last_logged_level = None
 
     # ─── 3. Replace the real experiment function with a simple fake one ("stub") ───
-    # This fake function doesn't run any trials; it just instantly returns
-    # predictable data for us to test the logging part of the code.
     def fake_run_sequential_nback_practice(*args, **kwargs):
         return (80.0, 2, 1, 0.5)
 
@@ -59,21 +58,15 @@ def test_run_block_creates_csv(tmp_path, n_level, num_trials, block_no):
 
     # ─── 4. Run only the logic we want to test ───
 
-    # Call the fake function to get our test data
+    # Get the fake data from our stubbed function
     accuracy, errors, lapses, avg_rt = practice.run_sequential_nback_practice(
-        n=n_level,
-        num_trials=num_trials,
-        target_percentage=0.5,
-        display_duration=0.8,
-        isi=1.0,
+        n=n_level, num_trials=num_trials, target_percentage=0.5,
+        display_duration=0.8, isi=1.0,
     )
-    # Call the REAL logging function with the FAKE data
+    # Call the real logging function with the fake data
     practice.log_seq_block(
-        level=n_level,
-        block_no=block_no,
-        accuracy=accuracy,
-        errors=errors,
-        lapses=lapses,
+        level=n_level, block_no=block_no, accuracy=accuracy,
+        errors=errors, lapses=lapses,
     )
 
     # ─── 5. Check if the logging function did its job correctly ───
@@ -83,9 +76,7 @@ def test_run_block_creates_csv(tmp_path, n_level, num_trials, block_no):
         reader = csv.reader(f)
         all_rows = list(reader)
 
-    data_rows = [
-        row for row in all_rows if len(row) == 5 and row[0] not in ("level", "")
-    ]
+    data_rows = [row for row in all_rows if len(row) == 5 and row[0] not in ("level", "")]
     assert data_rows, f"No data row found in {practice.CSV_PATH}"
 
     first_data = data_rows[0]
