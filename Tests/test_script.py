@@ -7,11 +7,15 @@ import pytest
 # Import your real practice script:
 import WAND_practice_plateau as practice
 
-@pytest.mark.parametrize("n_level, num_trials, block_no", [
-    (2, 1, 1),
-    (2, 10, 1),
-    (3, 5, 2),
-])
+
+@pytest.mark.parametrize(
+    "n_level, num_trials, block_no",
+    [
+        (2, 1, 1),
+        (2, 10, 1),
+        (3, 5, 2),
+    ],
+)
 def test_run_block_creates_csv(tmp_path, n_level, num_trials, block_no):
     """
     Smoke‐test for run_block():
@@ -28,21 +32,24 @@ def test_run_block_creates_csv(tmp_path, n_level, num_trials, block_no):
     temp_data = tmp_path / "data"
     temp_data.mkdir()
 
-    practice.PARTICIPANT_ID      = "testpid"
-    practice.data_dir            = str(temp_data)
-    practice.CSV_PATH            = os.path.join(str(temp_data), "seq_testpid.csv")
-    practice._last_logged_level  = None
+    practice.PARTICIPANT_ID = "testpid"
+    practice.data_dir = str(temp_data)
+    practice.CSV_PATH = os.path.join(str(temp_data), "seq_testpid.csv")
+    practice._last_logged_level = None
 
     # Provide a bare‐minimum DummyWin so that nothing PsychoPy‐related is actually used.
     class DummyWin:
         def __init__(self):
             # These two attributes are sometimes read by PsychoPy internals:
             self.units = "pix"
-            self.size  = (800, 600)
+            self.size = (800, 600)
+
         def getContentScaleFactor(self):
             return 1
+
         def flip(self):
             pass
+
         def close(self):
             pass
 
@@ -51,7 +58,9 @@ def test_run_block_creates_csv(tmp_path, n_level, num_trials, block_no):
     # ─── Step 2: Stub out `run_sequential_nback_practice` itself ───
     # We do not want any actual PsychoPy drawing. So we override that function
     # to return a fixed (accuracy, errors, lapses, avg_rt).
-    def fake_run_sequential_nback_practice(n, num_trials, target_percentage, display_duration, isi):
+    def fake_run_sequential_nback_practice(
+        n, num_trials, target_percentage, display_duration, isi
+    ):
         # Return e.g. 80% accuracy, 2 errors, 1 lapse, average RT = 0.5
         return (80.0, 2, 1, 0.5)
 
@@ -77,7 +86,7 @@ def test_run_block_creates_csv(tmp_path, n_level, num_trials, block_no):
             block_no=block_no,
             accuracy=accuracy,
             errors=errors,
-            lapses=lapses
+            lapses=lapses,
         )
 
         return accuracy, errors, lapses, avg_rt
@@ -109,8 +118,7 @@ def test_run_block_creates_csv(tmp_path, n_level, num_trials, block_no):
     #   • Possibly a blank line (if level changed)
     #   • Then at least one data‐row of length 5: [ level, block, "80.00", "2", "1" ]
     data_rows = [
-        row for row in all_rows
-        if len(row) == 5 and row[0] not in ("level", "")
+        row for row in all_rows if len(row) == 5 and row[0] not in ("level", "")
     ]
     assert data_rows, f"No 5‐column data row found in {practice.CSV_PATH!r}"
 
@@ -121,4 +129,6 @@ def test_run_block_creates_csv(tmp_path, n_level, num_trials, block_no):
 
     # Check string‐formatted accuracy (we returned 80.0)
     # It should appear as "80.00" (two decimal places are formatted by log_seq_block).
-    assert first_data[2].startswith("80"), f"Expected accuracy ~80, got {first_data[2]!r}"
+    assert first_data[2].startswith(
+        "80"
+    ), f"Expected accuracy ~80, got {first_data[2]!r}"
