@@ -15,6 +15,10 @@ WAND consists of Four PsychoPy scripts designed to induce and measure "active" m
 | `Dummy_Run.py` | Lightweight script to verify sequential task logic and data logging | 3–5 minutes |
 | `Dummy_Run_Practice.py` | Lightweight script to verify sequential task functionality and data logging |2-3 minutes |
 
+New in v1.0.2
+
+This is a maintenance release for the JOSS submission. It includes no new features but adds a formal automated test suite and finalises all documentation.
+
 New in v1.0.1 
 
 Slow-phase on-ramp (1.5 × timings) lets low-performers find rhythm before normal speed
@@ -124,7 +128,6 @@ python WAND_full_induction.py --seed 1234 --distractors off
 python Dummy_Run.py
 
 ```
-
 ### Testing
 
 This project uses the pytest framework for automated testing. The tests are located in the /Tests directory and are automatically run on every push and pull request using GitHub Actions.
