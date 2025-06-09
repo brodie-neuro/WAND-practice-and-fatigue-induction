@@ -74,22 +74,38 @@ Responses are collected using 1–8 Likert scales and stored alongside behaviora
 
 ## Installation
 
-WAND requires Python 3.8.x:
+It is highly recommended to install WAND and its dependencies in a Python virtual environment.
 
-download the ZIP from GitHub/Zenodo, and then navigate into the project directory
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
+    cd WAND-practice-and-fatigue-induction
+    ```
+
+2.  **Create and Activate a Virtual Environment:**
+    ```bash
+    # Create the environment
+    python -m venv .venv
+
+    # Activate it (run this command each time you work on the project)
+    # On Windows:
+    .venv\Scripts\activate
+    # On macOS/Linux:
+    source .venv/bin/activate
+    ```
+
+3.  **Install All Dependencies:**
+    This command reads the `requirements.txt` file and installs the exact package versions needed to run the experiment.
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+## Usage
+
+Once the installation is complete, you can run the main experiment script from your terminal:
 
 ```bash
-# Create and activate virtual environment
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-# macOS / Linux
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
+python WAND_practice_plateau.py
 ## Post-installation check:
 
 - Run `Dummy_Run.py` to verify the environment is configured correctly and dependencies are working before launching a full experiment.
@@ -109,6 +125,19 @@ python Dummy_Run.py
 
 ```
 
+### Testing
+
+This project uses the pytest framework for automated testing. The tests are located in the /Tests directory and are automatically run on every push and pull request using GitHub Actions.
+
+Running Tests Manually
+
+To run the test suite locally after installation, navigate to the repository's root directory and run the following command:
+
+Bash
+
+python -m pytest
+This will discover and run all tests in the Tests/ directory and report the results.
+
 ### Hot-keys During an Experiment
 
 | Key | Effect |
@@ -125,7 +154,6 @@ python Dummy_Run.py
 | `Dummy_Run.py` | Quick verification script for sequential N-back logic and CSV output |
  `Dummy_Run_Practice.py`| Quick verification script for sequential N-back logic and CSV output |
 | `requirements.txt` | Runtime dependencies |
-| `requirements_dev.txt` | Development dependencies |
 | `README.md` | Project overview and usage instructions |
 | `README_experiment.md` | Detailed documentation on experimental design and implementation |
 | `LICENSE.txt` | MIT License |
