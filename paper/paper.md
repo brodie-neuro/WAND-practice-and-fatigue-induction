@@ -7,7 +7,7 @@ authors:
 affiliations:
   - name: University of Stirling 
     index: 1
-    ror: https://ror.org/045wgfr59 
+    ror: 045wgfr59
 date: 09 June 2025 
 tags:
   - cognitive fatigue
@@ -26,7 +26,7 @@ archive:
 
 # Summary
 
-WAND (Working-memory Active-fatigue with N-back Difficulty) is an open-source PsychoPy [@peirce2019PsychoPy2] software suite for cognitive fatigue research. It provides a modular N-back framework to classify performance, calibrate stable baselines via plateau detection (mitigating learning effects), and systematically induce active fatigue using varied N-back tasks with integrated distractors. This MIT-licensed paper outlines WAND's design and use.
+WAND (Working-memory Active-fatigue with N-back Difficulty) is an open-source PsychoPy [@peirce2019psychoPy2] software suite for cognitive fatigue research. It provides a modular N-back framework to classify performance, calibrate stable baselines via plateau detection (mitigating learning effects), and systematically induce active fatigue using varied N-back tasks with integrated distractors. This MIT-licensed paper outlines WAND's design and use.
 
 # Statement of Need
 
@@ -49,10 +49,10 @@ WAND thus provides an integrated platform with innovative techniques to overcome
 WAND is implemented in Python, utilising Psychopy, and comprises two sequential phases, managed by distinct scripts (WAND_practice_plateau.py for familiarisation/calibration, WAND_full_induction.py for induction):
 
 ## Initial Familiarisation and Competency Check
-Participants are familiarised with N-back mechanics via practice on Spatial and Dual N-back tasks (fixed at Level 2). An optional 'slow mode' (50% reduced speed) aids initial onboarding, with progression to normal speed upon achieving basic competency (e.g., ≥65% accuracy in one slow-mode block). Further progression requires meeting a performance threshold at normal speed (e.g., 65% accuracy averaged across the two Level 2 practice blocks for each task type). Written instructions and demonstrations clarify task demands. This prepares participants for Sequential N-back calibration.
+Participants are familiarised with N-back mechanics via practice on Spatial and Dual N-back tasks (fixed at Level 2). An optional 'slow mode' (50% reduced speed) aids initial onboarding, with progression to normal speed upon achieving basic competency (e.g., $ \geq $65% accuracy in one slow-mode block) Further progression requires meeting a performance threshold at normal speed (e.g., 65% accuracy averaged across the two Level 2 practice blocks for each task type). Written instructions and demonstrations clarify task demands. This prepares participants for Sequential N-back calibration.
 
 ## Plateau Detection and Calibration Phase
-This phase uses the Sequential N-back task to establish a stable performance baseline and classify N-back capacity. Researchers can set a starting N-level (e.g., 2 or 3), with an optional 'slow mode' available. At normal speed, participants may progress to a higher N-level (e.g., from Level 2 to 3 if >82% accuracy is achieved over two consecutive blocks). Adaptive N-back blocks continue until three out of five consecutive blocks exhibit accuracy variance ≤7%, indicating stable performance. (e.g., <7%). This N-level is then used for the fatigue induction. Block-level feedback is provided to the participant during this calibration/plateauing phase.
+This phase uses the Sequential N-back task to establish a stable performance baseline and classify N-back capacity. Researchers can set a starting N-level (e.g., 2 or 3), with an optional 'slow mode' available. At normal speed, participants may progress to a higher N-level (e.g., from Level 2 to 3 if >82% accuracy is achieved over two consecutive blocks). Adaptive N-back blocks continue until three out of five consecutive blocks exhibit accuracy variance $ \leq $7%, indicating stable performance. (e.g., <7%). This N-level is then used for the fatigue induction. Block-level feedback is provided to the participant during this calibration/plateauing phase.
 
 ## Fatigue Induction Task
 This session (~65-70 minutes) induces fatigue via an extended, alternating sequence of N-back tasks, using the calibrated Sequential N-back N-level:
