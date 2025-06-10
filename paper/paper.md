@@ -8,7 +8,7 @@ affiliations:
   - name: University of Stirling 
     index: 1
     ror: 045wgfr59
-date: 09 June 2025 
+date: 10 June 2025 
 tags:
   - cognitive fatigue
   - working memory
@@ -21,7 +21,7 @@ tags:
 bibliography: paper.bib 
 repository: https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction
 archive:
-  doi: 10.5281/zenodo.15602850 
+  doi: 10.5281/zenodo.15389892
 ---
 
 # Summary
@@ -42,7 +42,7 @@ WAND offers a modular PsychoPy framework for researchers in cognitive science, p
 
 - **Supporting Replicable and Progressive Research**: Supporting transparent, replicable, and extensible fatigue research through open science principles, suitable for behavioural and neuroimaging studies.
 
-WAND thus provides an integrated platform with innovative techniques to overcome key limitations in active fatigue research. WAND is currently being used at the University of Stirling to investigate behavioural correlates of working memory fatigue. Its modular structure enables researchers to adapt or use parts of the protocol independently to suit specific research questions examining the behavioural and EEG correlates of fatigue induced by sustained high cognitive load, with adaptable experimental parameters and instructions facilitating focused investigations into the mechanisms and manifestations of cognitive fatigue.
+WAND thus provides an integrated platform with innovative techniques to overcome key limitations in active fatigue research. WAND is currently being used at the University of Stirling to investigate behavioural correlates of working memory fatigue. Its modular structure enables researchers to adapt or use parts of the protocol independently to suit specific research questions examining the behavioural and EEG (electroencephalography) correlates of fatigue induced by sustained high cognitive load, with adaptable experimental parameters and instructions facilitating focused investigations into the mechanisms and manifestations of cognitive fatigue.
 
 # Implementation and Architecture
 
@@ -100,11 +100,10 @@ WAND’s novelty lies in its integrated approach to overcoming key limitations i
 
 Clone the repository and install dependencies via:
 
+```bash
 git clone https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
 cd WAND-practice-and-fatigue-induction
 pip install -r requirements.txt
-
-This follows standard Python packaging conventions and ensures reproducibility.  
 
 # Acknowledgements
 
