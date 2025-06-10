@@ -1,5 +1,5 @@
 # WAND — Working-memory Adaptive-fatigue with N-back Difficulty
-*Current release: v1.0.1 – see CHANGELOG for details*  
+*Current release: v1.0.2 – see CHANGELOG for details*  
 ### A Practice-and-Fatigue-Induction Suite
 
 ## Overview
