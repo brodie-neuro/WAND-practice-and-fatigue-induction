@@ -1,0 +1,19 @@
+name: 'Compile JOSS Paper'
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  paper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Compile paper
+        uses: openjournals/open-journals-pdf-generator@v1
+        with:
+          journal: joss
+          paper-path: paper/paper.md
