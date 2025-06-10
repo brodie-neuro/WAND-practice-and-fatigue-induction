@@ -83,12 +83,12 @@ WAND’s novelty lies in its integrated approach to overcoming key limitations i
 - **Operating System**: Platform-independent (Windows, macOS, Linux) via PsychoPy.
 - **Programming Language**: Python (3.8.x), utilising the PsychoPy library.
 - **Dependencies**: Core dependencies are specified in the `requirements.txt` file to ensure a reproducible environment. Key packages include:
-- `psychopy==2024.1.4`
-- `numpy==1.24.4`
-- `scipy==1.9.3`
-- `pandas==2.0.3`
-- `wxPython==4.2.1`
-- `pyglet==1.5.27`
+  - `psychopy==2024.1.4`
+  - `numpy==1.24.4` 
+  - `scipy==1.9.3`
+  - `pandas==2.0.3`
+  - `wxPython==4.2.1`
+  - `pyglet==1.5.27`
   
 - **Repository**: [https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction](https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction)
 - **License**: MIT License
@@ -102,6 +102,7 @@ Clone the repository and install dependencies via:
 git clone https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
 cd WAND-practice-and-fatigue-induction
 pip install -r requirements.txt
+``` 
 
 # Acknowledgements
 
