@@ -102,13 +102,10 @@ Clone the repository and install dependencies via:
 git clone https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
 cd WAND-practice-and-fatigue-induction
 pip install -r requirements.txt
-```
 
 # Acknowledgements
 
 I thank Dr Dimitrios Kourtis and Dr Simone Tomaz for their supervision. I am also deeply grateful to Mr Dario Riccomini for his invaluable support throughout this project. This work was supported by The Institute of Advanced Studies at the University of Stirling. 
 
 # References
-*(Generated from paper.bib)*
-
 ---
