@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## [1.0.2] - 2025-06-09
+## [1.0.2] - 2025-06-12
+
+fixed - spatial background grid to not dissapear 
+grace period of 1 block added to level 3 
 
 ### Added
 - **Automated Testing Suite**: Implemented a formal test suite in the `/Tests` directory using `pytest`.
@@ -14,8 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Modular Code Refactor**: Overhauled core script logic into modular functions to enable effective unit testing.
+- **Sequential Practice Algorithm**: Updated the run_sequential_nback_until_plateau function to include a one-block, non-scored "grace period" when difficulty first increases to 3-back. This allows for participant familiarisation and prevents premature level drops.
+- **Post-Experiment Summary**: Streamlined the show_final_summary screen in the main induction script to only display essential block-by-block performance metrics. Removed the redundant subjective and comparison pages for a cleaner user experience, as this data is already saved to the CSV file.
+- **Docstrings** Improved docstring formatting across all scripts.
 - **Documentation**: Finalized `README.md` and `CHANGELOG.md` for JOSS submission.
 - **Archival**: Updated `.zenodo.json` to correct metadata for automated Zenodo releases.
+
+### Fixed
+- **Spatial Task Visuals**: Corrected a rendering issue where the background grid would disappear during the spatial n-back practice blocks.
 
 ---
 ## [1.0.1] - 2025-06-04

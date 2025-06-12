@@ -17,7 +17,12 @@ WAND consists of Four PsychoPy scripts designed to induce and measure "active" m
 
 New in v1.0.2
 
-This is a maintenance release for the JOSS submission. It includes no new features but adds a formal automated test suite and finalises all documentation.
+This version introduces several key fixes and methodological improvements alongside preparations for our JOSS submission.
+
+**Improved Practice Algorithm**: The sequential practice task now includes a one-block "grace period" when difficulty increases to 3-back, ensuring a fairer assessment of participant performance.
+**Streamlined Experiment Summary**: The final summary screen has been updated to only show essential block-by-block metrics for a cleaner post-experiment experience.
+**Bug Fix**: Corrected a visual bug where the background grid would disappear during the spatial n-back task.
+**Automated Testing**: A formal test suite and Continuous Integration (CI) have been implemented to ensure code reliability.
 
 New in v1.0.1 
 

@@ -8,7 +8,7 @@ affiliations:
   - name: University of Stirling 
     index: 1
     ror: 045wgfr59
-date: 10 June 2025 
+date: 12 June 2025 
 tags:
   - cognitive fatigue
   - working memory
@@ -62,7 +62,7 @@ Sequential N-back Blocks (e.g., 5 blocks): Run at the fixed calibrated N-level w
 
 Adaptive Spatial and Dual N-back Blocks (e.g., 4 blocks each): Incorporate dynamic N-level adjustments (up to 3 changes per block) and block level progressive timing compression to maintain high cognitive load.
 
-Subjective fatigue measures (fatigue, effort, attention, threat) are collected at intervals, and short breaks are provided. Detailed performance is logged, and optional EEG synchronisation is supported.
+Subjective fatigue measures (fatigue, effort, attention, overwhelmed) are collected at intervals, and short breaks are provided. Detailed performance is logged, and optional EEG synchronisation is supported.
 
 # Key Design Features and Innovations
 

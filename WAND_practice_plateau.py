@@ -344,11 +344,17 @@ def prompt_starting_level():
 
 def get_practice_options(win):
     """
-    Wizard that fills in any *unset* runtime options:
-        1) RNG seed
-        2) Distractor flashes
-        3) (unchanged) initial speed profile
-    Returns dict {"Seed": int|None, "Distractors": bool}
+    Wizard that fills in any runtime options not set via CLI flags.
+
+    This function will prompt for:
+    1.  An optional RNG seed (if not provided via `--seed`).
+    2.  The distractor flash setting (if not provided via `--distractors`).
+
+    Args:
+        win (visual.Window): The active PsychoPy window.
+
+    Returns:
+        dict: A dictionary with keys {"Seed": int|None, "Distractors": bool}.
     """
     win.mouseVisible = False
     txt = dict(height=24, color="white", wrapWidth=900)
@@ -620,11 +626,17 @@ def display_feedback(win, correct, pos=(0, 400)):
 
 
 def display_block_results(win, task_name, accuracy, *_):
-    """
-    Show a *minimal* block summary: accuracy only.
+    """Shows a minimal, on-screen summary of block performance.
 
-    Extra positional arguments (correct / incorrect / lapses) are accepted
-    but ignored, so existing calls need **no changes**.
+    This function displays only the task name and final accuracy percentage
+    before waiting for a 'space' key press to continue.
+
+    Args:
+        win (visual.Window): The active PsychoPy window.
+        task_name (str): The name of the task to display in the header.
+        accuracy (float): The accuracy percentage for the completed block.
+        *_ (any): Accepts but ignores any other positional arguments for
+            compatibility with functions that provide more detailed results.
     """
     results_text = (
         f"{task_name} N-back Block Results\n\n"
@@ -1514,6 +1526,7 @@ def display_grid(
         feedback_text (str, optional): Text to display as feedback. Defaults to None.
         lapse_feedback (str, optional): Text to display for lapses. Defaults to None.
     """
+    draw_grid()
     radius = 150
     center = (0, 0)
     num_positions = 12
@@ -1715,18 +1728,23 @@ def generate_dual_nback_sequence(num_trials, grid_size, n, target_rate=0.5):
 
 
 def display_dual_stimulus(win, pos, image_file, grid_size, n_level, return_stim=False):
-    """Display a dual stimulus (position and image) on a grid.
+    """Displays a dual stimulus (position and image) on the 3x3 grid.
+
+    Calculates the correct cell position and draws a colored highlight
+    rectangle with the specified image stimulus on top.
 
     Args:
-        win (psychopy.visual.Window): The PsychoPy window to draw on.
-        pos (tuple): (x, y) position on the grid.
-        image_file (str): Path or name of the image file.
-        grid_size (int): Size of the grid (e.g., 3 for 3x3).
-        n_level (int): The N-back level.
-        return_stim (bool, optional): Whether to return the stimulus object. Defaults to False.
+        win (visual.Window): The active PsychoPy window.
+        pos (tuple[int, int]): The (column, row) grid coordinates.
+        image_file (str): The filename key for the image in `preloaded_images_dual`.
+        grid_size (int): The number of cells per row/column (e.g., 3).
+        n_level (int): The current N-back level for color-coding the highlight.
+        return_stim (bool, optional): If True, returns the ImageStim object
+            instead of drawing it. Defaults to False.
 
     Returns:
-        psychopy.visual.ImageStim: The stimulus object if return_stim is True.
+        visual.ImageStim or None: The ImageStim object if `return_stim` is True,
+        otherwise None.
     """
     grid_length = 600 * 0.8
     cell_length = grid_length // grid_size
@@ -2324,51 +2342,70 @@ def run_sequential_nback_practice(
 
 
 def run_sequential_nback_until_plateau(starting_level):
-    """Run Sequential N-back practice until performance plateaus or max blocks are reached.
+    """Runs Sequential N-back practice until performance plateaus.
+
+    The function administers practice blocks, adjusting the N-back level
+    based on the participant's performance until their accuracy stabilizes
+    across three consecutive blocks or the maximum number of blocks is reached.
 
     Args:
-        starting_level (int): Initial N-back level (2 or 3).
+        starting_level (int): The initial N-back level (2 or 3).
 
     Returns:
-        tuple: (final_n_level, final_accuracy, final_avg_rt) from the last block.
+        tuple[int, float, float]: A tuple containing the final N-back level,
+        the accuracy from the last block, and the average reaction time
+        from the last block.
 
     Raises:
-        SystemExit: If 'escape' is pressed, the program exits.
+        SystemExit: If the 'escape' key is pressed during the task.
+
+    Notes:
+        This function includes a one-block 'grace period' when the difficulty
+        first increases from 2-back to 3-back. The results of this
+        familiarisation block are not used to evaluate performance for level
+        changes, preventing premature demotion while the participant adjusts.
     """
     global skip_to_next_stage
     n_level = starting_level
-    block_results = (
-        []
-    )  # Each element: (block_count, n_level, accuracy, avg_reaction_time)
+    block_results = []
     max_blocks = 12
-    scored_trials = 90
+    scored_trials = 10
     block_count = 0
 
-    # ─── HOOK A ───
+    # Flag to track if the participant is in the familiarisation grace period
+    in_grace_period = False
+
+    # This hook is from the original code; it's unused but kept for consistency.
     slow_phase = False
 
     while block_count < max_blocks:
         block_count += 1
-
-        # Always use 90 trials per block (no warm-up now)
         num_trials = scored_trials
+
+        # If this is a grace block, inform the user before it starts.
+        if in_grace_period:
+            grace_message = visual.TextStim(
+                win,
+                text="You've moved up to 3-back!\n\nThis next block is for familiarisation.\nYour score won't be used to change the level.",
+                color="white", height=24, wrapWidth=800
+            )
+            grace_message.draw()
+            win.flip()
+            core.wait(4)  # Show the message for 4 seconds
 
         # Run the practice block for the current level
         accuracy, errors, lapses, avg_reaction_time = run_sequential_nback_practice(
             n_level, num_trials=num_trials
         )
 
-        # ─── HOOK B ───  (log only normal-speed blocks)
+        # Log results to the CSV file every time for a complete record.
         if not slow_phase:
             log_seq_block(n_level, block_count, accuracy, errors, lapses)
 
         if skip_to_next_stage:
-            break  # User skipped the session
+            break
 
-        # Record the block result
-        block_results.append((block_count, n_level, accuracy, avg_reaction_time))
-
-        # Display a quick summary after each block
+        # Always display a summary to the participant after each block.
         summary_text = (
             f"Sequential N-back Practice Block {block_count} (Level: {n_level}-back):\n\n"
             f"Accuracy: {accuracy:.2f}%\n"
@@ -2382,9 +2419,24 @@ def run_sequential_nback_until_plateau(starting_level):
         win.flip()
         event.waitKeys(keyList=["space"])
 
+        # If the block just completed was a grace block, reset the flag and
+        # skip the performance evaluation for this iteration.
+        if in_grace_period:
+            in_grace_period = False
+            continue
+
+        # --- The following code only runs for scored (non-grace) blocks ---
+
+        # Record the block result for the performance algorithm
+        block_results.append((block_count, n_level, accuracy, avg_reaction_time))
+
         # Update the n-back level based on a rolling average of recent blocks.
         new_level = check_level_change(block_results, n_level, window_size=2)
         if new_level != n_level:
+            # If moving up from 2 to 3, activate the grace period for the next block
+            if new_level == 3 and n_level == 2:
+                in_grace_period = True
+
             n_level = new_level
             level_change_text = f"Level change: Now switching to {n_level}-back."
             level_change_stim = visual.TextStim(
@@ -2419,12 +2471,12 @@ def run_sequential_nback_until_plateau(starting_level):
         final_accuracy = last_block[2]
         final_avg_rt = last_block[3]
     else:
+        # Fallback if no scored blocks were completed (e.g., user skipped immediately)
         final_n_level = n_level
         final_accuracy = 0
         final_avg_rt = 0
 
     return final_n_level, final_accuracy, final_avg_rt
-
 
 def main():
     """Execute the complete WAND practice protocol."""
@@ -2435,7 +2487,7 @@ def main():
     print("Starting script...")
     print("Creating window...")
     try:
-        win = visual.Window(fullscr=False, color="black", units="pix")
+        win = visual.Window(fullscr=False, color="black", units="pix", size=(1500, 1000))
         grid_lines = create_grid_lines(win)
         PARTICIPANT_ID, CSV_PATH = init_seq_logger(win)
     except Exception as e:
@@ -2469,7 +2521,7 @@ def main():
                 acc, corr, incorr, lapses = run_spatial_nback_practice(
                     n=2, num_trials=60
                 )
-                display_block_results("Spatial-slow", acc, corr, incorr, lapses)
+                display_block_results(win, "Spatial-slow", acc, corr, incorr, lapses)
 
                 if acc >= 65:  # promotion criterion
                     _set_speed("normal")  # flip the global speed
@@ -2494,7 +2546,7 @@ def main():
         while passes < 2 and not skip_to_next_stage:
             show_countdown()
             acc, corr, incorr, lapses = run_spatial_nback_practice(n=2, num_trials=60)
-            display_block_results("Spatial", acc, corr, incorr, lapses)
+            display_block_results(win, "Spatial", acc, corr, incorr, lapses)
 
             if skip_to_next_stage:  # user hit ‘5’ or Esc
                 break
@@ -2527,7 +2579,7 @@ def main():
             while True:
                 show_countdown()
                 acc, corr, incorr, lapses = run_dual_nback_practice(n=2, num_trials=60)
-                display_block_results("Dual-slow", acc, corr, incorr, lapses)
+                display_block_results(win, "Dual-slow", acc, corr, incorr, lapses)
 
                 if acc >= 65:
                     _set_speed("normal")
@@ -2547,7 +2599,7 @@ def main():
         while passes < 2 and not skip_to_next_stage:
             show_countdown()
             acc, corr, incorr, lapses = run_dual_nback_practice(n=2, num_trials=60)
-            display_block_results("Dual", acc, corr, incorr, lapses)
+            display_block_results(win,"Dual", acc, corr, incorr, lapses)
 
             if skip_to_next_stage:
                 break
@@ -2590,7 +2642,7 @@ def main():
                 acc, _, _, _ = run_sequential_nback_practice(
                     n=2, num_trials=20  # always 2-back for the gate
                 )  # 60-trial slow block
-                display_block_results("Sequential-slow", acc, 0, 0, 0)
+                display_block_results(win, "Sequential-slow", acc, 0, 0, 0)
 
                 if skip_to_next_stage:  # participant pressed ‘5’ / Esc
                     break

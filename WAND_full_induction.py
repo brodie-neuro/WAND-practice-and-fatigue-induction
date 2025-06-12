@@ -303,13 +303,20 @@ def send_trigger(trigger_code):
 
 
 def get_participant_info(win):
-    """
-    On‑screen wizard that collects:
-        • Participant ID
-        • Starting Sequential N‑back level (2 or 3)
-        • RNG seed   (leave blank → random each run)
-        • Distractor flashes ON / OFF
-    Returns a dict with those four keys.
+    """Presents a series of on-screen dialogs to collect experiment settings.
+
+    This function gathers the following information from the experimenter:
+        - Participant ID
+        - Starting Sequential N-back level (2 or 3)
+        - An optional RNG seed (if left blank, a random seed is used)
+        - Whether to enable or disable distractor flashes
+
+    Args:
+        win (visual.Window): The active PsychoPy window to draw dialogs on.
+
+    Returns:
+        dict: A dictionary containing the collected settings with keys
+              'Participant ID', 'N-back Level', 'Seed', and 'Distractors'.
     """
     win.mouseVisible = False
     text24 = dict(height=24, color="white", wrapWidth=900)
@@ -577,11 +584,14 @@ def save_sequential_results(participant_id, n_back_level, block_name, seq_result
 
 
 def show_overall_welcome_screen(win):
-    """
-    Display the overall experiment welcome screen (∼90 min warning), advance on space.
+    """Displays the main welcome screen for the experiment.
+
+    The screen informs the participant about the nature and approximate
+    duration of the tasks. The experiment proceeds when the user presses
+    the 'space' key.
 
     Args:
-        win (visual.Window): PsychoPy window.
+        win (visual.Window): The active PsychoPy window.
     """
     welcome_text = (
         "Welcome to this Cognitive Study\n\n"
@@ -1565,12 +1575,16 @@ def generate_positions_with_matches(num_positions, n, target_percentage=0.5):
     """Generate a sequence of spatial positions with specified N-back matches.
 
     Args:
-        num_positions (int): Number of positions in the sequence.
-        n (int): N-back distance.
-        target_percentage (float, optional): Proportion of trials that should be targets.
+        num_positions (int): The total number of positions in the sequence.
+        n (int): The N-back distance for matches.
+        target_percentage (float, optional): The proportion of trials after
+            the initial n that should be targets. Defaults to 0.5.
 
     Returns:
-        list: Generated sequence of position indices.
+        list: A generated sequence of position indices (0-11).
+
+    Side Effects:
+        Calls `print_debug_info` to log the sequence and target positions.
     """
     positions = list(range(12))
     sequence = [random.choice(positions) for _ in range(num_positions)]
@@ -1820,19 +1834,22 @@ def run_spatial_nback_block(
 
 
 def generate_dual_nback_sequence(num_trials, grid_size, n, target_rate=0.5):
-    """
-    Build a combined (position,image) sequence for Dual N-back.
+    """Build a combined (position, image) sequence for the Dual N-back task.
 
     Args:
-        num_trials (int): Total trials.
-        grid_size (int): Width/height of spatial grid (#cells per side).
-        n (int): N-back distance.
-        target_rate (float): Proportion of trials that are true dual-matches.
+        num_trials (int): Total number of trials to generate.
+        grid_size (int): The width/height of the spatial grid (e.g., 3 for 3x3).
+        n (int): The N-back distance for matches.
+        target_rate (float, optional): The proportion of trials after the
+            initial n that should be true dual-matches. Defaults to 0.5.
 
     Returns:
-        tuple of lists:
-          - pos_seq (list of (x,y) tuples)
-          - image_seq (list of str image filenames)
+        tuple[list, list]: A tuple containing two lists: one for the sequence
+                           of (x, y) position tuples and one for the sequence
+                           of image filenames.
+
+    Side Effects:
+        Calls `print_debug_info` to log the sequence and target positions.
     """
     positions = [(x, y) for x in range(grid_size) for y in range(grid_size)]
     pos_seq = [random.choice(positions) for _ in range(num_trials)]
@@ -1854,20 +1871,21 @@ def generate_dual_nback_sequence(num_trials, grid_size, n, target_rate=0.5):
 def display_dual_stimulus(
     win, pos, image_file, grid_size, n_level, feedback_text=None, return_stims=False
 ):
-    """
-    Draw or return the highlight rect + image stim for Dual N-back trial.
+    """Draws the highlight rectangle and image for a single Dual N-back trial.
+
+    This function calculates the correct cell position on the grid, then draws
+    a colored highlight rectangle and the specified image stimulus on top of it.
+    It flips the window to display the result.
 
     Args:
-        win (visual.Window): PsychoPy window.
-        pos ((int,int)): Grid‐cell coordinates.
-        image_file (str): Filename key for preloaded_images_dual.
-        grid_size (int): Number of cells per row/col.
-        n_level (int): N-back level for colour coding.
-        feedback_text (str, optional): Optional message above grid.
-        return_stims (bool): If True, returns (Rect, ImageStim) instead of drawing.
-
-    Returns:
-        If return_stims: (highlight_rect, image_stim), else None.
+        win (visual.Window): The active PsychoPy window.
+        pos (tuple[int, int]): The (column, row) grid-cell coordinates.
+        image_file (str): The filename key for the image in `preloaded_images_dual`.
+        grid_size (int): The number of cells per row/column (e.g., 3 for a 3x3 grid).
+        n_level (int): The current N-back level, used for color-coding the highlight.
+        feedback_text (str, optional): An optional message to display above the grid.
+            Defaults to None.
+        return_stims (bool): This argument is not used in the current implementation.
     """
     # Define grid and cell properties
     grid_length = 600
@@ -2188,256 +2206,78 @@ def run_adaptive_nback_task(
 
 def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
     """
-    Step through pages summarising every Sequential block, comparisons, and subjective changes.
+    Steps through pages summarising each Sequential N-back block's performance.
+
+    This streamlined version only shows essential metrics for a quick post-hoc check,
+    as all detailed data is saved to the CSV file.
 
     Args:
-        win (visual.Window): PsychoPy window.
-        seq_nbacks (list of dict): Block summaries from run_sequential_nback_block.
-        subjective_measures (dict): Mapping time-points → four-item response lists.
-        n_back_level (int): Final N-back level for headers.
-
+        win (visual.Window): The active PsychoPy window.
+        seq_nbacks (list[dict]): A list containing the full results dictionary
+            returned by `run_sequential_nback_block` for each block.
+        subjective_measures (dict): Not used in this version, but kept for compatibility.
+        n_back_level (int): The N-back level used in the final blocks, for display.
     """
-    logging.debug("Debug: Entering show_final_summary")
+    logging.debug("Debug: Entering streamlined show_final_summary")
+
+    # Create a list of summary dictionaries from the results of each sequential block
     summaries = []
-
-    # Sequential N-back summaries
     for idx, seq_result in enumerate(seq_nbacks, 1):
-        if seq_result is not None:
-            seq_summary = calculate_sequential_nback_summary(seq_result, n_back_level)
-
-            # Safely find and extract the detailed trial data for D-Prime calculation
-            try:
-                detailed_data = None
-
-                # If seq_result is a list or tuple, try to get the trial data from position -2
-                if isinstance(seq_result, (list, tuple)) and len(seq_result) >= 2:
-                    detailed_data = seq_result[-2]
-                    logging.debug(
-                        f"Found detailed_data at seq_result[-2]: {type(detailed_data)}"
-                    )
-
-                # If seq_result is a dictionary, look for keys that might contain the trial data
-                elif isinstance(seq_result, dict):
-                    # Try common keys that might contain trial data
-                    possible_keys = [
-                        "detailed_data",
-                        "trials",
-                        "trial_data",
-                        "responses",
-                    ]
-                    for key in possible_keys:
-                        if key in seq_result:
-                            detailed_data = seq_result[key]
-                            logging.debug(
-                                f"Found detailed_data at seq_result['{key}']: {type(detailed_data)}"
-                            )
-                            break
-
-                # Make sure detailed_data is actually a list of dictionaries with required keys
-                if (
-                    detailed_data
-                    and isinstance(detailed_data, list)
-                    and len(detailed_data) > 0
-                ):
-                    # Verify the expected structure by checking the first item
-                    if (
-                        isinstance(detailed_data[0], dict)
-                        and "Is Target" in detailed_data[0]
-                        and "Response" in detailed_data[0]
-                    ):
-                        seq_summary["D-Prime"] = calculate_dprime(detailed_data)
-                        logging.debug(
-                            f"Successfully calculated D-Prime: {seq_summary['D-Prime']}"
-                        )
-                    else:
-                        logging.warning(
-                            f"detailed_data items do not have the expected structure: {detailed_data[0]}"
-                        )
-                        seq_summary["D-Prime"] = 0.0
-                else:
-                    logging.warning(
-                        f"detailed_data is not a valid list: {detailed_data}"
-                    )
-                    seq_summary["D-Prime"] = 0.0
-
-            except Exception as e:
-                logging.error(f"Error calculating D-Prime: {e}")
-                seq_summary["D-Prime"] = 0.0  # Default value
-
-            summaries.append(
-                (f"Sequential {n_back_level}-back (Block {idx})", seq_summary)
-            )
+        if seq_result:
+            summary_data = {
+                "Task Name": f"Sequential {n_back_level}-back (Block {idx})",
+                "Correct Responses": seq_result.get("Correct Responses", "N/A"),
+                "Incorrect Responses": seq_result.get("Incorrect Responses", "N/A"),
+                "Lapses": seq_result.get("Lapses", "N/A"),
+                "Accuracy": seq_result.get("Accuracy", 0),
+                "Average Reaction Time": seq_result.get("Average Reaction Time", 0),
+                "D-Prime": seq_result.get("Overall D-Prime", 0)
+            }
+            summaries.append(summary_data)
 
     if not summaries:
-        logging.debug("Debug: No valid results to display in the final summary.")
+        logging.warning("No valid sequential block results to display in the final summary.")
         return
 
-    logging.debug(f"Debug: Number of summaries to display: {len(summaries)}")
+    # Loop through the summary pages
+    current_page = 0
+    while True:
+        summary = summaries[current_page]
 
-    total_pages = (
-        len(summaries) + 2
-    )  # +2 for the comparison and subjective measures pages
-    i = 0  # Index for the pages
+        # Build the text for the current page
+        summary_text = (
+            f"{summary['Task Name']} Summary:\n\n"
+            f"Correct Responses:   {summary['Correct Responses']}\n"
+            f"Incorrect Responses: {summary['Incorrect Responses']}\n"
+            f"Lapses:              {summary['Lapses']}\n\n"
+            f"Overall Accuracy:      {summary['Accuracy']:.2f}%\n"
+            f"Average Reaction Time: {summary['Average Reaction Time']:.3f} s\n"
+            f"D-Prime:               {summary['D-Prime']:.3f}\n\n"
+        )
 
-    # Updated measure_names to include all four measures
-    measure_names = ["Mental Fatigue", "Task Effort", "Mind Wandering", "Overwhelmed"]
+        page_info = f"Page {current_page + 1} of {len(summaries)}\n"
+        controls_text = "Press 'space' to continue or 'backspace' to go back."
+        if current_page == len(summaries) - 1:
+            controls_text = "Press 'space' to finish."
 
-    while i < total_pages:
-        if i < len(summaries):
-            # Display individual task summary
-            task_name, summary = summaries[i]
-            summary_text = f"{task_name} Summary:\n\n"
-            summary_text += (
-                f"N-back Level: {summary['N-back Level']}\n"
-                f"Total Correct Responses: {summary['Total Correct Responses']}\n"
-                f"Total Incorrect Responses: {summary['Total Incorrect Responses']}\n"
-                f"Total Lapses: {summary['Total Lapses']}\n"
-                f"Overall Accuracy: {summary['Overall Accuracy (%)']:.2f}%\n"
-                f"Average Reaction Time: {summary['Average Reaction Time (s)']:.2f}s\n"
-                f"Total Response Time: {summary['Average Reaction Time (s)'] * summary['Total Trials']:.2f}s\n"
-                f"Total Trials: {summary['Total Trials']}\n"
-                f"D-Prime: {summary['D-Prime']:.2f}\n"
-            )
+        full_text = summary_text + page_info + controls_text
 
-            summary_text += f"\nPage {i + 1} of {total_pages}\nPress 'space' to continue, 'backspace' to go back, or 'escape' to exit."
+        # Display the summary
+        summary_stim = visual.TextStim(win, text=full_text, color="white", height=24, wrapWidth=900)
+        summary_stim.draw()
+        win.flip()
 
-            summary_stim = visual.TextStim(
-                win, text=summary_text, color="white", height=24, wrapWidth=800
-            )
-            summary_stim.draw()
-            win.flip()
+        # Wait for key press
+        keys = event.waitKeys(keyList=["space", "backspace", "escape"])
 
-            keys = event.waitKeys(keyList=["space", "backspace", "escape"])
-            if "space" in keys:
-                i += 1
-            elif "backspace" in keys:
-                i = max(0, i - 1)
-            elif "escape" in keys:
-                return
-
-        elif i == len(summaries):
-            # Comparisons
-            comparison_text = "Task Comparisons:\n\n"
-
-            # Compare Sequential N-back tasks (first and fifth block)
-            if seq_nbacks and seq_nbacks[0] is not None and seq_nbacks[-1] is not None:
-                seq1 = calculate_sequential_nback_summary(seq_nbacks[0], n_back_level)
-                seq5 = calculate_sequential_nback_summary(seq_nbacks[-1], n_back_level)
-
-                # Safely calculate D-Prime for both sequences using the same approach as above
-                for seq_idx, (seq_result, seq_summary) in enumerate(
-                    [(seq_nbacks[0], seq1), (seq_nbacks[-1], seq5)]
-                ):
-                    try:
-                        detailed_data = None
-
-                        if (
-                            isinstance(seq_result, (list, tuple))
-                            and len(seq_result) >= 2
-                        ):
-                            detailed_data = seq_result[-2]
-                        elif isinstance(seq_result, dict):
-                            possible_keys = [
-                                "detailed_data",
-                                "trials",
-                                "trial_data",
-                                "responses",
-                            ]
-                            for key in possible_keys:
-                                if key in seq_result:
-                                    detailed_data = seq_result[key]
-                                    break
-
-                        if (
-                            detailed_data
-                            and isinstance(detailed_data, list)
-                            and len(detailed_data) > 0
-                        ):
-                            if (
-                                isinstance(detailed_data[0], dict)
-                                and "Is Target" in detailed_data[0]
-                                and "Response" in detailed_data[0]
-                            ):
-                                seq_summary["D-Prime"] = calculate_dprime(detailed_data)
-                            else:
-                                seq_summary["D-Prime"] = 0.0
-                        else:
-                            seq_summary["D-Prime"] = 0.0
-                    except Exception as e:
-                        logging.error(
-                            f"Error calculating D-Prime for block {seq_idx + 1}: {e}"
-                        )
-                        seq_summary["D-Prime"] = 0.0
-
-                accuracy_change = (
-                    seq5["Overall Accuracy (%)"] - seq1["Overall Accuracy (%)"]
-                )
-                rt_change = (
-                    seq5["Average Reaction Time (s)"]
-                    - seq1["Average Reaction Time (s)"]
-                )
-                total_rt1 = seq1["Average Reaction Time (s)"] * seq1["Total Trials"]
-                total_rt5 = seq5["Average Reaction Time (s)"] * seq5["Total Trials"]
-                total_rt_change = total_rt5 - total_rt1
-                lapse_change = seq5["Total Lapses"] - seq1["Total Lapses"]
-                d_prime_change = seq5["D-Prime"] - seq1["D-Prime"]
-
-                comparison_text += "Sequential N-back (Block 1 vs Block 5):\n"
-                comparison_text += f"Accuracy Change: {'Increase' if accuracy_change >= 0 else 'Decrease'} of {abs(accuracy_change):.2f}% ({seq1['Overall Accuracy (%)']:.2f}% to {seq5['Overall Accuracy (%)']:.2f}%)\n"
-                comparison_text += f"Reaction Time Change: {'Increase' if rt_change >= 0 else 'Decrease'} of {abs(rt_change):.2f}s ({seq1['Average Reaction Time (s)']:.2f}s to {seq5['Average Reaction Time (s)']:.2f}s)\n"
-                comparison_text += f"Total Response Time Change: {'Increase' if total_rt_change >= 0 else 'Decrease'} of {abs(total_rt_change):.2f}s ({total_rt1:.2f}s to {total_rt5:.2f}s)\n"
-                comparison_text += f"Correct Responses Change: {seq5['Total Correct Responses'] - seq1['Total Correct Responses']} ({seq1['Total Correct Responses']} to {seq5['Total Correct Responses']})\n"
-                comparison_text += f"Incorrect Responses Change: {seq5['Total Incorrect Responses'] - seq1['Total Incorrect Responses']} ({seq1['Total Incorrect Responses']} to {seq5['Total Incorrect Responses']})\n"
-                comparison_text += f"Lapses Change: {lapse_change} ({seq1['Total Lapses']} to {seq5['Total Lapses']})\n"
-                comparison_text += f"D-Prime Change: {'Increase' if d_prime_change >= 0 else 'Decrease'} of {abs(d_prime_change):.2f} ({seq1['D-Prime']:.2f} to {seq5['D-Prime']:.2f})\n"
-
-            comparison_text += f"\nPage {i + 1} of {total_pages}\nPress 'space' to continue, 'backspace' to go back, or 'escape' to exit."
-
-            comparison_stim = visual.TextStim(
-                win, text=comparison_text, color="white", height=24, wrapWidth=800
-            )
-            comparison_stim.draw()
-            win.flip()
-            keys = event.waitKeys(keyList=["space", "backspace", "escape"])
-            if "space" in keys:
-                i += 1
-            elif "backspace" in keys:
-                i = max(0, i - 1)
-            elif "escape" in keys:
-                return
-
-        else:
-            # Subjective Measures Comparison
-            subjective_text = "Subjective Measures Comparison:\n\n"
-
-            time_points = list(subjective_measures.keys())
-
-            for idx, measure in enumerate(measure_names):
-                subjective_text += f"{measure}:\n"
-                for time_point in time_points:
-                    score = subjective_measures[time_point][idx]
-                    subjective_text += f"  {time_point}: {score}\n"
-
-                if len(time_points) > 1:
-                    first_score = subjective_measures[time_points[0]][idx]
-                    last_score = subjective_measures[time_points[-1]][idx]
-                    change = last_score - first_score
-                    subjective_text += f"  Overall Change: {'Increase' if change > 0 else 'Decrease' if change < 0 else 'No change'} of {abs(change)} ({first_score} to {last_score})\n"
-
-                subjective_text += "\n"
-
-            subjective_text += f"\nPage {i + 1} of {total_pages}\nPress 'space' to exit the summary, 'backspace' to go back, or 'escape' to exit."
-
-            subjective_stim = visual.TextStim(
-                win, text=subjective_text, color="white", height=24, wrapWidth=800
-            )
-            subjective_stim.draw()
-            win.flip()
-            keys = event.waitKeys(keyList=["space", "backspace", "escape"])
-            if "space" in keys or "escape" in keys:
-                return
-            elif "backspace" in keys:
-                i = max(0, i - 1)
+        if "space" in keys:
+            current_page += 1
+            if current_page >= len(summaries):
+                break  # Exit loop after the last page
+        elif "backspace" in keys:
+            current_page = max(0, current_page - 1)  # Go back, but not before page 0
+        elif "escape" in keys:
+            break  # Exit the summary view early
 
     logging.debug("Debug: Exiting show_final_summary")
 

@@ -87,19 +87,21 @@ def show_summary(
     lapses: int,
     avg_rt: float,
 ) -> None:
-    """
-    Draw an on-screen summary for the user.
+    """Displays an on-screen summary of the most recently completed block.
+
+    Presents key performance metrics such as accuracy, errors, lapses, and
+    mean reaction time. The screen waits for a key press before proceeding.
 
     Args:
-        win (visual.Window): Target window.
-        block_no (int): Current block index, 1-based.
-        total_blocks (int): Total blocks in this run.
-        n_level (int): N-back level just finished.
-        num_trials (int): Trials in this block.
-        accuracy (float): Percent correct.
-        errors (int): Wrong key presses.
-        lapses (int): Missed responses.
-        avg_rt (float): Mean reaction time in seconds.
+        win (visual.Window): The PsychoPy window to draw the summary on.
+        block_no (int): The index of the block that just finished (1-based).
+        total_blocks (int): The total number of blocks scheduled for the run.
+        n_level (int): The N-back level of the completed block.
+        num_trials (int): The number of trials in the completed block.
+        accuracy (float): The accuracy percentage for the block.
+        errors (int): The total number of incorrect key presses.
+        lapses (int): The total number of missed responses.
+        avg_rt (float): The mean reaction time for correct responses in seconds.
     """
     prompt = "continue" if block_no < total_blocks else "quit"
     txt = (
@@ -120,16 +122,16 @@ def show_summary(
 #  Main routine
 # ──────────────────────────────────────────────────────────────
 def main() -> None:
-    """
-    Parse CLI flags; run Sequential N-back blocks; save rows; quit.
+    """Parses command-line arguments and runs a series of Sequential N-back blocks.
 
-    Flags:
-        --module   Name of the practice module to import.
-        --level    N-back level; default 2.
-        --blocks   Blocks to run; default 2.
-        --trials   Trials per block; default 10.
-        --pid      Participant ID for the CSV rows.
-        --mode     'windowed' or 'fullscreen'.
+    This function serves as the main entry point. It handles:
+    1.  Parsing all command-line arguments.
+    2.  Importing the specified practice module.
+    3.  Setting up the PsychoPy window and necessary global variables.
+    4.  Looping through the requested number of blocks.
+    5.  Displaying a summary after each block.
+    6.  Ensuring a clean exit and printing a confirmation message with the
+        path to the saved data.
     """
     parser = argparse.ArgumentParser(
         description="Run quick Sequential N-back smoke test"
