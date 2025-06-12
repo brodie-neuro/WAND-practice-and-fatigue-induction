@@ -2231,12 +2231,14 @@ def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
                 "Lapses": seq_result.get("Lapses", "N/A"),
                 "Accuracy": seq_result.get("Accuracy", 0),
                 "Average Reaction Time": seq_result.get("Average Reaction Time", 0),
-                "D-Prime": seq_result.get("Overall D-Prime", 0)
+                "D-Prime": seq_result.get("Overall D-Prime", 0),
             }
             summaries.append(summary_data)
 
     if not summaries:
-        logging.warning("No valid sequential block results to display in the final summary.")
+        logging.warning(
+            "No valid sequential block results to display in the final summary."
+        )
         return
 
     # Loop through the summary pages
@@ -2263,7 +2265,9 @@ def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
         full_text = summary_text + page_info + controls_text
 
         # Display the summary
-        summary_stim = visual.TextStim(win, text=full_text, color="white", height=24, wrapWidth=900)
+        summary_stim = visual.TextStim(
+            win, text=full_text, color="white", height=24, wrapWidth=900
+        )
         summary_stim.draw()
         win.flip()
 

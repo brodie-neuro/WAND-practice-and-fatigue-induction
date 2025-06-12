@@ -2387,7 +2387,9 @@ def run_sequential_nback_until_plateau(starting_level):
             grace_message = visual.TextStim(
                 win,
                 text="You've moved up to 3-back!\n\nThis next block is for familiarisation.\nYour score won't be used to change the level.",
-                color="white", height=24, wrapWidth=800
+                color="white",
+                height=24,
+                wrapWidth=800,
             )
             grace_message.draw()
             win.flip()
@@ -2478,6 +2480,7 @@ def run_sequential_nback_until_plateau(starting_level):
 
     return final_n_level, final_accuracy, final_avg_rt
 
+
 def main():
     """Execute the complete WAND practice protocol."""
     global skip_to_next_stage, win, grid_lines, PARTICIPANT_ID, CSV_PATH, GLOBAL_SEED, DISTRACTORS_ENABLED, SPEED_PROFILE, SPEED_MULT
@@ -2487,7 +2490,9 @@ def main():
     print("Starting script...")
     print("Creating window...")
     try:
-        win = visual.Window(fullscr=False, color="black", units="pix", size=(1500, 1000))
+        win = visual.Window(
+            fullscr=False, color="black", units="pix", size=(1500, 1000)
+        )
         grid_lines = create_grid_lines(win)
         PARTICIPANT_ID, CSV_PATH = init_seq_logger(win)
     except Exception as e:
@@ -2599,7 +2604,7 @@ def main():
         while passes < 2 and not skip_to_next_stage:
             show_countdown()
             acc, corr, incorr, lapses = run_dual_nback_practice(n=2, num_trials=60)
-            display_block_results(win,"Dual", acc, corr, incorr, lapses)
+            display_block_results(win, "Dual", acc, corr, incorr, lapses)
 
             if skip_to_next_stage:
                 break
