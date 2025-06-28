@@ -38,7 +38,7 @@ Participant-ID dialog  →  per-block CSV logger (data/seq_<PID>.csv)
 | **Task Modalities** | Sequential, Spatial, and Dual N-back tasks tax the same fronto-parietal networks in complementary ways |
 | **Adaptive Difficulty** | Automatic level adjustment within block, and linear timing compression maintain high-level difficulty for each participant *Spatial and Dual only* |
 | **Mini-distractors** | Brief (200ms) visual disruptions probe inhibitory failure (13× per 164 trial block); compare A′/RT pre- vs post-distractor |
-| **Practice Plateau** | Ensures performance stability (≤7% variability over 3-5 blocks) to distinguish fatigue effects from learning |
+| **Practice Plateau** | Ensures performance stability (≤7% variability over 3 consecutive blocks) to distinguish fatigue effects from learning |
 | **Balanced Target:Lure Ratio** | 50:50 ratio prevents response bias and ensures d′/A′ metrics reflect true sensitivity |
 | **Enhanced Engagement** | Lapse-cue system and colour-coded N-levels reduce disengagement and maintain motivation |
 
@@ -59,14 +59,14 @@ Participant-ID dialog  →  per-block CSV logger (data/seq_<PID>.csv)
 
 ### 3. Dual N-back
 - 3 × 3 grid + image overlay
-- Timing compression per normal‑speed block (same slope as Spatial) presentation = 1.00 s − 0.03 s·block       - (min 0.85 s)ISI = 1.20 s − 0.05 s·block   (min 0.95 s)
+- Timing compression per normal‑speed block (same slope as Spatial) presentation = 1.00 s − 0.03 s·block       - (min 0.85 s)ISI = 1.20 s − 0.05 s·block   (min 1.05 s)
 
 ## Key Features for Fatigue Induction
 
 | Feature | Effect |
 |---------|--------|
-| **Adaptive N-back** | Increases/decreases difficulty (↑n at ≥82% accuracy, ↓n at ≤65%) to maintain 70-80% performance range |
-| **Timing compression** | -30ms presentation and -50ms ISI per block (capped at -150ms) forces sustained vigilance |
+| **Adaptive N-back** | Dynamically adjusts N-back level to maintain a challenging but manageable performance load. See README_experiment.md for specific thresholds. |
+| **Timing compression** | -30ms presentation and -50ms ISI per block forces sustained vigilance |
 | **Grey background grid** | 100px spacing, 20% opacity creates irrelevant visual texture participants must actively ignore |
 | **Mini-distractor flashes** | 200 ms white square inserted pseudo-randomly throughout each block (max 13 per block, minimum 6 trials apart) |
 | **Misleading trials** | 30% of trials in 3-back match 2-back item to probe proactive vs reactive control |

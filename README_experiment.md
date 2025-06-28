@@ -35,22 +35,30 @@ Participant ID Prompt & Logger: The script now prompts for participant ID and sa
 
 ## Calibration Logic:
 
-Adaptive N-back blocks continue until accuracy variance is ≤7% across three out of five consecutive blocks.
+The N-back level is adjusted based on a rolling average of the last two blocks' accuracy:
 
-Start at Level 2 (2-back): Require two consecutive blocks ≥65% accuracy.
+Initial Competency: Participants must first achieve ≥65% accuracy on two consecutive blocks at Level 2.
 
-If accuracy rises above 82% for two consecutive blocks, advance to Level 3 (3-back).
+Level Increase (2 → 3): If the rolling average accuracy rises above 82% for two consecutive blocks, the participant advances to Level 3.
+
+Level Decrease (3 → 2): If the rolling average accuracy at Level 3 falls below 70%, the participant is moved back to Level 2.
 
 Classification: “normal” or “high” performer, used to set initial difficulty in the induction script.
 
-After running the practice protocol, review the /data/ outputs. Enter the recommended N-back level (2 or 3) when prompted by WAND_full_induction.py.
+## Main Induction: Adaptive Difficulty
+During the main induction protocol, the difficulty of the Spatial and Dual N-back tasks adapts based on performance. Each 4.5-minute block is divided into three sub-blocks, and the N-back level is reassessed and can change after each one. The rules are as follows:
+
+Level Increase: If accuracy within a sub-block is ≥82%, the N-back level increases by 1 (up to a maximum of 4).
+
+Level Decrease: If accuracy is ≤65%, the N-back level decreases by 1 (but will never go below level 2).
+
+This creates a stable performance window between 65% and 82%, ensuring the task remains challenging but manageable to maintain a state of high cognitive load.
 
 ## Running the Script
 To run the full experiment (approximately 65–70 minutes, including short breaks):
 python WAND_full_induction.py
 
 The script will:
-
 Prompt for a Participant ID and N-back level (2 or 3, based on practice calibration).
 Execute five sequential (5 minutes each), four spatial (4.5 minutes each), and four dual N-back (4.5 minutes each) blocks with adaptive difficulty and sub-perceptional time compression (Spatial and Dual) and mini-distractors (Sequential).
 Save results per block and at the end in the data/ directory (e.g., participant_<ID>_n<level>_results.csv).
