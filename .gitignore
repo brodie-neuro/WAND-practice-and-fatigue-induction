@@ -6,6 +6,7 @@ __pycache__/
 .venv/
 venv/
 ENV/
+.venv_test/
 
 # IDE specific
 .idea/

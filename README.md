@@ -1,127 +1,121 @@
 # WAND — Working-memory Adaptive-fatigue with N-back Difficulty
-*Current release: v1.0.2 – see CHANGELOG for details*  
-### A Practice-and-Fatigue-Induction Suite
+*Current release: v1.0.3 — see `CHANGELOG.md` for details*
+
+### A Practice and Fatigue Induction Suite
 
 ## Overview
 
-WAND consists of Four PsychoPy scripts designed to induce and measure "active" mental fatigue by targeting working memory systems. This suite provides a standardised protocol for calibrating individual N-Back Capacity (proxy for working memory capacity) and then systematically inducing cognitive fatigue.
+WAND is a set of PsychoPy scripts that calibrate N-back capacity and then induce active cognitive fatigue by sustained loading of non-verbal working memory. The suite provides a standardised protocol you can reuse and configure through external JSON files.
 
 ## Task Components
 
-| Script | Purpose | Typical Duration |
-|--------|---------|------------------|
-| `WAND_practice_plateau.py` | Calibrates individual N-Back capacity (a proxy for working memory capacity) through adaptive difficulty until performance stabilises (≤7% variability) | 20–60 minutes |
-| `WAND_full_induction.py` | Induces mental fatigue through progressive loading of non-verbal working memory circuits via Sequential, Spatial, and Dual N-back tasks | 65-70 minutes (including breaks) |
-| `Dummy_Run.py` | Lightweight script to verify sequential task logic and data logging | 3–5 minutes |
-| `Dummy_Run_Practice.py` | Lightweight script to verify sequential task functionality and data logging |2-3 minutes |
+| Script                     | Purpose                                                                                     | Typical Duration |
+|---------------------------|---------------------------------------------------------------------------------------------|------------------|
+| `WAND_practice_plateau.py`| Calibrates individual N-back capacity through adaptive difficulty until performance stabilises (≤ 7 percent variability) | 20–60 minutes |
+| `WAND_full_induction.py`  | Induces cognitive fatigue with Sequential, Spatial, and Dual N-back tasks                   | 65–70 minutes including breaks |
+| `Dummy_Run.py`            | Lightweight script to verify sequential task logic and CSV logging                          | 3–5 minutes |
+| `Dummy_Run_Practice.py`   | Lightweight script to verify sequential task functionality and CSV logging                  | 2–3 minutes |
 
-New in v1.0.2
+## What is new in v1.0.3
 
-This version introduces several key fixes and methodological improvements alongside preparations for our JOSS submission.
+- Shared utilities module. Common routines live in `wand_common.py` and are imported by the main scripts. This removes duplication and keeps behaviour consistent.
+- External configuration. Parameters and participant-facing text are in `config/params.json` and `config/text_en.json`. You can adjust the experiment without editing Python.
+- Sequential target generation. Targets are generated at approximately 50 percent of eligible trials with a cap of two consecutive matches.
+- Documentation polish. Docstrings and README wording aligned across scripts.
+- Sequential practice slow-mode. Increased from 20 to 60 trials instead of 90 so slow-mode block duration matches the others.
 
-- **Improved Practice Algorithm**: The sequential practice task now includes a one-block "grace period" when difficulty increases to 3-back, ensuring a fairer assessment of participant performance.
-- **Streamlined Experiment Summary**: The final summary screen has been updated to only show essential block-by-block metrics for a cleaner post-experiment experience.
-- **Bug Fix**: Corrected a visual bug where the background grid would disappear during the spatial n-back task.
-- **Automated Testing**: A formal test suite and Continuous Integration (CI) have been implemented to ensure code reliability.
-**Docstrings** Improved docstring formatting across all scripts.
-
-New in v1.0.1 
-
-Slow-phase on-ramp (1.5 × timings) lets low-performers find rhythm before normal speed
-
-Participant-ID dialog  →  per-block CSV logger (data/seq_<PID>.csv)
+See `CHANGELOG.md` for earlier versions.
 
 ## Design Principles
 
-| Feature | Purpose |
-|---------|---------|
-| **Task Modalities** | Sequential, Spatial, and Dual N-back tasks tax the same fronto-parietal networks in complementary ways |
-| **Adaptive Difficulty** | Automatic level adjustment within block, and linear timing compression maintain high-level difficulty for each participant *Spatial and Dual only* |
-| **Mini-distractors** | Brief (200ms) visual disruptions probe inhibitory failure (13× per 164 trial block); compare A′/RT pre- vs post-distractor |
-| **Practice Plateau** | Ensures performance stability (≤7% variability over 3 consecutive blocks) to distinguish fatigue effects from learning |
-| **Balanced Target:Lure Ratio** | 50:50 ratio prevents response bias and ensures d′/A′ metrics reflect true sensitivity |
-| **Enhanced Engagement** | Lapse-cue system and colour-coded N-levels reduce disengagement and maintain motivation |
+| Feature                     | Purpose |
+|----------------------------|---------|
+| Task modalities            | Sequential, Spatial, and Dual N-back tasks tax the same fronto parietal networks in complementary ways |
+| Adaptive difficulty        | Automatic level adjustment and linear timing compression maintain appropriate challenge for Spatial and Dual |
+| Mini distractors           | Brief 200 ms visual flashes probe inhibitory control and vigilance within blocks |
+| Practice plateau           | Requires stability ≤ 7 percent variability over three consecutive blocks to separate fatigue from learning |
+| Balanced target ratio      | 50 to 50 target to non-target prevents response bias and supports sensitivity metrics |
+| Engagement supports        | Lapse cues and colour coded N levels help maintain attention without confounding the tasks |
 
 ## Task Algorithms
 
 ### 1. Sequential N-back
-- Image list of N = 24 abstract PNGs
-- Sequence of 164 trials per block
-- Baseline timings: 0.80 s presentation, 1.00 s ISI
-- Targets ≈ 50% of eligible positions, never > 2 in a row
-- If n == 3, 30% of non-target slots copy the 2-back item (misleading lure)
+- 24 abstract PNG images
+- 164 trials per full block
+- Baseline timings: 0.80 s presentation, 1.00 s ISI
+- Targets at approximately 50 percent of eligible positions, never more than 2 in a row
 
 ### 2. Spatial N-back
-- 12-position radial grid (clock face)
-- Timing compression applied per block:
-  - Presentation = 1.00s − 0.03s·block (min 0.85s)
-  - ISI = 1.00s − 0.05s·block (min 0.775s)
+- 12 position radial grid (clock face)
+- Timing compression per normal speed block  
+  - Presentation: 1.00 s minus 0.03 s times block number, minimum 0.85 s  
+  - ISI: 1.00 s minus 0.05 s times block number, minimum 0.775 s
 
 ### 3. Dual N-back
-- 3 × 3 grid + image overlay
-- Timing compression per normal‑speed block (same slope as Spatial) presentation = 1.00 s − 0.03 s·block       - (min 0.85 s)ISI = 1.20 s − 0.05 s·block   (min 1.05 s)
+- 3 by 3 grid with image overlay
+- Timing compression per normal speed block  
+  - Presentation: 1.00 s minus 0.03 s times block number, minimum 0.85 s  
+  - ISI: 1.20 s minus 0.05 s times block number, minimum 1.05 s
 
 ## Key Features for Fatigue Induction
 
-| Feature | Effect |
-|---------|--------|
-| **Adaptive N-back** | Dynamically adjusts N-back level to maintain a challenging but manageable performance load. See README_experiment.md for specific thresholds. |
-| **Timing compression** | -30ms presentation and -50ms ISI per block forces sustained vigilance |
-| **Grey background grid** | 100px spacing, 20% opacity creates irrelevant visual texture participants must actively ignore |
-| **Mini-distractor flashes** | 200 ms white square inserted pseudo-randomly throughout each block (max 13 per block, minimum 6 trials apart) |
-| **Misleading trials** | 30% of trials in 3-back match 2-back item to probe proactive vs reactive control |
+| Feature                | Effect |
+|-----------------------|--------|
+| Adaptive N-back       | Maintains a challenging but manageable load. Thresholds are documented in `README_experiment.md`. |
+| Timing compression    | Per block reduction of presentation and ISI forces sustained vigilance |
+| Background grid       | 100 px spacing and 20 percent opacity grey texture that must be ignored to increase control demands |
+| Mini distractors      | 200 ms white square inserted pseudo randomly, with spacing constraints |
 
 ## Subjective Measurements
 
-During the fatigue induction phase, participants complete brief self-report assessments approximately every 15 minutes:
-
+During the induction phase, participants complete brief self reports roughly every 15 minutes:
 - Perceived mental fatigue
 - Task effort
 - Mind wandering
 - Task overwhelm
 
-Responses are collected using 1–8 Likert scales and stored alongside behavioral data in the `/data/` directory.
+Responses use 1 to 8 Likert scales and are saved alongside behavioural data in `./data/`.
 
 ## Installation
 
-It is highly recommended to install WAND and its dependencies in a Python virtual environment.
+Use a Python virtual environment.
 
-1.  **Clone the Repository:**
-    ```bash
-    git clone https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
-    cd WAND-practice-and-fatigue-induction
-    ```
+1. Clone the repository
+```bash
+git clone https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
+cd WAND-practice-and-fatigue-induction
+```
 
-2.  **Create and Activate a Virtual Environment:**
-    ```bash
-    # Create the environment
-    python -m venv .venv
+2. Create and activate a virtual environment
+```bash
+python -m venv .venv
 
-    # Activate it (run this command each time you work on the project)
-    # On Windows:
-    .venv\Scripts\activate
-    # On macOS/Linux:
-    source .venv/bin/activate
-    ```
+# Windows
+.venv\Scripts\activate
 
-3.  **Install All Dependencies:**
-    This command reads the `requirements.txt` file and installs the exact package versions needed to run the experiment.
-    ```bash
-    pip install -r requirements.txt
-    ```
+# macOS or Linux
+source .venv/bin/activate
+```
+
+3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+Tested on Windows, Python 3.8. See `requirements.txt` for pins.
 
 ## Usage
 
-Once the installation is complete, you can run the main experiment script from your terminal:
+Once installation is complete:
 
 ```bash
 python WAND_practice_plateau.py
-## Post-installation check:
+```
 
-- Run `Dummy_Run.py` to verify the environment is configured correctly and dependencies are working before launching a full experiment.
-- Ensure a `data/` folder exists in the project root. This is where output files (performance and subjective ratings) are saved. The script will attempt to create this if it does not exist, but you may create it manually.
+### Post installation check
+- Run `Dummy_Run.py` to verify the environment and basic logging before a full experiment.
+- Ensure a `data/` folder exists. Scripts will try to create it if missing.
 
-## Running the Scripts
+### Running the scripts
 
 ```bash
 # Quick start with fresh RNG and distractors ON
@@ -130,81 +124,126 @@ python WAND_practice_plateau.py
 # Fully reproducible run, no distractors
 python WAND_full_induction.py --seed 1234 --distractors off
 
-# Test run and saving confirmation 
+# Test run and saving confirmation
 python Dummy_Run.py
-
 ```
-### Testing
 
-This project uses the pytest framework for automated testing. The tests are located in the /Tests directory and are automatically run on every push and pull request using GitHub Actions.
-
-Running Tests Manually
-
-To run the test suite locally after installation, navigate to the repository's root directory and run the following command:
-
-Bash
-
-python -m pytest
-This will discover and run all tests in the Tests/ directory and report the results.
-
-### Hot-keys During an Experiment
+### Hot keys during an experiment
 
 | Key | Effect |
 |-----|--------|
-| Esc | Emergency abort → closes window, exits Python |
-| 5 | Skip remainder of current demo/block and jump to the next stage |
+| Esc | Emergency abort. Closes window and exits Python |
+| 5   | Skip remainder of current demo or block and jump to the next stage |
+
+## Configuration
+
+All parameters are in `config/params.json`. All participant facing text is in `config/text_en.json`. The code reads values through `wand_common.get_param` and `wand_common.get_text`.
+
+### Window and appearance
+
+Edit `config/params.json`:
+
+```json
+{
+  "window": {
+    "fullscreen": false,
+    "size": [1650, 1000],
+    "monitor": "testMonitor",
+    "background_color": "black",
+    "color_space": "rgb",
+    "use_fbo": true
+  },
+  "colors": {
+    "default": "white",
+    "levels": { "2": "#0072B2", "3": "#E69F00", "4": "#009E73" }
+  },
+  "timing": { "jitter_fraction": 0.10 }
+}
+```
+
+If you prefer a taller window, set `"size": [1650, 1200]`.
+
+### Other parameters
+
+Key tunables used by the scripts and `wand_common.py`:
+
+| Key                                   | Type           | Purpose |
+|---------------------------------------|----------------|---------|
+| `practice.speed_default`              | string         | Slow or normal initial speed in practice |
+| `practice.speed_multiplier.normal`    | float          | Multiplier for normal speed |
+| `practice.speed_multiplier.slow`      | float          | Multiplier for slow speed |
+| `sequential.target_percentage`        | float          | Target rate for sequential N-back |
+| `sequential.max_consecutive_matches`  | int            | Cap on consecutive true matches |
+| `spatial.target_percentage`           | float          | Target rate for spatial N-back |
+| `dual.target_rate`                    | float          | Target rate for dual N-back matches |
+| `grid.spacing`                        | int            | Background grid spacing in pixels |
+| `grid.color`                          | string         | Background grid colour name or hex |
+| `grid.opacity`                        | float          | Background grid opacity 0 to 1 |
+
+## Accessibility
+
+- Default colours use a palette that remains distinct under common colour vision deficiency: blue `#0072B2` for level 2, orange `#E69F00` for level 3, teal `#009E73` for level 4.
+- Feedback also uses symbols such as tick and cross, so colour is not the only cue. You can change colours in `params.json`.
 
 ## File Structure
 
-| File | Description |
-|------|-------------|
-| `WAND_practice_plateau.py` | Practice protocol for pre-fatigue calibration via adaptive N-back loops |
-| `WAND_full_induction.py` | Full fatigue induction sequence with escalating task load |
-| `Dummy_Run.py` | Quick verification script for sequential N-back logic and CSV output |
- `Dummy_Run_Practice.py`| Quick verification script for sequential N-back logic and CSV output |
-| `requirements.txt` | Runtime dependencies |
-| `README.md` | Project overview and usage instructions |
-| `README_experiment.md` | Detailed documentation on experimental design and implementation |
-| `LICENSE.txt` | MIT License |
-| `Abstract Stimuli/apophysis/` | PNG image stimuli for N-back tasks |
+| File                         | Description |
+|------------------------------|-------------|
+| `WAND_practice_plateau.py`   | Practice protocol for pre-fatigue calibration via adaptive N-back loops |
+| `WAND_full_induction.py`     | Full fatigue induction sequence with escalating task load |
+| `Dummy_Run.py`               | Quick verification script for sequential N-back logic and CSV output |
+| `Dummy_Run_Practice.py`      | Quick verification script for sequential N-back logic and CSV output |
+| `wand_common.py`             | Shared helpers and configuration loader |
+| `config/params.json`         | Parameters for window, colours, timing, targets, and more |
+| `config/text_en.json`        | Participant facing text strings |
+| `requirements.txt`           | Runtime dependencies |
+| `README.md`                  | Project overview and usage instructions |
+| `README_experiment.md`       | Experimental design and implementation details |
+| `LICENSE.txt`                | MIT License |
+| `Abstract Stimuli/apophysis/`| PNG image stimuli for N-back tasks |
+| `data/`                      | Output directory for logs and summaries |
 
 ## Stimuli Setup
 
-This suite requires image files located in the "Abstract Stimuli/apophysis" folder. Ensure:
-
-- The folder is in the same directory as the script
+The suite expects images in `Abstract Stimuli/apophysis`. Ensure:
+- The folder is next to the scripts
 - It contains at least 24 PNG files
 
-Repository structure should be:
+Repository sketch:
+
 ```
 /
 ├── WAND_practice_plateau.py
 ├── WAND_full_induction.py
 ├── Dummy_Run.py
 ├── Dummy_Run_Practice.py
-├── requirements.txt
-├── requirements_dev.txt
-├── README.md
-├── README_experiment.md
-├── LICENSE.txt
+├── wand_common.py
+├── config/
+│   ├── params.json
+│   └── text_en.json
 ├── Abstract Stimuli/
 │   └── apophysis/
 │       ├── apophysis1.png
 │       ├── apophysis2.png
 │       └── ...
+├── requirements.txt
+├── README.md
+├── README_experiment.md
+├── LICENSE.txt
+└── data/
 ```
 
-### Non-Verbal Cognitive Processing
+## Testing
 
-The WAND suite employs a carefully curated set of 24 complex 3D fractal shapes generated using Apophysis software. These stimuli are not arbitrary visual elements, but a strategically designed cognitive tool with specific implications:
+This project uses pytest. To run the test suite locally:
 
-- **Minimised Verbal Encoding**: Shapes are deliberately complex and abstract, making them difficult to verbalise
-- **Targeted Neural Activation**: Primarily engages right-hemisphere frontoparietal networks
-- **Reduced Linguistic Interference**: Limits phonological loop activation
-- **Visuospatial Working Memory Focus**: Ensures tasks target non-verbal cognitive circuits
+```bash
+python -m pytest
+```
 
-This approach addresses a critical methodological challenge in cognitive fatigue research: preventing participants from masking performance declines through verbal processing strategies.
+## License
+
+MIT License. See `LICENSE.txt`.
 
 ---
-
 *WAND: Working-memory Adaptive-fatigue with N-back Difficulty*

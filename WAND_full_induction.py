@@ -1,4 +1,32 @@
 #!/usr/bin/env python3
+"""
+WAND — Full Fatigue Induction
+
+Full cognitive-fatigue induction protocol using the WAND
+(Working-memory Adaptive-fatigue with N-back Difficulty) model.
+
+Participants complete adaptive Sequential, Spatial, and Dual N-back tasks to
+induce active mental fatigue, with detailed behavioural performance and
+subjective measures collected throughout.
+
+Designed for cognitive-fatigue research (EEG-compatible and behavioural-only).
+
+Author
+------
+Brodie E. Mangan
+
+Version
+-------
+1.0
+
+Environment
+-----------
+Tested on Windows, Python 3.8. See requirements.txt for exact pins.
+
+License
+-------
+MIT (see LICENSE).
+"""
 import argparse
 import csv
 import logging
@@ -10,27 +38,24 @@ import time
 
 from psychopy import core, event, visual
 
-"""
-WAND-fatigue-induction
-
-Full cognitive fatigue induction protocol using the WAND (Working-memory Adaptive-fatigue with N-back Difficulty) model.
-
-Participants complete adaptive Sequential, Spatial, and Dual N-back tasks to induce active mental fatigue,
-with detailed behavioural performance and subjective measures collected throughout.
-
-Designed for cognitive fatigue research, including EEG or behavioural-only implementations.
-
-Requires: PsychoPy, Python 3.8+.
-
-Author: Brodie Mangan
-Version: 1.0
-"""
-
-# Licensed under the MIT License (see LICENSE file for full text)
+from wand_common import (
+    create_grid,
+    create_grid_lines,
+    display_dual_stimulus,
+    display_grid,
+    draw_grid,
+    generate_dual_nback_sequence,
+    generate_positions_with_matches,
+    get_jitter,
+    get_level_color,
+    get_param,
+    get_text,
+    install_error_hook,
+    load_config,
+    set_grid_lines,
+)
 
 # --------------- CLI FLAGS (dummy‑run only) ---------------
-import argparse
-import random
 
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument(
@@ -61,20 +86,20 @@ if getattr(sys, "frozen", False):
 else:
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
+CONFIG_DIR = os.path.join(base_dir, "config")
+load_config(lang="en", config_dir=CONFIG_DIR)
 
-# === Experiment Settings ===
-FULLSCREEN = True  # Set to False for windowed mode during testing
-WINDOW_SIZE = (1200, 800)  # Only used if FULLSCREEN = False
-MONITOR_NAME = "testMonitor"  # Update to match lab monitor profile if necessary
-BACKGROUND_COLOR = "black"  # Background colour of experiment window
-COLOR_SPACE = "rgb"  # Colour space
-USE_FBO = True  # Framebuffer object for better rendering
-GRID_SPACING = 100  # Grid line spacing in pixels
-GRID_COLOR = "gray"  # Colour of grid lines
-GRID_OPACITY = 0.2  # Opacity of grid lines
-image_dir = os.path.join(
-    base_dir, "Abstract Stimuli", "apophysis"
-)  # Relative path to image folder
+# === Window configuration (from params.json) ===
+WIN_FULLSCR = bool(get_param("window.fullscreen", False))
+WIN_SIZE = tuple(get_param("window.size", [1650, 1000]))
+WIN_MONITOR = str(get_param("window.monitor", "testMonitor"))
+WIN_BG = get_param("window.background_color", "black")
+WIN_COLORSP = get_param("window.color_space", "rgb")
+WIN_USEFBO = bool(get_param("window.use_fbo", True))
+
+# Image folder stays as a code path (can be moved to params later if you want)
+image_dir = os.path.join(base_dir, "Abstract Stimuli", "apophysis")
+
 
 # === Logging Configuration ===
 logging.basicConfig(
@@ -96,28 +121,21 @@ pil_logger.setLevel(logging.INFO)
 
 # === Create the experiment window ===
 win = visual.Window(
-    size=WINDOW_SIZE,
-    fullscr=FULLSCREEN,
+    size=WIN_SIZE,
+    fullscr=WIN_FULLSCR,
     screen=0,
     allowGUI=False,
     allowStencil=False,
-    monitor=MONITOR_NAME,
-    color=BACKGROUND_COLOR,
-    colorSpace=COLOR_SPACE,
+    monitor=WIN_MONITOR,
+    color=WIN_BG,
+    colorSpace=WIN_COLORSP,
     blendMode="avg",
-    useFBO=USE_FBO,
+    useFBO=WIN_USEFBO,
     units="pix",
-    winType="pyglet",  # Explicit window type
+    winType="pyglet",
 )
 
-# Determine the base directory
-if getattr(sys, "frozen", False):
-    # Running as compiled app
-    base_dir = sys._MEIPASS
-else:
-    # Running as script
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-
+# Basic environment info
 logging.info("Script started")
 logging.debug(f"Python version: {sys.version}")
 logging.debug(f"Base directory: {base_dir}")
@@ -130,128 +148,14 @@ try:
 except ImportError:
     logging.error("Failed to import PsychoPy")
 
-# After global variables
-grid_lines = []
-win_units = "pix"  # Ensure consistent units across all stimuli
-
-
-def create_grid_lines(win, grid_spacing=100, grid_color="gray", opacity=0.2):
-    """
-    Generate vertical and horizontal grid lines over the experiment window.
-
-    Args:
-        win (visual.Window): The PsychoPy window object.
-        grid_spacing (int): Distance in pixels between each grid line.
-        grid_color (str): Colour of the grid lines.
-        opacity (float): Opacity of the grid lines (0 = transparent, 1 = opaque).
-
-    Returns:
-        list: A list of PsychoPy Line stimuli representing the grid.
-    """
-    # Get window size
-    win_width, win_height = win.size
-    half_width = win_width / 2
-    half_height = win_height / 2
-
-    # Create lists to hold the lines
-    lines = []
-
-    # Calculate number of lines to draw
-    num_vertical_lines = int(win_width // grid_spacing) + 2  # +2 to ensure coverage
-    num_horizontal_lines = int(win_height // grid_spacing) + 2
-
-    # Calculate starting positions
-    # Shift grid so that the center of a square is at (0,0)
-    start_x = -(num_vertical_lines // 2) * grid_spacing + grid_spacing / 2
-    x_positions = [start_x + i * grid_spacing for i in range(num_vertical_lines)]
-
-    start_y = -(num_horizontal_lines // 2) * grid_spacing + grid_spacing / 2
-    y_positions = [start_y + i * grid_spacing for i in range(num_horizontal_lines)]
-
-    # Now create vertical lines
-    for x in x_positions:
-        line = visual.Line(
-            win,
-            start=(x, -half_height),
-            end=(x, half_height),
-            lineColor=grid_color,
-            opacity=opacity,
-            units="pix",
-        )
-        lines.append(line)
-
-    # Create horizontal lines
-    for y in y_positions:
-        line = visual.Line(
-            win,
-            start=(-half_width, y),
-            end=(half_width, y),
-            lineColor=grid_color,
-            opacity=opacity,
-            units="pix",
-        )
-        lines.append(line)
-
-    return lines
-
-
-# Now create the grid lines once
+# Error hook bound to this window, then grid registration
+install_error_hook(win)
 grid_lines = create_grid_lines(win)
+set_grid_lines(grid_lines)
 
-
-def get_jitter(base_duration, jitter_range=0.2):
-    """
-    Calculate a jittered time value by adding random variation to a base time.
-
-    This function introduces controlled randomness to timing, useful for stimulus presentation
-    to prevent predictability in experiments.
-
-    Args:
-        base_duration (float): The base duration in seconds to which jitter is added.
-        jitter_range (float, optional): The range of random variation as a fraction of base_time.
-
-    Returns:
-        float: The jittered time value in seconds.
-    """
-    return base_duration + random.uniform(-jitter_range / 2, jitter_range / 2)
-
-
-# error_catcher function
-def error_catcher(type, value, tb):
-    """
-    Handle unhandled exceptions by logging the error and displaying a message to the user.
-
-    This function is set as sys.excepthook to catch unhandled exceptions during the experiment.
-    It logs the exception details and shows an error message in the experiment window.
-
-    Args:
-        type: The type of the exception.
-        value: The exception instance.
-        tb: The traceback object.
-    """
-    logging.exception("An unexpected error occurred")
-    # Display a message in the window
-    error_message = visual.TextStim(
-        win,
-        text="An unexpected error occurred. Please inform the researcher.",
-        color="white",
-        height=24,
-        wrapWidth=800,
-    )
-    error_message.draw()
-    win.flip()
-    event.waitKeys()
-    core.quit()
-
-
-sys.excepthook = error_catcher
-logging.info("Starting script...")
-logging.info("Defining global variables...")
-logging.info("Creating window...")
-logging.info("Windowed mode created. Proceeding with the rest of the script...")
-
-
+# Global escape key to quit cleanly
 event.globalKeys.add(key="escape", func=core.quit)
+
 
 # Check if the directory exists
 if not os.path.exists(image_dir):
@@ -303,30 +207,29 @@ def send_trigger(trigger_code):
 
 
 def get_participant_info(win):
-    """Presents a series of on-screen dialogs to collect experiment settings.
-
-    This function gathers the following information from the experimenter:
-        - Participant ID
-        - Starting Sequential N-back level (2 or 3)
-        - An optional RNG seed (if left blank, a random seed is used)
-        - Whether to enable or disable distractor flashes
-
-    Args:
-        win (visual.Window): The active PsychoPy window to draw dialogs on.
-
-    Returns:
-        dict: A dictionary containing the collected settings with keys
-              'Participant ID', 'N-back Level', 'Seed', and 'Distractors'.
     """
+    Collect participant and run options via on-screen prompts.
+
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        The active PsychoPy window used to render prompts.
+
+    Returns
+    -------
+    dict
+        A dictionary with keys:
+        - 'Participant ID' : str
+        - 'N-back Level'   : int
+        - 'Seed'           : Optional[int]
+        - 'Distractors'    : bool"""
     win.mouseVisible = False
     text24 = dict(height=24, color="white", wrapWidth=900)
 
     # — 1 Participant ID —
     pid = ""
     while True:
-        visual.TextStim(
-            win, text="Enter Participant ID then press return", **text24, pos=(0, 120)
-        ).draw()
+        visual.TextStim(win, text=get_text("get_pid"), **text24, pos=(0, 120)).draw()
         box = visual.Rect(win, width=380, height=50, lineColor="white", pos=(0, 40))
         box.draw()
         visual.TextStim(win, text=pid, **text24, pos=(0, 40)).draw()
@@ -341,7 +244,7 @@ def get_participant_info(win):
 
     # — 2 Select N‑back level —
     while True:
-        prompt = "Select Sequential N‑back level\n\nPress 2 or 3"
+        prompt = get_text("get_n_level")
         visual.TextStim(win, text=prompt, **text24).draw()
         win.flip()
         key = event.waitKeys(keyList=["2", "3"])[0]
@@ -351,7 +254,7 @@ def get_participant_info(win):
     # — 3 Seed entry (optional) —
     seed_txt = ""
     while True:
-        msg = "Optional: enter RNG seed (blank = random) then press return"
+        msg = get_text("get_seed")
         visual.TextStim(win, text=msg, **text24, pos=(0, 120)).draw()
         box = visual.Rect(win, width=380, height=50, lineColor="white", pos=(0, 40))
         box.draw()
@@ -368,7 +271,7 @@ def get_participant_info(win):
 
     # — 4 Distractor toggle —
     while True:
-        prompt = "Enable 200 ms distractor flashes?\n\nPress Y for ON   |   N for OFF"
+        prompt = get_text("get_distractors")
         visual.TextStim(win, text=prompt, **text24).draw()
         win.flip()
         key = event.waitKeys(keyList=["y", "n"])[0]
@@ -386,22 +289,35 @@ def get_participant_info(win):
 
 def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
     """
-    Write behavioural results and optional subjective measures to a CSV.
+    Write behavioural results and optional subjective measures to a CSV file.
 
-    Args:
-        filename (str):  Base name of the CSV file (e.g. 'participant_01_results.csv').
-        results (list of dict):
-            Each dict must have keys:
-              – 'Participant ID', 'Task', 'Block', 'Results' (nested dict of metrics).
-        subjective_measures (dict, optional):
-            Mapping of time‑point labels to four scores
-            [Mental Fatigue, Task Effort, Mind Wandering, Overwhelmed].
-        mode (str): File mode, either 'w' (write new file) or 'a' (append).
+    Parameters
+    ----------
+    filename : str
+        Base name of the CSV (e.g., 'participant_01_results.csv').
+    results : List[dict]
+        Each dict must contain:
+        - 'Participant ID' : str
+        - 'Task'           : str
+        - 'Block'          : Union[int, str]
+        - 'N-back Level'   : Optional[int]
+        - 'Results'        : dict  (block metrics)
+    subjective_measures : Optional[dict], optional
+        Mapping of time-point labels to four scores
+        [Mental Fatigue, Task Effort, Mind Wandering, Overwhelmed], by default None.
+    mode : {"w","a"}, optional
+        File mode: 'w' to create/overwrite, 'a' to append. Default 'w'.
 
-    Returns:
-        str | None: Full path to the saved CSV, or None on failure.
+    Returns
+    -------
+    Optional[str]
+        Full path to the saved CSV on success, otherwise None.
+
+    Notes
+    -----
+    - Creates a `data/` folder under the script directory if it does not exist.
+    - Writes a provenance row indicating the RNG seed used.
     """
-
     logging.info(f"Starting to save results to {filename}")
     data_dir = os.path.join(base_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
@@ -531,7 +447,7 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
         try:
             error_stim = visual.TextStim(
                 win,
-                text="An error occurred while saving data. Please inform the researcher.",
+                text=get_text("error_saving"),
                 color="white",
                 height=24,
                 wrapWidth=800,
@@ -547,23 +463,22 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
 
 def save_sequential_results(participant_id, n_back_level, block_name, seq_results):
     """
-    Save the results from a Sequential N-back block to a CSV file.
+    Save one Sequential N-back block's results to a per-participant CSV.
 
-    Constructs a filename using participant ID, N-back level, and block name.
-    Wraps the results into a structured list and calls `save_results_to_csv` for output.
+    Parameters
+    ----------
+    participant_id : str
+        Unique identifier for the participant.
+    n_back_level : int
+        The N-back difficulty used in the block.
+    block_name : str
+        Label for the block (e.g., "Block_1", "First_Block").
+    seq_results : dict
+        The block-level results dictionary (as returned by `run_sequential_nback_block`).
 
-    Args:
-        participant_id (str): Unique identifier for the participant.
-        n_back_level (int): The N-back difficulty level used in the block.
-        block_name (str): Label for the block (e.g., 'First_Block').
-        seq_results (dict): Dictionary containing detailed block-level performance data.
-
-    Logs:
-        - Info log on successful save including file path.
-        - Error log if saving fails.
-
-    Returns:
-        None
+    Returns
+    -------
+    None
     """
     results_filename = (
         f"participant_{participant_id}_n{n_back_level}_{block_name}_results.csv"
@@ -584,26 +499,19 @@ def save_sequential_results(participant_id, n_back_level, block_name, seq_result
 
 
 def show_overall_welcome_screen(win):
-    """Displays the main welcome screen for the experiment.
-
-    The screen informs the participant about the nature and approximate
-    duration of the tasks. The experiment proceeds when the user presses
-    the 'space' key.
-
-    Args:
-        win (visual.Window): The active PsychoPy window.
     """
-    welcome_text = (
-        "Welcome to this Cognitive Study\n\n"
-        "In this experiment, you will complete a series of cognitive tasks involving working memory and attention.\n\n"
-        "You will perform different variations of these tasks, with several short breaks spaced out inbetween.\n\n"
-        "These tasks are designed to be difficult.\n\n"
-        "The entire session will last approximately 90 minutes.\n\n"
-        "Please try to stay focused and do your very best throughout the entire experiment.\n\n"
-        "\n\n"
-        "Press 'space' to begin."
-    )
+    Display the experiment welcome screen and wait for Space.
 
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        The active PsychoPy window.
+
+    Returns
+    -------
+    None
+    """
+    welcome_text = get_text("induction_welcome")
     welcome_message = visual.TextStim(
         win, text=welcome_text, color="white", height=24, wrapWidth=800
     )
@@ -614,40 +522,33 @@ def show_overall_welcome_screen(win):
 
 def show_welcome_screen(win, task_name, n_back_level=None):
     """
-    Show task-specific instructions with auto-advance timer.
+    Show task-specific instructions with a 20-second auto-advance.
 
-    Args:
-        win (visual.Window): PsychoPy window.
-        task_name (str): One of "Sequential N-back", "Spatial N-back", "Dual N-back".
-        n_back_level (int, optional): N-back distance for description (only seq task uses it).
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    task_name : str
+        One of "Sequential N-back", "Spatial N-back", "Dual N-back".
+    n_back_level : Optional[int], optional
+        Included in the text for the Sequential task, by default None.
 
+    Returns
+    -------
+    None
     """
     if task_name == "Sequential N-back":
-        welcome_text = (
-            f"Sequential N-back Task\n\n"
-            f"Decide if the current image is the same as the image from {n_back_level} steps back.\n"
-            "Press 'Z' for match, 'M' for no match.\n"
-            "Ignore the background grid and distractors."
-        )
+        welcome_text = get_text("induction_task_welcome_seq", n_back_level=n_back_level)
     elif task_name == "Spatial N-back":
-        welcome_text = (
-            "Spatial N-back Task\n\n"
-            "Decide if the highlighted position matches the one from N steps back.\n"
-            "Press 'Z' for match, 'M' for no match."
-        )
+        welcome_text = get_text("induction_task_welcome_spa")
     elif task_name == "Dual N-back":
-        welcome_text = (
-            "Dual N-back Task\n\n"
-            "Decide if both the image and the position match those from N steps back.\n"
-            "Press 'Z' for match, 'M' for no match."
-        )
+        welcome_text = get_text("induction_task_welcome_dual")
     else:
-        welcome_text = "Task Instructions\nPress 'space' to begin."
+        # Fallback for any unknown task names
+        welcome_text = get_text("task_instructions_fallback")
 
-    # Append a concise auto-advance prompt
-    welcome_text += (
-        "\n\nThis screen will advance in 20 seconds.\nPress 'space' to start now."
-    )
+        # Append a concise auto-advance prompt
+    welcome_text += get_text("induction_task_advance_prompt")
 
     welcome_message = visual.TextStim(
         win, text=welcome_text, color="white", height=24, wrapWidth=800
@@ -664,7 +565,7 @@ def show_welcome_screen(win, task_name, n_back_level=None):
             core.quit()
 
         time_left = int(timer.getTime())
-        timer_text = f"Time remaining: {time_left} seconds"
+        timer_text = get_text("timer_remaining", seconds=time_left)
         timer_stim = visual.TextStim(
             win, text=timer_text, color="white", height=18, pos=(0, -300)
         )
@@ -678,24 +579,29 @@ def show_break_screen(win, duration):
     """
     Display a timed rest screen between blocks.
 
-    Args:
-        win (visual.Window): PsychoPy window.
-        duration (int): Break length in seconds.
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    duration : int
+        Break length in seconds.
 
+    Returns
+    -------
+    None
     """
-    break_text = (
-        f"Take a {duration}-second break\n\n"
-        "Feel free to move around in your seat\n\n"
-        "The experiment will continue automatically"
-    )
+    break_text_base = get_text("induction_break_screen", duration=duration)
     break_stim = visual.TextStim(
-        win, text=break_text, color="white", height=24, wrapWidth=800
+        win, text=break_text_base, color="white", height=24, wrapWidth=800
     )
 
     timer = core.CountdownTimer(duration)
     while timer.getTime() > 0:
+        timer_text = get_text("timer_remaining", seconds=int(timer.getTime()))
         break_stim.text = (
-            f"{break_text}\n\nTime remaining: {int(timer.getTime())} seconds"
+            break_text_base
+            + "\n\n"
+            + get_text("timer_remaining", seconds=int(timer.getTime()))
         )
         break_stim.draw()
         win.flip()
@@ -707,27 +613,29 @@ def show_break_screen(win, duration):
 
 def collect_subjective_measures(win):
     """
-    Present four Likert questions (1–8) on fatigue, effort, mind-wandering, overwhelmed.
+    Administer four 1–8 Likert items: fatigue, effort, mind-wandering, overwhelmed.
 
-    Args:
-        win (visual.Window): PsychoPy window.
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
 
-    Returns:
-        list of int:
-            Four responses in order: [Mental Fatigue, Task Effort, Mind Wandering, Overwhelmed].
+    Returns
+    -------
+    List[int]
+        Four integer responses in order:
+        [Mental Fatigue, Task Effort, Mind Wandering, Overwhelmed].
     """
     questions = [
-        "How mentally fatigued do you feel right now?",
-        "How effortful do you find the task at this moment?",
-        "Do you currently find your mind wandering or becoming distracted?",
-        "How overwhelmed do you feel by the task demands right now?",
+        get_text("induction_subjective_q1"),
+        get_text("induction_subjective_q2"),
+        get_text("induction_subjective_q3"),
+        get_text("induction_subjective_q4"),
     ]
     responses = []
 
     for question in questions:
-        instruction_text = (
-            f"{question}\n\nPress a key from 1 (Not at all) to 8 (Extremely)"
-        )
+        instruction_text = question + get_text("induction_subjective_prompt")
         instruction_stim = visual.TextStim(
             win, text=instruction_text, height=24, wrapWidth=800
         )
@@ -750,15 +658,19 @@ def collect_subjective_measures(win):
 
 def get_progressive_timings(task_name, block_number):
     """
-    Stimuli presentation and ISI times that shrink gradually across blocks.
+    Compute block-dependent presentation and ISI durations.
 
-    Args:
-        task_name (str): "Spatial N-back" or "Dual N-back" (otherwise defaults to no change).
-        block_number (int): Zero-based block index for cumulative reductions.
+    Parameters
+    ----------
+    task_name : str
+        "Spatial N-back" or "Dual N-back" (others yield no change).
+    block_number : int
+        Zero-based block index (cumulative across the task).
 
-    Returns:
-        tuple (float, float):
-            (presentation_time_s, isi_time_s) for this block.
+    Returns
+    -------
+    Tuple[float, float]
+        (presentation_time_s, isi_time_s) after applying per-block reductions.
     """
     if task_name == "Spatial N-back":
         base_presentation = 1.0  # Base presentation time in seconds
@@ -795,16 +707,22 @@ def get_progressive_timings(task_name, block_number):
 
 def calculate_A_prime(trials):
     """
-    Calculate the A-prime sensitivity index from trial data.
+    Compute the A′ (A-prime) nonparametric sensitivity index.
 
-    A-prime is a non-parametric measure of sensitivity, similar to d-prime, but does not assume
-    equal variance in signal and noise distributions. It adjusts for extreme hit and false alarm rates.
+    Parameters
+    ----------
+    trials : List[dict]
+        Trial dicts with at least 'Is Target' (bool) and 'Response' (str) keys.
+        'Response' is one of {'match', 'non-match', 'lapse'}.
 
-    Args:
-        trials: A list of trial dictionaries containing 'Is Target' and 'Response' keys.
+    Returns
+    -------
+    Optional[float]
+        A′ value in [0,1], or None if it cannot be computed (e.g., no targets).
 
-    Returns:
-        The A-prime value as a float, or None if it cannot be computed.
+    Notes
+    -----
+    Hit/false-alarm rates are clipped to avoid pathological extremes.
     """
     hits = sum(
         1 for trial in trials if trial["Is Target"] and trial["Response"] == "match"
@@ -846,19 +764,17 @@ def calculate_A_prime(trials):
 
 def calculate_accuracy_and_rt(trials):
     """
-    Calculate accuracy and reaction time metrics from trial data.
+    Compute accuracy (%), total RT, and average RT from trial data.
 
-    Computes the percentage of correct responses and the total and average reaction times
-    based on trial data.
+    Parameters
+    ----------
+    trials : List[dict]
+        Trial dicts including 'Accuracy' (bool) and 'Reaction Time' (Optional[float]).
 
-    Args:
-        trials: A list of trial dictionaries containing 'Accuracy' and 'Reaction Time' keys.
-
-    Returns:
-        A tuple of (accuracy, total_rt, avg_rt) where:
-        - accuracy: Percentage of correct responses (float).
-        - total_rt: Sum of reaction times (float).
-        - avg_rt: Average reaction time (float).
+    Returns
+    -------
+    Tuple[float, float, float]
+        (accuracy_percent, total_rt, average_rt)
     """
     total_trials = len(trials)
     correct = sum(1 for trial in trials if trial["Accuracy"])
@@ -873,15 +789,22 @@ def calculate_accuracy_and_rt(trials):
 
 def calculate_dprime(detailed_data):
     """
-    Calculate the d-prime sensitivity index from detailed trial data.
+    Compute d′ (d-prime) using the log-linear correction.
 
-    D-prime measures the ability to distinguish targets from non-targets in signal detection theory.
+    Parameters
+    ----------
+    detailed_data : List[dict]
+        Trial dicts with 'Is Target' (bool) and 'Response' (str).
 
-    Args:
-        detailed_data: A list of trial dictionaries containing 'Is Target' and 'Response' keys.
+    Returns
+    -------
+    float
+        d′ value (0.0 if undefined or if all responses are lapses).
 
-    Returns:
-        The d-prime value as a float.
+    Notes
+    -----
+    Applies the log-linear correction:
+    (hits+0.5)/(targets+1), (FA+0.5)/(non-targets+1) before z-scoring.
     """
     if not detailed_data or all(
         trial["Response"] == "lapse" for trial in detailed_data
@@ -920,8 +843,6 @@ def calculate_dprime(detailed_data):
     adjusted_hit_rate = (hits + 0.5) / (total_targets + 1)
     adjusted_fa_rate = (false_alarms + 0.5) / (total_non_targets + 1)
 
-    from scipy.stats import norm
-
     try:
         d_prime = norm.ppf(adjusted_hit_rate) - norm.ppf(adjusted_fa_rate)
     except ValueError:
@@ -932,17 +853,20 @@ def calculate_dprime(detailed_data):
 
 def show_summary(win, task_name, *results):
     """
-    After a block finishes, display overall correct/incorrect/lapse counts, accuracy, RTs, d′.
+    Display a 10-second (or Space-to-advance) block summary screen.
 
-    Args:
-        win (visual.Window): PsychoPy window.
-        task_name (str): Name of the task for the header.
-        *results: Tuple of
-            (correct_responses, incorrect_responses, lapses,
-             total_reaction_time, reaction_times_list, detailed_data, accuracy).
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    task_name : str
+        Name to display in the header.
+    *results
+        Tuple: (correct, incorrect, lapses, total_rt, reaction_times, detailed_data, accuracy)
 
-    Side effect:
-        Renders a 10 s summary screen or advances on space.
+    Returns
+    -------
+    None
     """
     (
         correct_responses,
@@ -959,16 +883,16 @@ def show_summary(win, task_name, *results):
     )
     d_prime = calculate_dprime(detailed_data)
 
-    summary_text = (
-        f"{task_name} Task Completed!\n\n"
-        f"Correct Responses: {correct_responses}\n"
-        f"Incorrect Responses: {incorrect_responses}\n"
-        f"Lapses: {lapses}\n"
-        f"Overall Accuracy: {accuracy:.2f}%\n"
-        f"Average Reaction Time: {avg_reaction_time:.2f} s\n"
-        f"Total Response Time: {total_reaction_time:.2f} s\n"
-        f"D-Prime: {d_prime:.2f}\n\n"
-        f"This screen will automatically advance in 10 seconds.\nPress 'space' to continue immediately."
+    summary_text = get_text(
+        "induction_summary_block",
+        task_name=task_name,
+        correct_responses=correct_responses,
+        incorrect_responses=incorrect_responses,
+        lapses=lapses,
+        accuracy=accuracy,
+        avg_reaction_time=avg_reaction_time,
+        total_reaction_time=total_reaction_time,
+        d_prime=d_prime,
     )
 
     summary_message = visual.TextStim(
@@ -991,39 +915,38 @@ def generate_image_sequence_with_matches(
     num_trials, n, target_percentage=0.5, skip_responses=1
 ):
     """
-    Build an image sequence for an N-back task, inserting true targets and (for 3-back) misleading trials.
+    Generate a sequence of images with true N-back targets (and 3-back lures).
 
-    Args:
-        num_trials (int):
-            Total number of trials to generate, including the initial skip_responses.
-        n (int):
-            N-back distance (e.g. 2 for 2-back, 3 for 3-back).
-        target_percentage (float):
-            Proportion of eligible trials (i.e. after the first n) that should be true N-back matches.
-            Defaults to 0.5 (50% targets).
-        skip_responses (int):
-            Number of initial trials during which no response is required (these still count towards sequence length).
+    Parameters
+    ----------
+    num_trials : int
+        Total sequence length (including initial non-response trials).
+    n : int
+        N-back distance (2 or 3).
+    target_percentage : float, optional
+        Proportion of eligible trials (i.e., after the first `n`) that should be
+        true N-back matches. Default is 0.5.
+    skip_responses : int, optional
+        Number of initial trials without response requirements. Default is 1, but
+        the task typically uses `n`.
 
-    Behaviour:
-        - Selects positions for true N-back matches (“yes” trials) and limits consecutive matches to 2.
-        - If n == 3, additionally inserts misleading trials on 30% of the non-target positions,
-          where the stimulus matches the item from (n–1) steps back rather than n.
-        - Fills all other trials with randomly chosen images that avoid creating unintended n- or (for 3-back) 2-back repeats.
-        - Re-shuffles image pool when exhausted.
+    Returns
+    -------
+    Tuple[List[str], List[int]]
+        (sequence, yes_positions) where `sequence` is a list of image filenames
+        and `yes_positions` are indices of true n-back matches.
 
-    Returns:
-        tuple:
-            sequence (list of str):
-                Ordered list of image filenames for each trial.
-            yes_positions (list of int):
-                Indices where true N-back matches occur.
+    Notes
+    -----
+    - For n==3, 30% of non-target positions become (n-1) lures.
+    - Attempts to avoid unintended n- or 2-back repeats on non-target trials.
     """
     # Start with a fresh copy of the image list and shuffle it
     available_images = image_files.copy()
     random.shuffle(available_images)
 
     sequence = []
-    max_consecutive_matches = 2  # Limit consecutive matches
+    max_consecutive_matches = int(get_param("sequential.max_consecutive_matches", 2))
     consecutive_count = 0
     target_num_yes = int((num_trials - n) * target_percentage)
     yes_positions = random.sample(range(n, num_trials), target_num_yes)
@@ -1073,28 +996,28 @@ def generate_image_sequence_with_matches(
     return sequence, yes_positions
 
 
-def draw_grid():
-    """
-    Draw all predefined grid lines on the PsychoPy window.
-    Assumes global variable 'grid_lines' has already been populated.
-    """
-    for line in grid_lines:
-        line.draw()
-
-
 def display_image(
     win, image_file, level_indicator, feedback_text=None, task="sequential"
 ):
     """
-    Draw grid, level text, then a central image (with optional feedback) and flip.
+    Draw background grid, level text, and a central image; optional feedback.
 
-    Args:
-        win (visual.Window): PsychoPy window.
-        image_file (str): Key into preloaded_images dict.
-        level_indicator (visual.TextStim): The “Level: N-back” text stim.
-        feedback_text (str, optional): Feedback string to show above image.
-        task (str): 'sequential' or 'dual' to pick image size dictionary.
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    image_file : str
+        Key into the appropriate preloaded image dict.
+    level_indicator : psychopy.visual.TextStim
+        The “Level: N-back” text stimulus to draw.
+    feedback_text : Optional[str], optional
+        Short message drawn above the image if provided. Default None.
+    task : {"sequential","dual"}
+        Selects the preloaded image dictionary and default image size.
 
+    Returns
+    -------
+    None
     """
     # Select the correct preloaded images based on the task
     if task == "sequential":
@@ -1135,15 +1058,22 @@ def display_image(
 
 def calculate_sequential_nback_summary(results_dict, n_level):
     """
-    Compute summary metrics from one Sequential N-back block’s results dictionary.
+    Summarise a Sequential N-back block results dict into key metrics.
 
-    Args:
-        results_dict (dict): Dictionary returned by run_sequential_nback_block.
-        n_level (int): N-back difficulty used.
+    Parameters
+    ----------
+    results_dict : dict
+        Dictionary returned by `run_sequential_nback_block`.
+    n_level : int
+        N-back difficulty level used.
 
-    Returns:
-        dict: Summary with keys 'N-back Level', 'Total Correct Responses', 'Total Incorrect Responses',
-              'Total Lapses', 'Overall Accuracy (%)', 'Average Reaction Time (s)', 'Total Trials', 'D-Prime'.
+    Returns
+    -------
+    dict
+        A compact summary with:
+        'N-back Level', 'Total Correct Responses', 'Total Incorrect Responses',
+        'Total Lapses', 'Overall Accuracy (%)', 'Average Reaction Time (s)',
+        'Total Trials', 'D-Prime'.
     """
     correct_responses = results_dict["Correct Responses"]
     incorrect_responses = results_dict["Incorrect Responses"]
@@ -1178,28 +1108,42 @@ def run_sequential_nback_block(
     block_number=1,
 ):
     """
-    Run one block of the Sequential N-back task, collecting responses and timing.
+    Run one Sequential N-back block and collect accuracy/RT/d′ metrics.
 
-    Args:
-        win (visual.Window): PsychoPy window.
-        n (int): N-back distance.
-        num_images (int): Number of distinct images available.
-        target_percentage (float): Proportion of non-skip trials that are targets.
-        display_duration (float): Stimulus on-screen time in seconds.
-        isi (float): Base inter-stimulus interval in seconds.
-        provide_feedback (bool): Whether to show trial-by-trial feedback.
-        num_trials (int, optional): Override total trials (otherwise uses sequence length).
-        is_first_encounter (bool): If True, show “no response” notice for first n trials.
-        block_number (int): Zero-based index used for logging and progressive timing.
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    n : int
+        N-back distance.
+    num_images : int
+        Number of distinct images available for sampling.
+    target_percentage : float, optional
+        Fraction of eligible trials that are true targets. Default 0.5.
+    display_duration : float, optional
+        Stimulus on-screen time (s). Default 0.8.
+    isi : float, optional
+        Base inter-stimulus interval (s). Jitter is applied. Default 1.0.
+    provide_feedback : bool, optional
+        If True, draw trial-wise feedback. Default False.
+    num_trials : Optional[int], optional
+        Override total trials (otherwise uses generated sequence length).
+    is_first_encounter : bool, optional
+        If True, show “no response” guidance for the first `n` trials. Default True.
+    block_number : Union[int, str], optional
+        Block index or label (for logging). Default 1.
 
-    Returns:
-        dict: Block summary with keys 'Block Number', 'Correct Responses', 'Incorrect Responses',
-              'Lapses', 'Accuracy', 'Total Reaction Time', 'Average Reaction Time',
-              'Reaction Times', 'Detailed Data', 'Pre-Distractor Accuracy', 'Pre-Distractor Avg RT',
-              'Pre-Distractor A-Prime', 'Post-Distractor Accuracy', 'Post-Distractor Avg RT',
-              'Post-Distractor A-Prime', 'Overall D-Prime'.
+    Returns
+    -------
+    dict
+        Block summary with keys:
+        'Block Number', 'Correct Responses', 'Incorrect Responses', 'Lapses',
+        'Accuracy', 'Total Reaction Time', 'Average Reaction Time',
+        'Reaction Times', 'Detailed Data',
+        'Pre-Distractor Accuracy', 'Pre-Distractor Avg RT', 'Pre-Distractor A-Prime',
+        'Post-Distractor Accuracy', 'Post-Distractor Avg RT', 'Post-Distractor A-Prime',
+        'Overall D-Prime'.
     """
-
     # Number of initial trials without required responses
     skip_responses = n
 
@@ -1229,7 +1173,7 @@ def run_sequential_nback_block(
     margin_x, margin_y = 350, 150
     level_indicator = visual.TextStim(
         win,
-        text=f"Level: {n}-back",
+        text=get_text("level_label", n=n),
         color="white",
         height=32,
         pos=(-win.size[0] // 2 + margin_x, win.size[1] // 2 - margin_y),
@@ -1282,7 +1226,7 @@ def run_sequential_nback_block(
     #  First‑block notice (for the initial n non‑response trials)
     # ─────────────────────────────────────────────────────────────
     if is_first_encounter:
-        msg = f"No response required for the first {n} trials"
+        msg = get_text("no_response_needed", n=n)
         feedback_text = visual.TextStim(
             win, text=msg, color="white", height=24, units="pix"
         )
@@ -1297,7 +1241,7 @@ def run_sequential_nback_block(
         img = images[i]
         feedback_text = None
         if last_lapse and i >= skip_responses:
-            feedback_text = "Previous lapse, please respond"
+            feedback_text = get_text("lapse_feedback")
             last_lapse = False
 
         # Show stimulus
@@ -1462,13 +1406,22 @@ def run_sequential_nback_block(
 
 def show_transition_screen(win, next_task_name):
     """
-    Inform participant of upcoming task, advance on space or after 5 s
+    Notify the participant of the next task; auto-advance after 5 s or Space.
 
-    Args:
-        win (visual.Window): PsychoPy window.
-        next_task_name (str): Name of the next task.
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    next_task_name : str
+        Name of the upcoming task.
+
+    Returns
+    -------
+    None
     """
-    transition_text = f"Transitioning to the {next_task_name} Task.\n\nPress 'space' to continue immediately or wait 5 seconds to proceed."
+    transition_text = get_text(
+        "induction_transition_screen", next_task_name=next_task_name
+    )
     transition_message = visual.TextStim(
         win, text=transition_text, color="white", height=24, wrapWidth=750
     )
@@ -1489,14 +1442,24 @@ def show_level_change_screen(
     win, task_name, old_level, new_level, is_first_block=False
 ):
     """
-    Display a screen informing participants of a change in N-back difficulty level.
+    Announce a change (or continuation) in N-back level for the next block.
 
-    Args:
-        win (visual.Window): PsychoPy window.
-        task_name (str): Name of the task (Sequential, Spatial, or Dual).
-        old_level (int): Previous N-back level.
-        new_level (int): Updated N-back level.
-        is_first_block (bool, optional): Whether this is the first block of the task.
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    task_name : str
+        Task label ("Sequential", "Spatial", or "Dual").
+    old_level : int
+        Previous N-back level.
+    new_level : int
+        Updated N-back level.
+    is_first_block : bool, optional
+        Whether this is the first block of the task. Default False.
+
+    Returns
+    -------
+    None
     """
     # determine phrasing of the level change
     if new_level > old_level:
@@ -1507,7 +1470,7 @@ def show_level_change_screen(
         change_text = f"continuing at {old_level}-back"
 
     # first‐trial notice
-    feedback_text = f"No response required for the first {new_level} trials"
+    feedback_text = get_text("no_response_needed", n=new_level)
 
     # status indicators
     seed_status = (
@@ -1516,14 +1479,13 @@ def show_level_change_screen(
     dist_status = "Distractors: ON" if DISTRACTORS_ENABLED else "Distractors: OFF"
 
     # assemble full on‐screen message
-    message = (
-        f"Based on your performance, the difficulty level is {change_text}.\n\n"
-        f"The task will now be at {new_level}-back level.\n\n"
-        f"{feedback_text}\n\n"
-        f"{seed_status} | {dist_status}\n\n"
-        f"After that, respond if the current stimulus matches the {new_level} steps back.\n\n"
-        "This screen will automatically advance in 10 seconds.\n"
-        "Press 'space' to continue immediately."
+    message = get_text(
+        "induction_level_change",
+        change_text=change_text,
+        new_level=new_level,
+        feedback_text=feedback_text,
+        seed_status=seed_status,
+        dist_status=dist_status,
     )
 
     # draw & display
@@ -1546,12 +1508,20 @@ def show_level_change_screen(
 
 def print_debug_info(sequence, n, is_dual=False):
     """
-    Log debug info: where matches occur in an N-back sequence (for image, position, or dual).
+    Log positions of true N-back matches for debugging.
 
-    Args:
-        sequence (list): Stimulus sequence (images or position-image pairs).
-        n (int): N-back distance.
-        is_dual (bool, optional): Whether the task is dual N-back.
+    Parameters
+    ----------
+    sequence : Sequence
+        Stimulus sequence. For dual tasks, a list of (pos, image) pairs.
+    n : int
+        N-back distance.
+    is_dual : bool, optional
+        Set True for dual (position+image) matching. Default False.
+
+    Returns
+    -------
+    None
     """
     if is_dual:
         match_positions = [
@@ -1571,149 +1541,29 @@ def print_debug_info(sequence, n, is_dual=False):
     logging.debug(f"Positive target positions: {response_positions}")
 
 
-def generate_positions_with_matches(num_positions, n, target_percentage=0.5):
-    """Generate a sequence of spatial positions with specified N-back matches.
-
-    Args:
-        num_positions (int): The total number of positions in the sequence.
-        n (int): The N-back distance for matches.
-        target_percentage (float, optional): The proportion of trials after
-            the initial n that should be targets. Defaults to 0.5.
-
-    Returns:
-        list: A generated sequence of position indices (0-11).
-
-    Side Effects:
-        Calls `print_debug_info` to log the sequence and target positions.
-    """
-    positions = list(range(12))
-    sequence = [random.choice(positions) for _ in range(num_positions)]
-
-    num_targets = int((num_positions - n) * target_percentage)
-    target_indices = random.sample(range(n, num_positions), num_targets)
-
-    for idx in target_indices:
-        sequence[idx] = sequence[idx - n]
-
-    print_debug_info(sequence, n)
-
-    return sequence
-
-
-def get_level_color(n_level):
-    """
-    Return a color corresponding to the given N-back level.
-
-    Provides visual distinction for different N-back levels during the task.
-
-    Args:
-        n_level: The N-back level (integer).
-
-    Returns:
-        A string representing the color name.
-    """
-    if n_level == 1:
-        return "white"
-    elif n_level == 2:
-        return "lightblue"
-    elif n_level == 3:
-        return "lightgreen"
-    else:
-        return "white"  # Default color
-
-
-def display_grid(
-    win,
-    highlight_pos=None,
-    highlight=False,
-    n_level=None,
-    feedback_text=None,
-    lapse_feedback=None,
-):
-    """
-    Display the radial 12-position grid with optional highlighted position, feedback text, and lapse messages.
-
-    Args:
-        win (visual.Window): PsychoPy window.
-        highlight_pos (int, optional): Index of position to highlight.
-        highlight (bool, optional): Whether to highlight a grid square.
-        n_level (int, optional): Current N-back level for colour coding.
-        feedback_text (str, optional): Text feedback to display.
-        lapse_feedback (str, optional): Lapse feedback text.
-    """
-    draw_grid()
-    radius = 150
-    center = (0, 0)
-    num_positions = 12
-    angles = [i * (360 / num_positions) for i in range(num_positions)]
-    positions = [
-        (
-            center[0] + radius * math.cos(math.radians(angle)),
-            center[1] + radius * math.sin(math.radians(angle)),
-        )
-        for angle in angles
-    ]
-
-    grid_color = get_level_color(n_level)
-
-    fixation_cross = visual.TextStim(win, text="+", color="white", height=32)
-    fixation_cross.draw()
-
-    for i, pos in enumerate(positions):
-        rect = visual.Rect(
-            win, width=50, height=50, pos=pos, lineColor=grid_color, lineWidth=2
-        )
-        rect.draw()
-
-    if highlight and highlight_pos is not None:
-        highlight_color = "white"
-        highlight = visual.Rect(
-            win,
-            width=50,
-            height=50,
-            pos=positions[highlight_pos],
-            fillColor=highlight_color,
-        )
-        highlight.draw()
-
-    if feedback_text:
-        feedback_message = visual.TextStim(
-            win, text=feedback_text, color=grid_color, height=24, pos=(0, 250)
-        )
-        feedback_message.draw()
-
-    if lapse_feedback:
-        lapse_message = visual.TextStim(
-            win, text=lapse_feedback, color="orange", height=24, pos=(0, 300)
-        )
-        lapse_message.draw()
-
-    if n_level:
-        level_indicator = visual.TextStim(
-            win,
-            text=f"Level: {n_level}-back",
-            color="white",
-            height=24,
-            pos=(-450, 350),
-            alignText="left",
-        )
-        level_indicator.draw()
-
-
 def adjust_nback_level(
     current_level, accuracy, increase_threshold=82, decrease_threshold=65, max_level=4
 ):
-    """Adjust the N-back level based on participant accuracy.
+    """
+    Update the N-back level based on accuracy with hysteresis thresholds.
 
-    Args:
-        current_level (int): Current N-back level.
-        accuracy (float): Participant's accuracy percentage.
-        increase_threshold (int): Accuracy threshold to increase difficulty.
-        decrease_threshold (int): Accuracy threshold to decrease difficulty.
-        max_level (int): Maximum allowed N-back level.
+    Parameters
+    ----------
+    current_level : int
+        Current N-back level.
+    accuracy : float
+        Block accuracy in percent.
+    increase_threshold : int, optional
+        Accuracy required to increase difficulty. Default 82.
+    decrease_threshold : int, optional
+        Accuracy threshold to reduce difficulty. Default 65.
+    max_level : int, optional
+        Maximum allowed N-back level. Default 4.
 
-    Returns:
-        int: Updated N-back level.
+    Returns
+    -------
+    int
+        New N-back level (bounded to [2, max_level]).
     """
     if accuracy >= increase_threshold and current_level < max_level:
         return current_level + 1
@@ -1721,6 +1571,38 @@ def adjust_nback_level(
         return max(2, current_level - 1)  # Ensures level never goes below 2
     else:
         return current_level
+
+
+def display_spatial_stimulus(win, n_level, highlight_pos=None, feedback_text=None):
+    """
+    Draw the spatial grid (with optional highlight) and optional feedback.
+
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    n_level : int
+        Current N-back level (sets grid colour).
+    highlight_pos : Optional[int], optional
+        Index 0..11 of the radial grid to fill. Default None.
+    feedback_text : Optional[str], optional
+        Message drawn above the grid in orange. Default None.
+
+    Returns
+    -------
+    None
+    """
+    display_grid(
+        win,
+        highlight_pos=highlight_pos,
+        highlight=(highlight_pos is not None),
+        n_level=n_level,
+    )
+    if feedback_text:
+        feedback_stim = visual.TextStim(
+            win, text=feedback_text, color="orange", height=24, pos=(0, 300)
+        )
+        feedback_stim.draw()
 
 
 def run_spatial_nback_block(
@@ -1736,16 +1618,21 @@ def run_spatial_nback_block(
     Run one block of the Spatial N-back task on a 12-position radial grid.
 
     Args:
-        win (visual.Window): PsychoPy window.
+        win (psychopy.visual.Window): Active PsychoPy window.
         n (int): N-back distance.
-        num_trials (int): Number of trials to present.
-        display_duration (float): On-screen highlight time in seconds.
-        isi (float): Base inter-stimulus interval in seconds.
-        is_first_encounter (bool): If True, show “no response” for first n trials.
-        block_number (int): Zero-based index for logging.
+        num_trials (int): Number of trials in this block.
+        display_duration (float): On-screen time for each stimulus (seconds), jittered.
+        isi (float): Base inter-stimulus interval (seconds), jittered.
+        is_first_encounter (bool): If True, shows the initial “no response needed” prompt.
+        block_number (int): Zero-based block index for logging/messages.
 
     Returns:
-        int: Current N-back level (unchanged, since spatial is non-adaptive here).
+        int: Updated N-back level after performance is evaluated.
+
+    Notes:
+        - Draws the grid each trial, highlights the target position,
+          and collects responses during the ISI window.
+        - Accuracy and lapses from this block determine the next N level.
     """
     positions = generate_positions_with_matches(num_trials, n)
     logging.info(
@@ -1759,35 +1646,34 @@ def run_spatial_nback_block(
     total_reaction_time = 0
     reaction_times = []
     responses = []
-
-    lapse_feedback = None
+    last_lapse = False
 
     if is_first_encounter:
-        initial_feedback = f"No response required for the first {n} trials"
+        initial_feedback = get_text("no_response_needed", n=n)
         feedback_text = visual.TextStim(
             win, text=initial_feedback, color=get_level_color(n), height=24, pos=(0, 0)
         )
         feedback_text.draw()
         win.flip()
-        feedback_duration = 2 if n == 1 else 4 if n == 2 else 6
-        core.wait(feedback_duration)
+        core.wait(2.0)
         win.flip()
         core.wait(0.5)
 
     for i, pos in enumerate(positions):
-        is_target = len(nback_queue) == n and pos == nback_queue[0]
+        feedback_text = None
+        if last_lapse:
+            feedback_text = get_text("lapse_feedback")
+            last_lapse = False
 
-        display_grid(
-            win,
-            highlight_pos=pos,
-            highlight=True,
-            n_level=n,
-            lapse_feedback=lapse_feedback,
-        )
+        is_target = len(nback_queue) >= n and pos == nback_queue[0]
+
+        # Use the new helper to draw stimulus and optional feedback
+        display_spatial_stimulus(win, n, highlight_pos=pos, feedback_text=feedback_text)
         win.flip()
         core.wait(get_jitter(display_duration))
 
-        display_grid(win, highlight_pos=None, highlight=False, n_level=n)
+        # Show fixation cross during ISI
+        display_spatial_stimulus(win, n)
         win.flip()
 
         response_timer = core.Clock()
@@ -1800,10 +1686,7 @@ def run_spatial_nback_block(
 
             if keys and response is None and i >= n:
                 reaction_time = response_timer.getTime()
-                if "z" in keys:
-                    response = True
-                elif "m" in keys:
-                    response = False
+                response = "z" in keys
 
                 if response == is_target:
                     correct_responses += 1
@@ -1817,9 +1700,7 @@ def run_spatial_nback_block(
         if response is None and i >= n:
             lapses += 1
             responses.append((i + 1, pos, is_target, None, None))
-            lapse_feedback = "Previous lapse, please respond"
-        else:
-            lapse_feedback = None
+            last_lapse = True
 
         nback_queue.append(pos)
         if len(nback_queue) > n:
@@ -1833,153 +1714,6 @@ def run_spatial_nback_block(
     return n
 
 
-def generate_dual_nback_sequence(num_trials, grid_size, n, target_rate=0.5):
-    """Build a combined (position, image) sequence for the Dual N-back task.
-
-    Args:
-        num_trials (int): Total number of trials to generate.
-        grid_size (int): The width/height of the spatial grid (e.g., 3 for 3x3).
-        n (int): The N-back distance for matches.
-        target_rate (float, optional): The proportion of trials after the
-            initial n that should be true dual-matches. Defaults to 0.5.
-
-    Returns:
-        tuple[list, list]: A tuple containing two lists: one for the sequence
-                           of (x, y) position tuples and one for the sequence
-                           of image filenames.
-
-    Side Effects:
-        Calls `print_debug_info` to log the sequence and target positions.
-    """
-    positions = [(x, y) for x in range(grid_size) for y in range(grid_size)]
-    pos_seq = [random.choice(positions) for _ in range(num_trials)]
-    image_seq = [random.choice(image_files) for _ in range(num_trials)]
-
-    num_targets = int((num_trials - n) * target_rate)
-    target_indices = random.sample(range(n, num_trials), num_targets)
-
-    for idx in target_indices:
-        pos_seq[idx] = pos_seq[idx - n]
-        image_seq[idx] = image_seq[idx - n]
-
-    combined_seq = list(zip(pos_seq, image_seq))
-    print_debug_info(combined_seq, n, is_dual=False)
-
-    return pos_seq, image_seq
-
-
-def display_dual_stimulus(
-    win, pos, image_file, grid_size, n_level, feedback_text=None, return_stims=False
-):
-    """Draws the highlight rectangle and image for a single Dual N-back trial.
-
-    This function calculates the correct cell position on the grid, then draws
-    a colored highlight rectangle and the specified image stimulus on top of it.
-    It flips the window to display the result.
-
-    Args:
-        win (visual.Window): The active PsychoPy window.
-        pos (tuple[int, int]): The (column, row) grid-cell coordinates.
-        image_file (str): The filename key for the image in `preloaded_images_dual`.
-        grid_size (int): The number of cells per row/column (e.g., 3 for a 3x3 grid).
-        n_level (int): The current N-back level, used for color-coding the highlight.
-        feedback_text (str, optional): An optional message to display above the grid.
-            Defaults to None.
-        return_stims (bool): This argument is not used in the current implementation.
-    """
-    # Define grid and cell properties
-    grid_length = 600
-    cell_length = grid_length / grid_size
-    top_left = (-grid_length / 2, grid_length / 2)
-    x = top_left[0] + pos[0] * cell_length + cell_length / 2
-    y = top_left[1] - pos[1] * cell_length - cell_length / 2
-
-    # Set the highlight rectangle for the position
-    level_color = get_level_color(n_level)
-    highlight = visual.Rect(
-        win,
-        width=cell_length - 2,
-        height=cell_length - 2,
-        pos=(x, y),
-        fillColor=level_color,
-        lineColor=None,
-    )
-
-    # Use the preloaded image for dual tasks
-    image_stim = preloaded_images_dual[image_file]  # Task-specific dictionary
-    image_stim.pos = (x, y)
-    image_stim.size = (
-        cell_length - 10,
-        cell_length - 10,
-    )  # Adjust size for dual-task grid
-
-    # Optionally display feedback text
-    if feedback_text:
-        feedback_message = visual.TextStim(
-            win,
-            text=feedback_text,
-            color=level_color,
-            height=24,
-            pos=(0, grid_length / 2 + 50),
-        )
-
-    # Return stimuli objects if requested
-    if return_stims:
-        return highlight, image_stim
-    else:
-        # Draw highlight, image, and optional feedback text
-        highlight.draw()
-        image_stim.draw()
-        if feedback_text:
-            feedback_message.draw()
-        win.flip()
-
-
-def create_grid(win, grid_size):
-    """
-    Build a grid of visual.Rect cells plus an outline rectangle.
-
-    Args:
-        win (visual.Window): PsychoPy window.
-        grid_size (int): Number of rows/columns.
-
-    Returns:
-        tuple:
-          - grid (list of visual.Rect): Individual cells.
-          - outline (visual.Rect): Outer border of the grid.
-    """
-    grid_length = 600
-    cell_length = grid_length / grid_size
-    top_left = (-grid_length / 2, grid_length / 2)
-
-    grid = []
-    for i in range(grid_size):
-        for j in range(grid_size):
-            x = top_left[0] + i * cell_length + cell_length / 2
-            y = top_left[1] - j * cell_length - cell_length / 2
-            rect = visual.Rect(
-                win,
-                width=cell_length,
-                height=cell_length,
-                pos=(x, y),
-                lineColor="white",
-                fillColor=None,
-            )
-            grid.append(rect)
-
-    outline = visual.Rect(
-        win,
-        width=grid_length,
-        height=grid_length,
-        pos=(0, 0),
-        lineColor="white",
-        fillColor=None,
-        lineWidth=2,
-    )
-
-    return grid, outline
-
-
 def run_dual_nback_block(
     win,
     n,
@@ -1990,27 +1724,41 @@ def run_dual_nback_block(
     block_number=0,
 ):
     """
-    Run one block of the Dual N-back task on a 3×3 grid with images.
+    Run one Dual N-back block on a 3×3 grid with image overlays.
 
-    Args:
-        win (visual.Window): PsychoPy window.
-        n (int): N-back distance.
-        num_trials (int): Number of trials.
-        display_duration (float): Stimulus display time in seconds.
-        isi (float): Base inter-stimulus interval in seconds.
-        is_first_encounter (bool): Whether to show initial “no response” message.
-        block_number (int): Zero-based index for logging.
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    n : int
+        N-back distance.
+    num_trials : int
+        Number of trials to present.
+    display_duration : float, optional
+        Stimulus on-screen time (s), jittered. Default 1.0.
+    isi : float, optional
+        Base inter-stimulus interval (s), jittered. Default 1.2.
+    is_first_encounter : bool, optional
+        If True, shows an initial “no response” screen. Default True.
+    block_number : int, optional
+        Zero-based block index for logging. Default 0.
 
-    Returns:
-        int: Updated N-back level (may increase or decrease based on accuracy).
+    Returns
+    -------
+    int
+        Updated N-back level after applying `adjust_nback_level`.
+
+    Notes
+    -----
+    Draws a grid + outline each trial, highlights the target cell, overlays the
+    image, and collects responses during ISI.
     """
-
     # Add this line here
     logging.info(
         f"Dual N-back Block {block_number + 1} timings - Presentation: {display_duration * 1000}ms, ISI: {isi * 1000}ms"
     )
 
-    positions, images = generate_dual_nback_sequence(num_trials, 3, n)
+    positions, images = generate_dual_nback_sequence(num_trials, 3, n, image_files)
     nback_queue = []
     correct_responses = 0
     incorrect_responses = 0
@@ -2022,12 +1770,16 @@ def run_dual_nback_block(
     grid, outline = create_grid(win, 3)
     fixation_cross = visual.TextStim(win, text="+", color="white", height=32)
     level_text = visual.TextStim(
-        win, text=f"Level: {n}-back", color="white", height=24, pos=(-450, 350)
+        win,
+        text=get_text("level_label", n=n),
+        color="white",
+        height=24,
+        pos=(-450, 350),
     )
 
     # Show initial instructions if first encounter
     if is_first_encounter:
-        initial_feedback = f"No response required for the first {n} trials"
+        initial_feedback = get_text("no_response_needed", n=n)
         feedback_text = visual.TextStim(
             win, text=initial_feedback, color=get_level_color(n), height=24, pos=(0, 0)
         )
@@ -2041,9 +1793,16 @@ def run_dual_nback_block(
         win.flip()
         core.wait(0.5)
 
-    lapse_feedback = None
+    last_lapse = False  # Initialize the flag
 
     for i, (pos, img) in enumerate(zip(positions, images)):
+        # Check the flag at the start of the trial
+        if last_lapse:
+            lapse_feedback = get_text("lapse_feedback")
+            last_lapse = False
+        else:
+            lapse_feedback = None
+
         if i >= num_trials:
             break
 
@@ -2119,12 +1878,10 @@ def run_dual_nback_block(
                 total_reaction_time += reaction_time
                 reaction_times.append(reaction_time)
 
-        # Handle lapses
+        # Only set the flag to True if a lapse occurs
         if response is None and i >= n:
             lapses += 1
-            lapse_feedback = "Previous lapse, please respond"
-        else:
-            lapse_feedback = None
+            last_lapse = True
 
         nback_queue.append((pos, img))
         if len(nback_queue) > n:
@@ -2149,16 +1906,35 @@ def run_adaptive_nback_task(
     run_block_function,
     starting_block_number=0,
 ):
-    """Run a full adaptive N-back task across multiple blocks, adjusting difficulty based on performance.
+    """
+    Run an adaptive N-back task composed of several sub-blocks.
 
-    Args:
-        win (visual.Window): PsychoPy window.
-        task_name (str): Name of the task.
-        initial_n (int): Starting N-back level.
-        num_blocks (int): Number of blocks to run.
-        target_duration (float): Total task duration in seconds.
-        run_block_function (function): Block-running function specific to the task.
-        starting_block_number (int, optional): Block numbering offset for progressive timing.
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    task_name : str
+        Task label (e.g., "Spatial N-back", "Dual N-back").
+    initial_n : int
+        Starting N-back level.
+    num_blocks : int
+        Number of main blocks.
+    target_duration : float
+        Total duration for the whole task (seconds).
+    run_block_function : Callable
+        Function with signature:
+        `(win, n, num_trials, display_duration, isi, is_first_encounter, block_number) -> int`
+        returning the (possibly updated) N-back level.
+    starting_block_number : int, optional
+        Offset for progressive timing across tasks. Default 0.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Splits each block into 3 sub-blocks computed from `target_duration/num_blocks`.
     """
     n_level = initial_n
     # Loop through main blocks
@@ -2206,17 +1982,29 @@ def run_adaptive_nback_task(
 
 def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
     """
-    Steps through pages summarising each Sequential N-back block's performance.
+    Paginate and display essential metrics for each Sequential block.
 
-    This streamlined version only shows essential metrics for a quick post-hoc check,
-    as all detailed data is saved to the CSV file.
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    seq_nbacks : List[dict]
+        List of results dicts returned by `run_sequential_nback_block`.
+    subjective_measures : dict
+        Preserved for compatibility; not used in this view.
+    n_back_level : int
+        N-back level used in the final blocks (for the header text).
 
-    Args:
-        win (visual.Window): The active PsychoPy window.
-        seq_nbacks (list[dict]): A list containing the full results dictionary
-            returned by `run_sequential_nback_block` for each block.
-        subjective_measures (dict): Not used in this version, but kept for compatibility.
-        n_back_level (int): The N-back level used in the final blocks, for display.
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Controls:
+    - Space : next page (finish on last page)
+    - Backspace : previous page
+    - Escape : exit early
     """
     logging.debug("Debug: Entering streamlined show_final_summary")
 
@@ -2247,22 +2035,24 @@ def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
         summary = summaries[current_page]
 
         # Build the text for the current page
-        summary_text = (
-            f"{summary['Task Name']} Summary:\n\n"
-            f"Correct Responses:   {summary['Correct Responses']}\n"
-            f"Incorrect Responses: {summary['Incorrect Responses']}\n"
-            f"Lapses:              {summary['Lapses']}\n\n"
-            f"Overall Accuracy:      {summary['Accuracy']:.2f}%\n"
-            f"Average Reaction Time: {summary['Average Reaction Time']:.3f} s\n"
-            f"D-Prime:               {summary['D-Prime']:.3f}\n\n"
-        )
-
-        page_info = f"Page {current_page + 1} of {len(summaries)}\n"
-        controls_text = "Press 'space' to continue or 'backspace' to go back."
         if current_page == len(summaries) - 1:
-            controls_text = "Press 'space' to finish."
+            controls_text = get_text("induction_final_summary_controls_finish")
+        else:
+            controls_text = get_text("induction_final_summary_controls_continue")
 
-        full_text = summary_text + page_info + controls_text
+        full_text = get_text(
+            "induction_final_summary_page",
+            task_name=summary["Task Name"],
+            correct_responses=summary["Correct Responses"],
+            incorrect_responses=summary["Incorrect Responses"],
+            lapses=summary["Lapses"],
+            accuracy=summary["Accuracy"],
+            avg_rt=summary["Average Reaction Time"],
+            d_prime=summary["D-Prime"],
+            current_page=current_page + 1,
+            total_pages=len(summaries),
+            controls_text=controls_text,
+        )
 
         # Display the summary
         summary_stim = visual.TextStim(
@@ -2288,31 +2078,26 @@ def show_final_summary(win, seq_nbacks, subjective_measures, n_back_level):
 
 def run_dummy_session(win, n_back_level=2, num_trials=20):
     """
-    Run a brief sequential N-back verification session.
+    Run a short (default 20-trial) sequential N-back to verify the setup.
 
-    This does a fixed-length (default 20 trials) sequential N-back block
-    so you can confirm that keys and window focus are working.  It then
-    saves the results into a timestamped CSV under ./data/ and cleanly exits.
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        PsychoPy window.
+    n_back_level : int, optional
+        Which N-back to test. Default 2.
+    num_trials : int, optional
+        Number of trials to run. Default 20.
 
-    1. Brings the PsychoPy window to the front.
-    2. Shows a “focus and press space” screen so that you actually click
-       the experiment window (locking keyboard focus).
-    3. Runs the 20-trial sequential N-back.
-    4. Writes out participant_dummy_n{level}_TestRun_{YYYYMMDD-HHMMSS}.csv.
-    5. Prints the full path to console and quits.
+    Returns
+    -------
+    None
 
-    Args:
-        win (visual.Window):
-            Your PsychoPy window instance.
-        n_back_level (int, optional):
-            Which N-back to test (default=2).
-        num_trials (int, optional):
-            How many trials to run (default=20).
-
-    Side-effects:
-        - Creates ./data/ if needed.
-        - Saves a timestamped CSV.
-        - Closes the window and exits PsychoPy.
+    Side Effects
+    ------------
+    - Creates `./data/` if needed.
+    - Saves a timestamped CSV: `participant_dummy_n{level}_TestRun_{YYYYMMDD-HHMMSS}.csv`.
+    - Closes the window and exits PsychoPy.
     """
     # --- 1) Bring the window forward and give it focus ---
     try:
@@ -2325,12 +2110,7 @@ def run_dummy_session(win, n_back_level=2, num_trials=20):
     # --- 2) Instruction screen so user clicks and presses space ---
     instr = visual.TextStim(
         win,
-        text=(
-            "=== DUMMY TEST RUN ===\n\n"
-            "This is a short 20-trial check.\n\n"
-            "Please CLICK this window (to focus it) and then\n"
-            "press SPACE to begin."
-        ),
+        text=get_text("dummy_run_instructions"),
         color="white",
         height=24,
         wrapWidth=800,
@@ -2378,10 +2158,20 @@ def run_dummy_session(win, n_back_level=2, num_trials=20):
 
 def main_task_flow():
     """
-    Main controller function for the full WAND fatigue induction experiment.
+    Orchestrate the full WAND induction: setup, tasks, measures, and export.
 
-    Handles participant info, task sequencing, subjective measures, data logging,
-    error management, and block-wise transitions for Sequential, Spatial, and Dual N-back.
+    Responsibilities
+    ----------------
+    - Gather participant info (ID, N-level, seed, distractors).
+    - Run practice, sequential, spatial, and dual phases with transitions.
+    - Collect periodic subjective measures.
+    - Save per-block and final results to CSV.
+    - Display a concise final summary.
+    - Handle logging and error conditions.
+
+    Returns
+    -------
+    None
     """
     logging.info("Entering main_task_flow()")
     try:
@@ -2450,14 +2240,8 @@ def main_task_flow():
             f"Starting Sequential {n_back_level}-back PRACTICE/FAMILIARISATION round"
         )
         try:
-            familiarisation_text = (
-                f"Let's start with a 1-minute practice round.\n\n"
-                f"This is just for familiarisation - your responses won't be scored.\n\n"
-                f"Remember:\n"
-                f"- Press 'Z' if the current image matches the image from {n_back_level} steps back\n"
-                f"- Press 'M' if it doesn't match\n"
-                f"- No response needed for the first {n_back_level} images\n\n"
-                "Press 'space' to begin the practice."
+            familiarisation_text = get_text(
+                "induction_practice_intro", n_back_level=n_back_level
             )
             instruction_text = visual.TextStim(
                 win, text=familiarisation_text, color="white", height=24, wrapWidth=800
@@ -2479,13 +2263,7 @@ def main_task_flow():
                 is_first_encounter=True,
                 block_number="PRACTICE",  # Changed from numerical block number
             )
-
-            completion_text = (
-                "Practice complete!\n\n"
-                "Now we'll begin the actual task.\n"
-                "Your responses will be recorded from this point forward.\n\n"
-                "Press 'space' to start the first block."
-            )
+            completion_text = get_text("induction_practice_complete")
             completion_stim = visual.TextStim(
                 win, text=completion_text, color="white", height=24, wrapWidth=800
             )
@@ -2912,7 +2690,9 @@ def main_task_flow():
 
             final_message = visual.TextStim(
                 win,
-                text=f"Thank you for participating in the experiment!\n\nYour results have been saved to:\n{saved_file_path}\n\nPress 'space' to exit.",
+                text=get_text(
+                    "induction_final_message", saved_file_path=saved_file_path
+                ),
                 color="white",
                 height=24,
                 wrapWidth=800,
