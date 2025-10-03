@@ -1,4 +1,10 @@
 [tool.black]
+exclude = '''
+/(
+    \.venv
+  | \.venv_test
+)/
+'''
 
 [tool.isort]
-profile = "black"
+skip = [".venv", ".venv_test"]

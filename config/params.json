@@ -1,0 +1,47 @@
+{
+  "window": {
+    "fullscreen": false,
+    "size": [1650, 1000],
+    "monitor": "testMonitor",
+    "background_color": "black",
+    "color_space": "rgb",
+    "use_fbo": true
+  },
+
+  "practice": {
+    "speed_default": "normal",
+    "speed_multiplier": { "normal": 1.0, "slow": 1.5 }
+  },
+
+  "sequential": {
+    "target_percentage": 0.5,
+    "max_consecutive_matches": 2
+  },
+
+  "spatial": {
+    "target_percentage": 0.5
+  },
+
+  "dual": {
+    "target_rate": 0.5
+  },
+
+  "grid": {
+    "spacing": 100,
+    "color": "gray",
+    "opacity": 0.2
+  },
+
+  "timing": {
+    "jitter_fraction": 0.10
+  },
+
+  "colors": {
+    "default": "white",
+    "levels": {
+      "2": "deepskyblue",
+      "3": "orange",
+      "4": "crimson"
+    }
+  }
+}
