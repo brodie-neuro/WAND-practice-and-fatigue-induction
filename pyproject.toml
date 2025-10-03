@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [tool.black]
 exclude = '''
 /(
@@ -7,4 +11,5 @@ exclude = '''
 '''
 
 [tool.isort]
+profile = "black"
 skip = [".venv", ".venv_test"]

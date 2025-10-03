@@ -34,11 +34,21 @@ import traceback
 
 from psychopy import core, event, visual
 
-from wand_common import (create_grid, create_grid_lines, display_dual_stimulus,
-                         display_grid, draw_grid, generate_dual_nback_sequence,
-                         generate_positions_with_matches, get_level_color,
-                         get_param, get_text, install_error_hook, load_config,
-                         set_grid_lines)
+from wand_common import (
+    create_grid,
+    create_grid_lines,
+    display_dual_stimulus,
+    display_grid,
+    draw_grid,
+    generate_dual_nback_sequence,
+    generate_positions_with_matches,
+    get_level_color,
+    get_param,
+    get_text,
+    install_error_hook,
+    load_config,
+    set_grid_lines,
+)
 
 if getattr(sys, "frozen", False):
     # if you’ve bundled into an executable
