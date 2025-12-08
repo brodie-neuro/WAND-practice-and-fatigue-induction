@@ -108,11 +108,13 @@ The project includes two forms of tests:
     python Dummy_Run.py
     ```
 
-- **Formal Test Suite**: For development and validation, a formal test suite using `pytest` is located in the `/Tests` directory. These tests validate the internal logic of the software. To run them, execute the following command from the project's root directory:
+- **Scientific Validation (Unit Tests)**: For validating the internal logic (e.g., Signal Detection metrics), a formal test suite is located in the `/Tests` directory. This suite uses `pytest` to feed known data patterns into the analysis engine and assert that the outputs are correct.
 
+    To run the validation suite:
     ```bash
     python -m pytest
     ```
+    *This will generate an evidence log at `Tests/test_results_detailed.txt`.*
 
 
 ## License
