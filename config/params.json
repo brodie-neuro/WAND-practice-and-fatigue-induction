@@ -3,7 +3,7 @@
     "fullscreen": false,
     "size": [1650, 1000],
     "monitor": "testMonitor",
-    "background_color": "black",
+    "background_color": [-1, -1, -1],
     "color_space": "rgb",
     "use_fbo": true
   },
@@ -41,7 +41,7 @@
     "levels": {
       "2": "deepskyblue",
       "3": "orange",
-      "4": "crimson"
+      "4": "teal"
     }
   }
 }

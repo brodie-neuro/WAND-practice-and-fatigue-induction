@@ -17,6 +17,23 @@ dist/
 build/
 *.egg-info/
 
+# Testing artifacts (since you added pytest)
+.pytest_cache/
+tests/__pycache__/
+
+# PsychoPy specific logs
+*.log
+lastRun.log
+psychopy.log
+
+# OS Junk files (Mac/Windows thumbnails)
+.DS_Store
+Thumbs.db
+
+# Excel lock files (common if opening CSVs while coding)
+~$*.csv
+~$*.xlsx
+
 # WAND Project Data and Output (IMPORTANT)
 data/
 Combined SEQ/

@@ -1,5 +1,15 @@
 # WAND — Working-memory Adaptive-fatigue with N-back Difficulty
-*Current release: v1.0.3 — see `CHANGELOG.md` for details*
+*Current release: v1.0.4 — see `CHANGELOG.md` for details*
+
+## What is new in v1.0.4
+
+- **Refactored Architecture**: Core logic for timing, input, and display has been centralized into `wand_common.py`, significantly reducing duplication between the practice and induction scripts.
+- **Standardised Metrics**: The Sequential N-back logic was updated to remove specific "lure" trials from the 3-back level. This ensures that signal detection metrics (d-prime) are strictly comparable across all difficulty levels.
+- **Neutral Feedback**: All participant-facing feedback has been neutralized to remove competitive elements (scores, praise, performance tiers). This design choice helps isolate natural fatigue from motivational compensation.
+- **Robust Configuration**: Window background colours are now forced to absolute black (RGB `[-1, -1, -1]`) via `config/params.json` to prevent visibility issues on specific OS configurations.
+- **Improved Pacing**: Practice tasks now provide immediate visual feedback while strictly maintaining the inter-stimulus interval, preventing the task from "speeding up" when participants respond early.
+
+See `CHANGELOG.md` for a complete history.
 
 ### A Practice and Fatigue Induction Suite
 
@@ -16,15 +26,6 @@ WAND is a set of PsychoPy scripts that calibrate N-back capacity and then induce
 | `Dummy_Run.py`            | Lightweight script to verify sequential task logic and CSV logging                          | 3–5 minutes |
 | `Dummy_Run_Practice.py`   | Lightweight script to verify sequential task functionality and CSV logging                  | 2–3 minutes |
 
-## What is new in v1.0.3
-
-- Shared utilities module. Common routines live in `wand_common.py` and are imported by the main scripts. This removes duplication and keeps behaviour consistent.
-- External configuration. Parameters and participant-facing text are in `config/params.json` and `config/text_en.json`. You can adjust the experiment without editing Python.
-- Sequential target generation. Targets are generated at approximately 50 percent of eligible trials with a cap of two consecutive matches.
-- Documentation polish. Docstrings and README wording aligned across scripts.
-- Sequential practice slow-mode. Increased from 20 to 60 trials instead of 90 so slow-mode block duration matches the others.
-
-See `CHANGELOG.md` for earlier versions.
 
 ## Design Principles
 
@@ -88,9 +89,17 @@ cd WAND-practice-and-fatigue-induction
 
 2. Create and activate a virtual environment
 ```bash
+
+# Important: Ensure you have Python 3.8 installed. Newer versions (e.g. 3.12) may cause compatibility errors with specific PsychoPy dependencies.
+
+# Standard creation
 python -m venv .venv
 
-# Windows
+# Windows (Command Prompt)
+.venv\Scripts\activate
+
+# Windows (if 'python' command is not found, try 'py')
+py -m venv .venv
 .venv\Scripts\activate
 
 # macOS or Linux
@@ -99,6 +108,14 @@ source .venv/bin/activate
 
 3. Install dependencies
 ```bash
+
+# Note for Windows users: If the commands below fail with python, try replacing it with py.
+
+# First, update your package installer to avoid issues with dependencies like cryptography or PyQt6:
+
+python -m pip install --upgrade pip
+
+Then install the required libraries:
 pip install -r requirements.txt
 ```
 Tested on Windows, Python 3.8. See `requirements.txt` for pins.
@@ -149,7 +166,7 @@ Edit `config/params.json`:
     "fullscreen": false,
     "size": [1650, 1000],
     "monitor": "testMonitor",
-    "background_color": "black",
+    "background_color": [-1, -1, -1],
     "color_space": "rgb",
     "use_fbo": true
   },
@@ -185,23 +202,25 @@ Key tunables used by the scripts and `wand_common.py`:
 - Default colours use a palette that remains distinct under common colour vision deficiency: blue `#0072B2` for level 2, orange `#E69F00` for level 3, teal `#009E73` for level 4.
 - Feedback also uses symbols such as tick and cross, so colour is not the only cue. You can change colours in `params.json`.
 
-## File Structure
+## Code Architecture
 
-| File                         | Description |
-|------------------------------|-------------|
-| `WAND_practice_plateau.py`   | Practice protocol for pre-fatigue calibration via adaptive N-back loops |
-| `WAND_full_induction.py`     | Full fatigue induction sequence with escalating task load |
-| `Dummy_Run.py`               | Quick verification script for sequential N-back logic and CSV output |
-| `Dummy_Run_Practice.py`      | Quick verification script for sequential N-back logic and CSV output |
-| `wand_common.py`             | Shared helpers and configuration loader |
-| `config/params.json`         | Parameters for window, colours, timing, targets, and more |
-| `config/text_en.json`        | Participant facing text strings |
-| `requirements.txt`           | Runtime dependencies |
-| `README.md`                  | Project overview and usage instructions |
-| `README_experiment.md`       | Experimental design and implementation details |
-| `LICENSE.txt`                | MIT License |
-| `Abstract Stimuli/apophysis/`| PNG image stimuli for N-back tasks |
-| `data/`                      | Output directory for logs and summaries |
+To ensure consistency and maintainability, the codebase is organized into distinct layers:
+
+1.  **Configuration (`config/`)**: All static parameters (timings, colors, window settings) and participant-facing text are externalized in JSON files. This allows researchers to adjust the protocol without touching Python code.
+2.  **Shared Logic**:
+    * `wand_common.py`: The core engine handling UI rendering, input prompts, grid drawing, and the precise timing loops.
+    * `wand_analysis.py`: A dedicated module for behavioural metrics. It centralises the logic for calculating d-prime (d′), A-prime (A′), and accuracy stats, keeping the main scripts clean.
+3.  **Task Scripts (`WAND_*.py`)**: Lightweight orchestration scripts that import the shared logic to run the specific experimental flow.
+
+### File Directory
+| File | Description |
+|---|---|
+| `WAND_practice_plateau.py` | Entry point for calibration. Orchestrates the adaptive practice loops. |
+| `WAND_full_induction.py` | Entry point for the main experiment. Manages the 65-minute block schedule. |
+| `wand_common.py` | **Core Engine**. Contains the shared functions used by both scripts above. |
+| `wand_analysis.py` | **Metrics Helper**. Contains statistical functions (d′, A′) used to score performance. |
+| `config/params.json` | Global settings (timings, colors, stimulus sizes). |
+| `config/text_en.json` | All on-screen instructions and feedback text. |
 
 ## Stimuli Setup
 
