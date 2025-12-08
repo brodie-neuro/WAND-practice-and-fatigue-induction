@@ -15,9 +15,11 @@ For a reproducible environment, it is highly recommended to use a virtual enviro
 
 ## File Structure
 
-WAND_full_induction.py: Main script for the fatigue induction experiment.
-Abstract Stimuli/apophysis/: Folder containing at least 24 complex 3D fractal PNG images generated with Apophysis software for N-back tasks (included in the repository).
-data/: Output directory for results (auto-created during execution).
+- `WAND_full_induction.py`: Main script for the fatigue induction experiment.
+- `wand_common.py`: Shared utilities and configuration loader (required).
+- `config/`: Directory containing `params.json` (settings) and `text_en.json` (instructions).
+- `Abstract Stimuli/apophysis/`: Folder containing at least 24 complex 3D fractal PNG images.
+- `data/`: Output directory for results (auto-created during execution).
 
 ## Practice Protocol Integration 
 
@@ -64,7 +66,16 @@ Execute five sequential (5 minutes each), four spatial (4.5 minutes each), and f
 Save results per block and at the end in the data/ directory (e.g., participant_<ID>_n<level>_results.csv).
 
 ## Monitor Configuration
-Update the MONITOR_NAME variable in WAND_full_induction.py to match your lab’s monitor profile in PsychoPy’s Monitor Center for accurate stimulus sizing. The default is 'testMonitor'. See PsychoPy’s documentation for setup instructions.
+For accurate stimulus sizing, update the monitor settings in `config/params.json` to match your lab’s monitor profile (from PsychoPy’s Monitor Center).
+
+Edit the `"window"` section:
+```json
+"window": {
+  "monitor": "myLabMonitor",
+  "size": [1920, 1080],
+  "fullscreen": true,
+  ...
+}
 
 ## EEG Notes
 EEG triggers are implemented as placeholders. To enable, set EEG_ENABLED = True in the script and modify the send_trigger function to interface with your EEG hardware (e.g., via a parallel port). Currently, send_trigger includes a 5ms delay as a dummy operation. Future integration will target N2 and P3 ERP components to assess cognitive control decline.
@@ -85,7 +96,7 @@ How effortful do you find the task at this moment?
 Do you currently find your mind wandering or becoming distracted?
 How overwhelmed do you feel by the task demands right now?
 
-These measures, saved in the data/ directory (e.g., participant_<ID>_subjective_<timestamp>.csv), complement behavioural data to assess active fatigue.
+These responses are **integrated into the main results CSV** (`participant_<ID>_n<level>_results.csv`) at the end of the experiment.
 
 ## Testing
 

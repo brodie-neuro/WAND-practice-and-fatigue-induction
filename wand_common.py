@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """
-wand_common.py
+WAND Common Utilities
 
-Shared helpers and configuration loader for the WAND tasks.
+Centralised library for the WAND (Working-memory Adaptive-fatigue with N-back Difficulty)
+suite. This module handles:
+  - Configuration loading (params.json, text_en.json)
+  - UI helpers (standardised prompts, text screens)
+  - Visual rendering (background grids, stimulus display)
+  - Core timing loops (response collection)
+  - Sequence generation algorithms (Spatial, Dual, Sequential)
 
-This module centralises:
-  - JSON-based configuration loading (parameters and UI text)
-  - Window and grid drawing helpers used across tasks
-  - Small utilities (timing jitter, colour selection, sequence generators)
-  - An error hook that renders a readable message in the PsychoPy window
+Author
+------
+Brodie E. Mangan
 
-It is safe to import from both the full induction and practice scripts.
+License
+-------
+MIT (see LICENSE).
 """
-
 from __future__ import annotations
 
 import inspect
@@ -21,16 +26,19 @@ import logging
 import os
 import random
 import sys
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from psychopy import core, visual  # type: ignore
+from psychopy import core, event, visual
 
-# -----------------------------------------------------------------------------
-# Module configuration and globals
-# -----------------------------------------------------------------------------
+# =============================================================================
+#  SECTION 1: CONFIGURATION & SYSTEM SETUP
+# =============================================================================
 
+# Global config cache
+_PARAMS = {}
+_TEXT = {}
+_GRID_LINES = []  # Cache for the static background grid lines
 LOGGER = logging.getLogger(__name__)
-
 # Base directory discovery (works when frozen with PyInstaller)
 if getattr(sys, "frozen", False):
     BASE_DIR = sys._MEIPASS  # type: ignore[attr-defined]
@@ -46,11 +54,6 @@ TEXT: Dict[str, str] = {}
 
 # Cached background grid lines
 _GRID_LINES: List[visual.ShapeStim] = []
-
-
-# =============================================================================
-# Configuration loading
-# =============================================================================
 
 
 def _safe_read_json(path: str) -> Any:
@@ -79,6 +82,32 @@ def _safe_read_json(path: str) -> Any:
     except Exception as exc:  # noqa: BLE001
         LOGGER.warning("Failed to parse JSON '%s': %s", path, exc)
     return None
+
+
+def _get_from(obj: Dict[str, Any], path: str, default: Any = None) -> Any:
+    """
+    Traverse a nested dictionary using a dotted key path.
+
+    Parameters
+    ----------
+    obj : Dict[str, Any]
+        Source dictionary.
+    path : str
+        Dotted path, for example "practice.speed_multiplier.slow".
+    default : Any, optional
+        Value returned when a key is missing. Default is None.
+
+    Returns
+    -------
+    Any
+        The resolved value or `default`.
+    """
+    cur: Any = obj
+    for part in path.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return default
+        cur = cur[part]
+    return cur
 
 
 def load_config(
@@ -133,32 +162,6 @@ def load_config(
     return PARAMS, TEXT
 
 
-def _get_from(obj: Dict[str, Any], path: str, default: Any = None) -> Any:
-    """
-    Traverse a nested dictionary using a dotted key path.
-
-    Parameters
-    ----------
-    obj : Dict[str, Any]
-        Source dictionary.
-    path : str
-        Dotted path, for example "practice.speed_multiplier.slow".
-    default : Any, optional
-        Value returned when a key is missing. Default is None.
-
-    Returns
-    -------
-    Any
-        The resolved value or `default`.
-    """
-    cur: Any = obj
-    for part in path.split("."):
-        if not isinstance(cur, dict) or part not in cur:
-            return default
-        cur = cur[part]
-    return cur
-
-
 def get_param(path: str, default: Any = None) -> Any:
     """
     Fetch a parameter from the `PARAMS` cache using a dotted path.
@@ -203,11 +206,6 @@ def get_text(key: str, **fmt: Any) -> str:
         return raw
 
 
-# =============================================================================
-# Error hook
-# =============================================================================
-
-
 def install_error_hook(win: visual.Window) -> None:
     """
     Install an exception hook that also renders a readable message in a window.
@@ -243,7 +241,426 @@ def install_error_hook(win: visual.Window) -> None:
 
 
 # =============================================================================
-# Grid helpers
+#  SECTION 2: INPUT & INTERACTION HELPERS
+# =============================================================================
+
+
+def prompt_text_input(
+    win: visual.Window,
+    prompt: str,
+    *,
+    initial_text: str = "",
+    allow_empty: bool = False,
+    restrict_digits: bool = False,
+    text_style: Optional[Dict[str, Any]] = None,
+) -> str:
+    """
+    Generic on-screen text entry helper.
+
+    Behaviour:
+      - Draws the prompt text and a visible input box with the current buffer.
+      - Accepts printable character keys and appends them to the buffer.
+      - Backspace removes the last character from the buffer.
+      - Pressing Return submits the buffer if it is non empty or if allow_empty is True.
+      - If restrict_digits is True, only digit characters are accepted.
+      - The function returns the final buffer string.
+
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        The PsychoPy window to draw into.
+    prompt : str
+        The instructional text to show above the input box.
+    initial_text : str, optional
+        Starting contents of the input buffer.
+    allow_empty : bool, optional
+        If True, Return is accepted even if the buffer is empty.
+    restrict_digits : bool, optional
+        If True, only characters '0'..'9' are appended to the buffer.
+    text_style : dict, optional
+        Extra keyword arguments for TextStim, for example
+        {"height": 24, "color": "white", "wrapWidth": 900}.
+
+    Returns
+    -------
+    str
+        The entered text.
+    """
+    txt_kwargs: Dict[str, Any] = dict(height=24, color="white", wrapWidth=900)
+    if text_style:
+        txt_kwargs.update(text_style)
+
+    buffer = initial_text
+
+    # TextStim for the prompt and buffer are created on each frame so changes show.
+    while True:
+        # Draw the prompt
+        prompt_stim = visual.TextStim(win, text=prompt, pos=(0, 120), **txt_kwargs)
+        prompt_stim.draw()
+
+        # Draw the input box (a rectangle) and current buffer text
+        box = visual.Rect(win, width=700, height=60, lineColor="white", pos=(0, 40))
+        box.draw()
+
+        buffer_stim = visual.TextStim(
+            win, text=buffer if buffer else " ", pos=(0, 40), **txt_kwargs
+        )
+        buffer_stim.draw()
+
+        win.flip()
+
+        keys = event.waitKeys()
+
+        if not keys:
+            continue
+
+        # Handle return
+        if "return" in keys or "enter" in keys:
+            if buffer or allow_empty:
+                return buffer
+            else:
+                # do not accept empty buffer unless allowed
+                continue
+
+        # Handle backspace
+        if "backspace" in keys:
+            buffer = buffer[:-1]
+            continue
+
+        # Handle escape as a non-submitting key - return nothing if you want else ignore
+        if "escape" in keys:
+            # Do not quit the whole experiment here. Let callers decide.
+            # Return empty string to signal escape if caller wants to handle it.
+            return ""
+
+        # Handle typing single-character keys
+        # event.waitKeys returns key names like 'a', 'b', '1', 'space', etc.
+        key = keys[0]
+        if len(key) == 1:
+            if restrict_digits and not key.isdigit():
+                # ignore non-digit key when restricting digits
+                continue
+            buffer += key
+            continue
+
+        # Ignore any other keys by default and continue looping
+        continue
+
+
+def prompt_choice(
+    win: visual.Window,
+    prompt: str,
+    key_map: Dict[str, Any],
+    *,
+    allow_escape_quit: bool = False,
+    text_style: Optional[Dict[str, Any]] = None,
+) -> Any:
+    """
+    Show a prompt and wait for one of a fixed set of keys.
+
+    Behaviour:
+      - Draws the prompt text.
+      - Waits for a key that appears in key_map keys.
+      - If allow_escape_quit is True and Escape is pressed, calls core.quit().
+      - Returns the mapped value: key_map[pressed_key].
+
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        The PsychoPy window to draw into.
+    prompt : str
+        The text to show.
+    key_map : dict
+        Mapping from key string to return value. Example: {"y": True, "n": False}
+    allow_escape_quit : bool, optional
+        If True, pressing Escape will quit the experiment via core.quit().
+    text_style : dict, optional
+        Extra keyword arguments for TextStim.
+
+    Returns
+    -------
+    Any
+        The value mapped to the pressed key.
+    """
+    txt_kwargs: Dict[str, Any] = dict(height=24, color="white", wrapWidth=900)
+    if text_style:
+        txt_kwargs.update(text_style)
+
+    # Build accepted key list
+    key_list = list(key_map.keys())
+    if allow_escape_quit and "escape" not in key_list:
+        key_list.append("escape")
+
+    stim = visual.TextStim(win, text=prompt, **txt_kwargs)
+
+    while True:
+        stim.draw()
+        win.flip()
+        keys = event.waitKeys(keyList=key_list)
+        if not keys:
+            continue
+        key = keys[0]
+        if key == "escape" and allow_escape_quit:
+            core.quit()
+        if key in key_map:
+            return key_map[key]
+        # otherwise loop and wait for another key
+
+
+def show_text_screen(
+    win: visual.Window,
+    text: str,
+    *,
+    keys: Optional[List[str]] = None,
+    duration: float = 0,
+    allow_escape_quit: bool = True,
+    text_style: Optional[Dict[str, Any]] = None,
+    overlay_stimuli: Optional[List[Any]] = None,
+) -> Optional[str]:
+    """
+    Display a text screen and wait for a key press or a specific duration.
+
+    This function unifies the logic for instruction screens, break screens,
+    and summaries. It supports auto-advancing after a set duration and
+    drawing additional stimuli (like countdown timers) on top of the text.
+
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        The PsychoPy window to draw into.
+    text : str
+        The main message text to display.
+    keys : List[str], optional
+        List of keys that will end the screen (e.g., ['space']).
+        If None and duration is 0, defaults to ['space'].
+        If None and duration > 0, defaults to [] (auto-advance only).
+    duration : float, optional
+        If greater than 0, the screen will automatically return None after
+        this many seconds.
+    allow_escape_quit : bool, optional
+        If True, pressing 'escape' will immediately call core.quit().
+    text_style : dict, optional
+        Dictionary of keyword arguments for the TextStim (e.g., {'height': 32}).
+    overlay_stimuli : List[Any], optional
+        A list of visual stimuli (e.g., TextStim, ImageStim) to draw
+        after the main text but before flipping the window.
+
+    Returns
+    -------
+    Optional[str]
+        The key that was pressed, or None if the duration elapsed without input.
+    """
+    txt_kwargs = dict(height=24, color="white", wrapWidth=900)
+    if text_style:
+        txt_kwargs.update(text_style)
+
+    stim = visual.TextStim(win, text=text, **txt_kwargs)
+
+    if keys is None:
+        wait_keys = ["space"] if duration <= 0 else []
+    else:
+        wait_keys = list(keys)
+
+    if allow_escape_quit and "escape" not in wait_keys:
+        wait_keys.append("escape")
+
+    timer = core.Clock()
+    event.clearEvents()
+
+    while True:
+        if duration > 0 and timer.getTime() >= duration:
+            return None
+
+        stim.draw()
+        if overlay_stimuli:
+            for s in overlay_stimuli:
+                s.draw()
+        win.flip()
+
+        pressed = event.getKeys(keyList=wait_keys) if wait_keys else []
+        if pressed:
+            key = pressed[0]
+            if key == "escape" and allow_escape_quit:
+                core.quit()
+            return key
+
+
+def check_response_keys(
+    keys: Iterable[str],
+    timer: core.Clock,
+    is_valid_trial: bool,
+    response_map: Dict[str, Any],
+    exit_keys: Iterable[str] = ("escape",),
+    special_keys: Optional[Dict[str, Any]] = None,
+) -> Tuple[Optional[Any], Optional[float], bool]:
+    """
+    Process a list of keys for a single frame/tick of an N-back trial.
+
+    Does NOT loop. It just checks the keys provided against the map.
+
+    Parameters
+    ----------
+    keys : list
+        List of keys returned by event.getKeys().
+    timer : core.Clock
+        Clock used to timestamp the reaction time.
+    is_valid_trial : bool
+        If False, valid response keys are ignored (but exit/special keys still work).
+    response_map : dict
+        Mapping of keys to values (e.g., {'z': True, 'm': False}).
+    exit_keys : tuple
+        Keys that trigger immediate core.quit().
+    special_keys : dict, optional
+        Map of keys to functions (e.g., {'5': skip_callback}).
+
+    Returns
+    -------
+    (response_val, rt, special_triggered)
+    """
+    if not keys:
+        return None, None, False
+
+    # 1. Handle Exit (Priority)
+    if any(k in exit_keys for k in keys):
+        core.quit()
+
+    # 2. Handle Special Keys (e.g., '5' for skip)
+    if special_keys:
+        for k in keys:
+            if k in special_keys:
+                special_keys[k]()
+                return None, None, True
+
+    # 3. Handle Task Responses
+    if is_valid_trial:
+        for k in keys:
+            if k in response_map:
+                rt = timer.getTime()
+                return response_map[k], rt, False
+
+    return None, None, False
+
+
+def collect_trial_response(
+    win: visual.Window,
+    duration: float,
+    response_map: Dict[str, Any],
+    *,
+    draw_callback: Optional[Callable[[], None]] = None,
+    tick_callback: Optional[Callable[[float], None]] = None,
+    post_response_callback: Optional[Callable[[Any], None]] = None,
+    is_valid_trial: bool = True,
+    stop_on_response: bool = False,
+    special_keys: Optional[Dict[str, Callable]] = None,
+    exit_keys: Sequence[str] = ("escape",),
+) -> Tuple[Optional[Any], Optional[float]]:
+    """
+    Run a trial timing loop, continuously checking for responses and updating the screen.
+
+    This function abstracts the common 'while timer < duration' loop used across
+    different N-back tasks. It handles key polling, screen flipping, optional
+    mid-trial logic (like distractors), and immediate feedback callbacks.
+
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        The window object (used for flipping if a draw_callback is provided).
+    duration : float
+        The duration in seconds to run the loop.
+    response_map : Dict[str, Any]
+        A dictionary mapping key names to return values (e.g., {'z': True, 'm': False}).
+    draw_callback : Callable[[], None], optional
+        A function to call every frame to draw stimuli. If provided, win.flip()
+        is called immediately after execution. If None, the function sleeps briefly
+        between key checks to save CPU.
+    tick_callback : Callable[[float], None], optional
+        A function called every frame with the current elapsed time (in seconds).
+        Used for logic that triggers at specific times (e.g., distractors).
+    post_response_callback : Callable[[Any], None], optional
+        A function to call immediately when a valid response is detected.
+        It receives the decoded response value as an argument. This is used to
+        trigger visual feedback (e.g., green ticks) without breaking the timing loop.
+    is_valid_trial : bool, optional
+        If False, keys in response_map are ignored (though special_keys and exit_keys work).
+        Defaults to True.
+    stop_on_response : bool, optional
+        If True, the function returns immediately upon the first valid response.
+        If False, it records the first response but continues waiting until the
+        duration expires (maintaining fixed pacing).
+    special_keys : Dict[str, Callable], optional
+        Mapping of extra keys to callback functions (e.g., {'5': skip_func}).
+    exit_keys : Sequence[str], optional
+        List of keys that trigger an immediate core.quit(). Defaults to ("escape",).
+
+    Returns
+    -------
+    Tuple[Optional[Any], Optional[float]]
+        A tuple containing:
+        - The value from response_map corresponding to the pressed key (or None).
+        - The reaction time in seconds relative to the start of this function (or None).
+    """
+    clock = core.Clock()
+
+    # Pre-calculate full key list for efficiency
+    all_keys = list(response_map.keys()) + list(exit_keys)
+    if special_keys:
+        all_keys += list(special_keys.keys())
+
+    response_val = None
+    response_rt = None
+
+    while clock.getTime() < duration:
+        t = clock.getTime()
+
+        # 1. Run periodic logic (e.g. flashing distractors)
+        if tick_callback:
+            tick_callback(t)
+
+        # 2. Update screen (if provided)
+        if draw_callback:
+            draw_callback()
+            win.flip()
+
+        # 3. Check keys using the existing helper
+        # We only check for a response if we haven't already recorded one
+        if response_val is None:
+            keys = event.getKeys(keyList=all_keys)
+
+            resp, rt, special_triggered = check_response_keys(
+                keys,
+                clock,
+                is_valid_trial,
+                response_map,
+                exit_keys=exit_keys,
+                special_keys=special_keys,
+            )
+
+            if special_triggered:
+                # If a special key (like '5') was pressed, return None immediately
+                return None, None
+
+            if resp is not None:
+                response_val = resp
+                response_rt = rt
+
+                # Execute the visual feedback immediately if a callback is provided
+                if post_response_callback:
+                    post_response_callback(resp)
+
+                # If configured to stop (e.g. self-paced), return now.
+                # Otherwise, continue looping to fill the duration.
+                if stop_on_response:
+                    return response_val, response_rt
+
+        # Sleep briefly to save CPU if we aren't drawing every frame
+        if not draw_callback:
+            core.wait(0.001)
+
+    return response_val, response_rt
+
+
+# =============================================================================
+#  SECTION 3: GRID & VISUAL RENDERING
 # =============================================================================
 
 
@@ -398,6 +815,32 @@ def create_grid(
     return cells, outline
 
 
+def get_level_color(n_level: Optional[int]) -> str:
+    """
+    Map an N-back level to a colour string with sensible fallbacks.
+
+    Parameters
+    ----------
+    n_level : Optional[int]
+        The current N-back level.
+
+    Returns
+    -------
+    str
+        A PsychoPy compatible colour value. Values are taken from
+        `colors.levels` in params if available, otherwise a built-in mapping.
+    """
+    if n_level is None:
+        return get_param("colors.default", "white")
+
+    mapping = get_param("colors.levels", {})
+    key = str(n_level)
+    if isinstance(mapping, dict) and key in mapping:
+        return mapping[key]
+
+    return {2: "deepskyblue", 3: "orange", 4: "crimson"}.get(n_level, "white")
+
+
 def display_grid(
     win: visual.Window,
     highlight_pos: Optional[int] = None,
@@ -477,198 +920,6 @@ def display_grid(
             pos=(-450, 350),
             alignText="left",
         ).draw()
-
-
-# =============================================================================
-# Visual utilities
-# =============================================================================
-
-
-def get_level_color(n_level: Optional[int]) -> str:
-    """
-    Map an N-back level to a colour string with sensible fallbacks.
-
-    Parameters
-    ----------
-    n_level : Optional[int]
-        The current N-back level.
-
-    Returns
-    -------
-    str
-        A PsychoPy compatible colour value. Values are taken from
-        `colors.levels` in params if available, otherwise a built-in mapping.
-    """
-    if n_level is None:
-        return get_param("colors.default", "white")
-
-    mapping = get_param("colors.levels", {})
-    key = str(n_level)
-    if isinstance(mapping, dict) and key in mapping:
-        return mapping[key]
-
-    return {2: "deepskyblue", 3: "orange", 4: "crimson"}.get(n_level, "white")
-
-
-def get_jitter(base_seconds: float) -> float:
-    """
-    Return a jittered duration around a base value.
-
-    The fraction is read from `timing.jitter_fraction` in params.
-    Default is 0.10 which gives a range of plus or minus ten percent.
-
-    Parameters
-    ----------
-    base_seconds : float
-        The nominal duration in seconds.
-
-    Returns
-    -------
-    float
-        A random duration in the interval `[base*(1 - j), base*(1 + j)]`.
-    """
-    frac = float(get_param("timing.jitter_fraction", 0.10))
-    low = base_seconds * (1.0 - frac)
-    high = base_seconds * (1.0 + frac)
-    return random.uniform(low, high)
-
-
-# =============================================================================
-# N-back sequence helpers
-# =============================================================================
-
-
-def print_debug_info(sequence, n: int, is_dual: bool = False) -> None:
-    """
-    Log where true N-back matches occur in a generated sequence.
-
-    Parameters
-    ----------
-    sequence : list
-        Stimulus sequence. For dual tasks this is a list of `(pos, image)` pairs.
-    n : int
-        N-back distance.
-    is_dual : bool, optional
-        Set True for a dual (position and image) sequence. Default is False.
-
-    Returns
-    -------
-    None
-    """
-    if is_dual:
-        match_positions = [
-            i
-            for i in range(n, len(sequence))
-            if sequence[i][0] == sequence[i - n][0]
-            and sequence[i][1] == sequence[i - n][1]
-        ]
-        summary = [pos[0] for pos in sequence]
-    else:
-        match_positions = [
-            i for i in range(n, len(sequence)) if sequence[i] == sequence[i - n]
-        ]
-        summary = sequence
-
-    response_positions = [i - (n - 1) for i in match_positions]
-    LOGGER.debug("Sequence (summary): %s", summary)
-    LOGGER.debug("Positive target positions: %s", response_positions)
-
-
-def generate_dual_nback_sequence(
-    num_trials: int,
-    grid_size: int,
-    n: int,
-    image_files: List[str],
-    target_rate: float = 0.5,
-) -> Tuple[List[Tuple[int, int]], List[str]]:
-    """
-    Build a combined position and image sequence for Dual N-back and log it.
-
-    Parameters
-    ----------
-    num_trials : int
-        Total number of trials to generate.
-    grid_size : int
-        Width and height of the spatial grid, for example 3 for 3x3.
-    n : int
-        N-back distance for matches.
-    image_files : List[str]
-        Image filenames to sample from.
-    target_rate : float, optional
-        Proportion of eligible trials that should be true dual matches.
-        Default is 0.5.
-
-    Returns
-    -------
-    Tuple[List[Tuple[int, int]], List[str]]
-        A tuple `(pos_seq, image_seq)` of equal length.
-
-    Notes
-    -----
-    The target rate is enforced on the eligible range `[n, num_trials)`.
-    """
-    positions = [(x, y) for x in range(grid_size) for y in range(grid_size)]
-    pos_seq = [random.choice(positions) for _ in range(num_trials)]
-    image_seq = [random.choice(image_files) for _ in range(num_trials)]
-
-    num_targets = int((num_trials - n) * target_rate)
-    target_indices = random.sample(range(n, num_trials), num_targets)
-
-    for idx in target_indices:
-        pos_seq[idx] = pos_seq[idx - n]
-        image_seq[idx] = image_seq[idx - n]
-
-    combined_seq = list(zip(pos_seq, image_seq))
-    print_debug_info(combined_seq, n, is_dual=True)
-    return pos_seq, image_seq
-
-
-def generate_positions_with_matches(
-    num_positions: int,
-    n: int,
-    target_percentage: float = 0.5,
-) -> List[int]:
-    """
-    Create a 12-position sequence with a requested fraction of true n-back repeats.
-
-    Parameters
-    ----------
-    num_positions : int
-        Total sequence length.
-    n : int
-        N-back distance.
-    target_percentage : float, optional
-        Fraction of trials after the first `n` that should be targets.
-        Default is 0.5.
-
-    Returns
-    -------
-    List[int]
-        Ordered radial-grid indices in `0..11`.
-
-    Notes
-    -----
-    Target indices are sampled uniformly from the eligible range `[n, num_positions)`.
-    Non-targets are sampled freely. The function does not guarantee absence of
-    incidental 2-back repeats when `n` is not equal to 2.
-    """
-    positions = list(range(12))
-    seq: List[int] = [random.choice(positions) for _ in range(num_positions)]
-
-    n_targets = int((num_positions - n) * float(target_percentage))
-    n_targets = max(0, min(n_targets, max(0, num_positions - n)))
-
-    if n_targets > 0:
-        target_idxs = random.sample(range(n, num_positions), n_targets)
-        for idx in target_idxs:
-            seq[idx] = seq[idx - n]
-
-    return seq
-
-
-# =============================================================================
-# Dual task stimulus builder
-# =============================================================================
 
 
 def display_dual_stimulus(
@@ -819,6 +1070,248 @@ def display_dual_stimulus(
     return None
 
 
+# =============================================================================
+#  SECTION 4: SEQUENCE GENERATION ALGORITHMS
+# =============================================================================
+
+
+def print_debug_info(sequence, n: int, is_dual: bool = False) -> None:
+    """
+    Log where true N-back matches occur in a generated sequence.
+
+    Parameters
+    ----------
+    sequence : list
+        Stimulus sequence. For dual tasks this is a list of `(pos, image)` pairs.
+    n : int
+        N-back distance.
+    is_dual : bool, optional
+        Set True for a dual (position and image) sequence. Default is False.
+
+    Returns
+    -------
+    None
+    """
+    if is_dual:
+        match_positions = [
+            i
+            for i in range(n, len(sequence))
+            if sequence[i][0] == sequence[i - n][0]
+            and sequence[i][1] == sequence[i - n][1]
+        ]
+        summary = [pos[0] for pos in sequence]
+    else:
+        match_positions = [
+            i for i in range(n, len(sequence)) if sequence[i] == sequence[i - n]
+        ]
+        summary = sequence
+
+    response_positions = [i - (n - 1) for i in match_positions]
+    LOGGER.debug("Sequence (summary): %s", summary)
+    LOGGER.debug("Positive target positions: %s", response_positions)
+
+
+def get_jitter(base_seconds: float) -> float:
+    """
+    Return a jittered duration around a base value.
+
+    The fraction is read from `timing.jitter_fraction` in params.
+    Default is 0.10 which gives a range of plus or minus ten percent.
+
+    Parameters
+    ----------
+    base_seconds : float
+        The nominal duration in seconds.
+
+    Returns
+    -------
+    float
+        A random duration in the interval `[base*(1 - j), base*(1 + j)]`.
+    """
+    frac = float(get_param("timing.jitter_fraction", 0.10))
+    low = base_seconds * (1.0 - frac)
+    high = base_seconds * (1.0 + frac)
+    return random.uniform(low, high)
+
+
+def generate_positions_with_matches(
+    num_positions: int,
+    n: int,
+    target_percentage: float = 0.5,
+) -> List[int]:
+    """
+    Create a 12-position sequence with a requested fraction of true n-back repeats.
+
+    Parameters
+    ----------
+    num_positions : int
+        Total sequence length.
+    n : int
+        N-back distance.
+    target_percentage : float, optional
+        Fraction of trials after the first `n` that should be targets.
+        Default is 0.5.
+
+    Returns
+    -------
+    List[int]
+        Ordered radial-grid indices in `0..11`.
+
+    Notes
+    -----
+    Target indices are sampled uniformly from the eligible range `[n, num_positions)`.
+    Non-targets are sampled freely. The function does not guarantee absence of
+    incidental 2-back repeats when `n` is not equal to 2.
+    """
+    positions = list(range(12))
+    seq: List[int] = [random.choice(positions) for _ in range(num_positions)]
+
+    n_targets = int((num_positions - n) * float(target_percentage))
+    n_targets = max(0, min(n_targets, max(0, num_positions - n)))
+
+    if n_targets > 0:
+        target_idxs = random.sample(range(n, num_positions), n_targets)
+        for idx in target_idxs:
+            seq[idx] = seq[idx - n]
+
+    return seq
+
+
+def generate_dual_nback_sequence(
+    num_trials: int,
+    grid_size: int,
+    n: int,
+    image_files: List[str],
+    target_rate: float = 0.5,
+) -> Tuple[List[Tuple[int, int]], List[str]]:
+    """
+    Build a combined position and image sequence for Dual N-back and log it.
+
+    Parameters
+    ----------
+    num_trials : int
+        Total number of trials to generate.
+    grid_size : int
+        Width and height of the spatial grid, for example 3 for 3x3.
+    n : int
+        N-back distance for matches.
+    image_files : List[str]
+        Image filenames to sample from.
+    target_rate : float, optional
+        Proportion of eligible trials that should be true dual matches.
+        Default is 0.5.
+
+    Returns
+    -------
+    Tuple[List[Tuple[int, int]], List[str]]
+        A tuple `(pos_seq, image_seq)` of equal length.
+
+    Notes
+    -----
+    The target rate is enforced on the eligible range `[n, num_trials)`.
+    """
+    positions = [(x, y) for x in range(grid_size) for y in range(grid_size)]
+    pos_seq = [random.choice(positions) for _ in range(num_trials)]
+    image_seq = [random.choice(image_files) for _ in range(num_trials)]
+
+    num_targets = int((num_trials - n) * target_rate)
+    target_indices = random.sample(range(n, num_trials), num_targets)
+
+    for idx in target_indices:
+        pos_seq[idx] = pos_seq[idx - n]
+        image_seq[idx] = image_seq[idx - n]
+
+    combined_seq = list(zip(pos_seq, image_seq))
+    print_debug_info(combined_seq, n, is_dual=True)
+    return pos_seq, image_seq
+
+
+def generate_sequential_image_sequence(
+    num_trials: int,
+    n: int,
+    target_percentage: float = 0.5,
+    *,
+    image_files: Sequence[str],
+) -> Tuple[List[str], List[int]]:
+    """
+    Generate a sequence of images for the Sequential N-back task.
+
+    Creates a sequence with a requested target rate while avoiding unintended
+    repeats where possible. Images are taken from the provided ``image_files``
+    pool without replacement until exhausted, then the pool is replenished and
+    reshuffled.
+
+    Parameters
+    ----------
+    num_trials : int
+        Total number of trials to generate.
+    n : int
+        N-back level, for example 2 or 3.
+    target_percentage : float, optional
+        Proportion of eligible trials (that is, after the first ``n``) that
+        should be true N-back matches. Default is 0.5.
+    image_files : Sequence[str]
+        Pool of available image filenames to sample from. The function does not
+        modify this sequence in place.
+
+    Returns
+    -------
+    sequence : list[str]
+        Ordered list of image filenames, one per trial.
+    yes_positions : list[int]
+        Indices where true N-back matches occur.
+
+    Notes
+    -----
+    The generator tries to avoid unintended n-back or 2-back repeats on
+    non-target trials. If no such candidates remain, the full pool of available
+    images is used as a fallback. The maximum number of consecutive targets is
+    controlled by the ``sequential.max_consecutive_matches`` parameter in
+    ``params.json`` (default 2).
+    """
+    available_images = list(image_files)
+    random.shuffle(available_images)
+
+    sequence: List[str] = []
+    max_consecutive_matches = int(get_param("sequential.max_consecutive_matches", 2))
+    consecutive_count = 0
+
+    eligible_range = range(n, num_trials)
+    target_num_yes = int((num_trials - n) * target_percentage)
+    if target_num_yes > 0:
+        yes_positions = sorted(random.sample(eligible_range, target_num_yes))
+    else:
+        yes_positions = []
+
+    for i in range(num_trials):
+        if i in yes_positions and consecutive_count < max_consecutive_matches:
+            # true N-back match
+            sequence.append(sequence[i - n])
+            consecutive_count += 1
+            continue
+
+        if not available_images:
+            available_images = list(image_files)
+            random.shuffle(available_images)
+
+        # avoid unintended n-back or 2-back repeats where possible
+        candidates = [
+            img
+            for img in available_images
+            if (len(sequence) < n or img not in sequence[-n:])
+            and (len(sequence) < 2 or img != sequence[-2])
+        ]
+        if not candidates:
+            candidates = available_images
+
+        chosen = random.choice(candidates)
+        sequence.append(chosen)
+        available_images.remove(chosen)
+        consecutive_count = 0
+
+    return sequence, yes_positions
+
+
 # -----------------------------------------------------------------------------
 # Public API
 # -----------------------------------------------------------------------------
@@ -841,6 +1334,12 @@ __all__ = [
     "get_jitter",
     "generate_dual_nback_sequence",
     "generate_positions_with_matches",
+    "generate_sequential_image_sequence",
     "print_debug_info",
     "display_dual_stimulus",
+    "prompt_text_input",
+    "prompt_choice",
+    "show_text_screen",
+    "check_response_keys",
+    "collect_trial_response",
 ]
