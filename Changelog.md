@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Centralised behavioural analysis module**:  
   `wand_analysis.py` now contains all Sequential N-back metrics (accuracy, average RT, A′, d′, and pre/post distractor window calculations).  
   The induction script now delegates all metric computation to this module.
+- **Automated Verification Suite**:
+  Added `Tests/test_metrics.py` to scientifically verify output calculations via unit testing.
+- Tests verify d', A', and Accuracy against known "perfect" and "random" datasets.
+- Generates a human-readable evidence log (`Tests/test_results_detailed.txt`) to demonstrate calculation validity without requiring a simulated GUI run.
 
 ### Changed
 - **Extensive code deduplication and refactoring** (addresses reviewer feedback):

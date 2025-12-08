@@ -4,6 +4,7 @@
 ## What is new in v1.0.4
 
 - **Refactored Architecture**: Core logic for timing, input, and display has been centralized into `wand_common.py`, significantly reducing duplication between the practice and induction scripts.
+- **Automated Verification**: A new unit-test suite (`Tests/`) scientifically verifies that the analysis logic produces correct metrics (d', A') for known data patterns, removing the need for manual "bot" verification.
 - **Standardised Metrics**: The Sequential N-back logic was updated to remove specific "lure" trials from the 3-back level. This ensures that signal detection metrics (d-prime) are strictly comparable across all difficulty levels.
 - **Neutral Feedback**: All participant-facing feedback has been neutralized to remove competitive elements (scores, praise, performance tiers). This design choice helps isolate natural fatigue from motivational compensation.
 - **Robust Configuration**: Window background colours are now forced to absolute black (RGB `[-1, -1, -1]`) via `config/params.json` to prevent visibility issues on specific OS configurations.
@@ -218,9 +219,11 @@ To ensure consistency and maintainability, the codebase is organized into distin
 | `WAND_practice_plateau.py` | Entry point for calibration. Orchestrates the adaptive practice loops. |
 | `WAND_full_induction.py` | Entry point for the main experiment. Manages the 65-minute block schedule. |
 | `wand_common.py` | **Core Engine**. Contains the shared functions used by both scripts above. |
-| `wand_analysis.py` | **Metrics Helper**. Contains statistical functions (d′, A′) used to score performance. |
+| `wand_analysis.py` | **Metrics Helper**. Contains statistical functions (d', A') used to score performance. |
 | `config/params.json` | Global settings (timings, colors, stimulus sizes). |
 | `config/text_en.json` | All on-screen instructions and feedback text. |
+| `Tests/test_metrics.py` | **Automated Validation**. Unit tests that verify mathematical accuracy of analysis metrics. |
+| `Tests/test_results_detailed.txt` | **Verification Log**. A generated report showing inputs/outputs for every test case. |
 
 ## Stimuli Setup
 
@@ -254,11 +257,12 @@ Repository sketch:
 
 ## Testing
 
-This project uses pytest. To run the test suite locally:
+This project uses `pytest` for automated unit testing of the scientific logic.
+
+To run the test suite locally:
 
 ```bash
 python -m pytest
-```
 
 ## License
 
