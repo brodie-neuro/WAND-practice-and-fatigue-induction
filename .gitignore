@@ -41,3 +41,6 @@ cognitive_experiment/
 exit
 hook-psychopy.py
 Abstract Stimuli - all/
+
+# Local utility scripts (not part of main project)
+monitor_timing_test.py
