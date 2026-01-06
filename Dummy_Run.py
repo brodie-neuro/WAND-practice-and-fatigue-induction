@@ -34,9 +34,7 @@ import time
 # =============================================================================
 
 parser = argparse.ArgumentParser(description="Quick dummy Sequential N‑back test")
-parser.add_argument(
-    "--level", type=int, default=2, help="N‑back level (default = 2)"
-)
+parser.add_argument("--level", type=int, default=2, help="N‑back level (default = 2)")
 parser.add_argument(
     "--trials", type=int, default=35, help="Number of trials (default = 35)"
 )
@@ -59,12 +57,12 @@ if args.quicktest:
     print("[QUICKTEST] Automated smoke test mode enabled")
     print("[QUICKTEST] Patching PsychoPy event functions...")
 
-    from psychopy import event, core
+    from psychopy import core, event
 
     _original_waitKeys = event.waitKeys
     _original_getKeys = event.getKeys
 
-    def mock_waitKeys(keyList=None, maxWait=float('inf'), *args, **kwargs):
+    def mock_waitKeys(keyList=None, maxWait=float("inf"), *args, **kwargs):
         """
         Mock replacement for event.waitKeys.
         Returns a random key from keyList immediately without waiting.
@@ -72,11 +70,11 @@ if args.quicktest:
         core.wait(0.001)
 
         if keyList is None:
-            keyList = ['space']
+            keyList = ["space"]
 
-        safe_keys = [k for k in keyList if k != 'escape']
+        safe_keys = [k for k in keyList if k != "escape"]
         if not safe_keys:
-            safe_keys = ['space']
+            safe_keys = ["space"]
 
         return [random.choice(safe_keys)]
 
@@ -88,7 +86,7 @@ if args.quicktest:
         if keyList is None:
             return []
 
-        safe_keys = [k for k in keyList if k != 'escape']
+        safe_keys = [k for k in keyList if k != "escape"]
         if not safe_keys:
             return []
 
@@ -103,7 +101,9 @@ if args.quicktest:
     args.trials = 10
 
     print("[QUICKTEST] PsychoPy event functions patched successfully")
-    print(f"[QUICKTEST] Using {args.trials} trials with {QUICKTEST_DISPLAY}s display, {QUICKTEST_ISI}s ISI")
+    print(
+        f"[QUICKTEST] Using {args.trials} trials with {QUICKTEST_DISPLAY}s display, {QUICKTEST_ISI}s ISI"
+    )
 
 # =============================================================================
 # IMPORT WAND MODULES (after potential mocking)
@@ -117,7 +117,9 @@ from WAND_full_induction import (
 )
 
 
-def run_dummy_sequential(n_back_level: int = 2, num_trials: int = 35, quicktest: bool = False) -> None:
+def run_dummy_sequential(
+    n_back_level: int = 2, num_trials: int = 35, quicktest: bool = False
+) -> None:
     """
     Run a short dummy Sequential N-back block for test/demo purposes.
 
@@ -211,7 +213,5 @@ def run_dummy_sequential(n_back_level: int = 2, num_trials: int = 35, quicktest:
 
 if __name__ == "__main__":
     run_dummy_sequential(
-        n_back_level=args.level,
-        num_trials=args.trials,
-        quicktest=args.quicktest
+        n_back_level=args.level, num_trials=args.trials, quicktest=args.quicktest
     )
