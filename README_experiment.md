@@ -1,24 +1,42 @@
 WAND Fatigue Induction Experiment
 
 ## Overview
-This document provides detailed instructions for running the WAND_full_induction.py script, which implements a novel fatigue induction protocol based on the Working-memory Adaptive-fatigue with N-back Difficulty (WAND) model. The protocol induces active mental fatigue over approximately 65–70 minutes using sequential, spatial, and dual N-back tasks with adaptive difficulty, linear timing compression, and mini-distractors. For a broader overview of the WAND suite, including design principles, see the main README.md.
+This document provides detailed instructions for running the WAND_full_induction.py script, which implements a sophisticaed cognitive fatigue induction protocol based on the Working-memory Adaptive-fatigue with N-back Difficulty (WAND) model. The protocol induces active cognitive fatigue over approximately 65–70 minutes using sequential, spatial, and dual N-back tasks with adaptive difficulty in the default setting, linear timing compression, and mini-distractors. For a broader overview of the WAND protocol, including design principles, see the main README.md.
 
 ## Requirements
 
-Python 3.8.X
+Python 3.10+ (recommended) or Python 3.8+
 PsychoPy (version 2024.1.4 or later)
 SciPy
 
 ## Installation
 
-For a reproducible environment, it is highly recommended to use a virtual environment. Follow the setup and installation instructions in the main `README.md` file, which uses the `requirements.txt` file to install all necessary dependencies.
+WAND is now pip-installable. The recommended installation method is:
+
+```bash
+pip install git+https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
+```
+
+Alternatively, clone the repository and install locally:
+
+```bash
+git clone https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
+cd WAND-practice-and-fatigue-induction
+pip install .
+```
+
+After installation, launch the GUI with: `wand-launcher`
 
 ## File Structure
 
+- `WAND_Launcher.py`: GUI wizard for configuring and launching experiments (recommended entry point).
 - `WAND_full_induction.py`: Main script for the fatigue induction experiment.
-- `wand_common.py`: Shared utilities and configuration loader (required).
+- `WAND_practice_plateau.py`: Practice calibration script.
+- `block_builder.py`: Visual drag-and-drop block ordering interface.
+- `wand_common.py`: Shared utilities and configuration loader.
+- `wand_analysis.py`: Signal Detection Theory metrics and analysis functions.
 - `config/`: Directory containing `params.json` (settings) and `text_en.json` (instructions).
-- `Abstract Stimuli/apophysis/`: Folder containing at least 24 complex 3D fractal PNG images.
+- `Abstract Stimuli/apophysis/`: Folder containing 24 complex 3D fractal PNG images.
 - `data/`: Output directory for results (auto-created during execution).
 
 ## Practice Protocol Integration 
@@ -78,7 +96,7 @@ Edit the `"window"` section:
 }
 
 ## EEG Notes
-EEG triggers are implemented as placeholders. To enable, set EEG_ENABLED = True in the script and modify the send_trigger function to interface with your EEG hardware (e.g., via a parallel port). Currently, send_trigger includes a 5ms delay as a dummy operation. Future integration will target N2 and P3 ERP components to assess cognitive control decline.
+EEG triggers are fully configurable via `config/params.json`. Set `"eeg": {"enabled": true}` and configure your parallel port address, trigger duration, and custom trigger codes for all event types (stimulus onset, responses, distractors, block markers). See the `eeg` section in `params.json` for the complete list of configurable triggers.
 
 ## Data Saving
 Results are saved twice for redundancy:
@@ -102,10 +120,10 @@ These responses are **integrated into the main results CSV** (`participant_<ID>_
 
 The project includes two forms of tests:
 
-- **User Verification**: To quickly check that your environment is set up correctly and that the script can write data, run the lightweight dummy script:
+- **User Verification**: To quickly check that your environment is set up correctly and that the script can write data, run the quicktest:
 
     ```bash
-    python Dummy_Run.py
+    python Tests/quicktest_induction.py
     ```
 
 - **Scientific Validation (Unit Tests)**: For validating the internal logic (e.g., Signal Detection metrics), a formal test suite is located in the `/Tests` directory. This suite uses `pytest` to feed known data patterns into the analysis engine and assert that the outputs are correct.
@@ -114,7 +132,7 @@ The project includes two forms of tests:
     ```bash
     python -m pytest
     ```
-    *This will generate an evidence log at `Tests/test_results_detailed.txt`.*
+    *Test results are saved in `Tests/results/`.*
 
 
 ## License

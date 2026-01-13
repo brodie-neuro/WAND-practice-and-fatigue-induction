@@ -108,12 +108,43 @@ def calculate_dprime(detailed_data: List[Dict[str, Any]]) -> float:
     """
     Compute d′ (d-prime) with log-linear correction.
 
+    For full SDT metrics including criterion, use calculate_sdt_metrics().
+
     Trials must contain:
       - "Is Target": bool
       - "Response": str in {"match", "non-match", "lapse"}.
     """
+    metrics = calculate_sdt_metrics(detailed_data)
+    return metrics["d_prime"]
+
+
+def calculate_sdt_metrics(detailed_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Compute all Signal Detection Theory metrics with log-linear correction.
+
+    Returns a dictionary containing:
+      - hits, misses, false_alarms, correct_rejections (raw counts)
+      - hit_rate, fa_rate (corrected rates)
+      - d_prime (sensitivity)
+      - criterion (response bias, c)
+
+    Trials must contain:
+      - "Is Target": bool
+      - "Response": str in {"match", "non-match", "lapse"}.
+    """
+    result = {
+        "hits": 0,
+        "misses": 0,
+        "false_alarms": 0,
+        "correct_rejections": 0,
+        "hit_rate": 0.0,
+        "fa_rate": 0.0,
+        "d_prime": 0.0,
+        "criterion": 0.0,
+    }
+
     if not detailed_data:
-        return 0.0
+        return result
 
     hits = 0
     false_alarms = 0
@@ -137,19 +168,32 @@ def calculate_dprime(detailed_data: List[Dict[str, Any]]) -> float:
     total_targets = hits + misses
     total_non_targets = false_alarms + correct_rejections
 
+    result["hits"] = hits
+    result["misses"] = misses
+    result["false_alarms"] = false_alarms
+    result["correct_rejections"] = correct_rejections
+
     if total_targets == 0 or total_non_targets == 0:
-        return 0.0
+        return result
 
     # Log-linear correction
     hit_rate = (hits + 0.5) / (total_targets + 1)
     fa_rate = (false_alarms + 0.5) / (total_non_targets + 1)
 
-    try:
-        d_prime = norm.ppf(hit_rate) - norm.ppf(fa_rate)
-    except ValueError:
-        d_prime = 0.0
+    result["hit_rate"] = hit_rate
+    result["fa_rate"] = fa_rate
 
-    return d_prime
+    try:
+        z_hit = norm.ppf(hit_rate)
+        z_fa = norm.ppf(fa_rate)
+        d_prime = z_hit - z_fa
+        criterion = -0.5 * (z_hit + z_fa)
+        result["d_prime"] = d_prime
+        result["criterion"] = criterion
+    except ValueError:
+        pass
+
+    return result
 
 
 def _window_metrics(
@@ -219,6 +263,9 @@ def summarise_sequential_block(
         t["Reaction Time"] for t in detailed_data if t.get("Reaction Time") is not None
     ]
 
+    # Get full SDT metrics (d', criterion, hits, FA, etc.)
+    sdt = calculate_sdt_metrics(detailed_data)
+
     return {
         "Block Number": block_number,
         "Correct Responses": correct_responses,
@@ -235,5 +282,13 @@ def summarise_sequential_block(
         "Post-Distractor Accuracy": post_acc if post_acc is not None else "N/A",
         "Post-Distractor Avg RT": post_rt if post_rt is not None else "N/A",
         "Post-Distractor A-Prime": post_ap if post_ap is not None else "N/A",
-        "Overall D-Prime": calculate_dprime(detailed_data),
+        # Full SDT metrics for criterion analysis
+        "Overall D-Prime": sdt["d_prime"],
+        "Criterion": sdt["criterion"],
+        "Hits": sdt["hits"],
+        "Misses": sdt["misses"],
+        "False Alarms": sdt["false_alarms"],
+        "Correct Rejections": sdt["correct_rejections"],
+        "Hit Rate": sdt["hit_rate"],
+        "FA Rate": sdt["fa_rate"],
     }

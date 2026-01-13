@@ -1,18 +1,79 @@
-# WAND — Working-memory Adaptive-fatigue with N-back Difficulty
-*Current release: v1.0.4 — see `CHANGELOG.md` for details*
+<p align="center">
+  <img src="Logo/WAND.png" alt="WAND Logo" width="400">
+</p>
 
-## What is new in v1.0.4
+<h1 align="center">WAND</h1>
+<p align="center"><strong>Working-memory Adaptive-fatigue with N-back Difficulty</strong></p>
 
-- **Refactored Architecture**: Core logic for timing, input, and display has been centralized into `wand_common.py`, significantly reducing duplication between the practice and induction scripts.
-- **Automated Verification**: A new unit-test suite (`Tests/`) scientifically verifies that the analysis logic produces correct metrics (d', A') for known data patterns, removing the need for manual "bot" verification.
-- **Standardised Metrics**: The Sequential N-back logic was updated to remove specific "lure" trials from the 3-back level. This ensures that signal detection metrics (d-prime) are strictly comparable across all difficulty levels.
-- **Neutral Feedback**: All participant-facing feedback has been neutralized to remove competitive elements (scores, praise, performance tiers). This design choice helps isolate natural fatigue from motivational compensation.
-- **Robust Configuration**: Window background colours are now forced to absolute black (RGB `[-1, -1, -1]`) via `config/params.json` to prevent visibility issues on specific OS configurations.
-- **Improved Pacing**: Practice tasks now provide immediate visual feedback while strictly maintaining the inter-stimulus interval, preventing the task from "speeding up" when participants respond early.
+<p align="center">
+  <a href="https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction/actions/workflows/ci.yml">
+    <img src="https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction/actions/workflows/ci.yml/badge.svg" alt="CI Tests">
+  </a>
+  &nbsp;
+  <img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python 3.8+">
+  &nbsp;
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
+</p>
 
-See `CHANGELOG.md` for a complete history.
+---
 
-### A Practice and Fatigue Induction Suite
+## 🧠 What is WAND?
+
+WAND is an **open-source cognitive fatigue research suite** built on PsychoPy. It provides:
+
+- **Adaptive N-back tasks** (Spatial, Dual) that calibrate to individual performance
+- **Practice Plateau Protocol** to eliminate learning effects and stabilise performance
+- **Standardised Sequential N-back** for fatigue induction with comprehensive behavioural metrics
+- **Full Signal Detection Theory metrics** (d', criterion, hit rate) in every CSV output
+
+> **No coding required.** WAND includes a professional GUI that lets you configure entire experiments visually.
+
+---
+
+## ✨ For Researchers: GUI-First Design
+
+<table>
+<tr>
+<td width="50%">
+
+### 🖥️ Visual Experiment Builder
+- **Point-and-click configuration**: no coding required; optional JSON for EEG and advanced settings
+- **Drag-and-drop block ordering**: design your protocol visually
+- **Real-time preview** of experiment structure
+
+</td>
+<td width="50%">
+
+### ⚡ Quick Setup
+1. Install: `pip install git+https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git`
+2. Launch: `wand-launcher`
+3. Configure your study in the GUI
+4. Run experiments immediately
+
+</td>
+</tr>
+</table>
+
+<p align="center">
+  <img src="docs/screenshot_block_builder.png" alt="WAND Block Builder" width="700">
+  <br>
+  <em>The Block Builder interface: drag-and-drop experiment design</em>
+</p>
+
+---
+
+## 📦 Current Release: v1.1.0
+
+### Highlights
+- **pip-installable**: standard Python packaging with entry points
+- **GUI Launcher**: multi-page wizard for complete experiment customisation
+- **Block Builder**: visual drag-and-drop interface for experiment design
+- **EEG Triggers**: fully configurable parallel port codes via `params.json`
+- **Full SDT Metrics**: d', criterion (c), hits, false alarms in all output
+
+See [`Changelog.md`](Changelog.md) for the complete history.
+
+---
 
 ## Overview
 
@@ -22,10 +83,9 @@ WAND is a set of PsychoPy scripts that calibrate N-back capacity and then induce
 
 | Script                     | Purpose                                                                                     | Typical Duration |
 |---------------------------|---------------------------------------------------------------------------------------------|------------------|
-| `WAND_practice_plateau.py`| Calibrates individual N-back capacity through adaptive difficulty until performance stabilises (≤ 7 percent variability) | 20–60 minutes |
+| `WAND_practice_plateau.py`| Calibrates individual N-back capacity through adaptive difficulty until performance stabilises (≤ 7% variability) | 20–60 minutes |
 | `WAND_full_induction.py`  | Induces cognitive fatigue with Sequential, Spatial, and Dual N-back tasks                   | 65–70 minutes including breaks |
-| `Dummy_Run.py`            | Lightweight script to verify sequential task logic and CSV logging                          | 3–5 minutes |
-| `Dummy_Run_Practice.py`   | Lightweight script to verify sequential task functionality and CSV logging                  | 2–3 minutes |
+| `Tests/quicktest_induction.py` | Automated smoke test to verify installation (25s runtime)                          | < 1 minute |
 
 
 ## Design Principles
@@ -80,71 +140,116 @@ Responses use 1 to 8 Likert scales and are saved alongside behavioural data in `
 
 ## Installation
 
-Use a Python virtual environment.
+### Prerequisites
 
-1. Clone the repository
+**Python 3.10+** is recommended for the smoothest installation experience.
+
+Python 3.8+ is also supported, but you may need to upgrade pip first:
+
+### Quick Verification
+
+To verify your installation without running a full 60-minute experiment, run the quicktest script:
+
+```bash
+python Tests/quicktest_induction.py
+```
+
+This simulates a rapid 25-second version of the full induction protocol (Sequential, Spatial, Dual) to verify graphics, sound, and logging.
+
+### Option 1: pip install (Recommended)
+
+Install directly from GitHub:
+
+```bash
+pip install git+https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
+```
+
+This automatically installs all dependencies and creates command-line entry points.
+
+> **Windows Users**: If you encounter compilation errors (e.g., `ffpyplayer` or `cl.exe` failures), install PsychoPy first using binary-only mode:
+> ```bash
+> pip install psychopy --only-binary=psychopy,numpy,scipy,ffpyplayer --prefer-binary
+> pip install git+https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
+> ```
+
+
+### Option 2: Development/Editable Install
+
+For local development or modification:
+
 ```bash
 git clone https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
 cd WAND-practice-and-fatigue-induction
+pip install -e .
 ```
 
-2. Create and activate a virtual environment
+### Option 3: Traditional Clone (if you have PsychoPy pre-installed)
+
+If your lab already has PsychoPy installed:
+
 ```bash
-
-# Important: Ensure you have Python 3.8 installed. Newer versions (e.g. 3.12) may cause compatibility errors with specific PsychoPy dependencies.
-
-# Standard creation
-python -m venv .venv
-
-# Windows (Command Prompt)
-.venv\Scripts\activate
-
-# Windows (if 'python' command is not found, try 'py')
-py -m venv .venv
-.venv\Scripts\activate
-
-# macOS or Linux
-source .venv/bin/activate
-```
-
-3. Install dependencies
-```bash
-
-# Note for Windows users: If the commands below fail with python, try replacing it with py.
-
-# First, update your package installer to avoid issues with dependencies like cryptography or PyQt6:
-
-python -m pip install --upgrade pip
-
-Then install the required libraries:
+git clone https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
+cd WAND-practice-and-fatigue-induction
 pip install -r requirements.txt
 ```
-Tested on Windows, Python 3.8. See `requirements.txt` for pins.
 
 ## Usage
 
-Once installation is complete:
+### After pip install
+
+Once installed via pip, you can run WAND from anywhere:
 
 ```bash
-python WAND_practice_plateau.py
+# Launch the GUI configuration wizard (recommended)
+wand-launcher
+
+# Or run specific scripts directly
+wand-practice      # Calibration/practice mode
+wand-induction     # Full fatigue induction
 ```
+
+### Traditional usage (if cloned)
+
+```bash
+# GUI Launcher (recommended)
+python WAND_Launcher.py
+
+# Direct script access
+python WAND_practice_plateau.py
+python WAND_full_induction.py
+
+# Automated smoke test (no user input required)
+python Tests/quicktest_induction.py
+```
+
+### Automated Installation Verification
+
+To verify your PsychoPy installation works correctly without running a full experiment:
+
+```bash
+python Tests/quicktest_induction.py
+```
+
+This runs an automated smoke test (~4 seconds) that:
+- Creates the PsychoPy window
+- Loads stimuli and timing loops
+- Mocks user input with random responses
+- Outputs pass/fail with accuracy and d' values
 
 ### Post installation check
-- Run `Dummy_Run.py` to verify the environment and basic logging before a full experiment.
-- Ensure a `data/` folder exists. Scripts will try to create it if missing.
+- Run `wand-launcher` or `python WAND_Launcher.py` to verify everything works
+- The GUI will guide you through all configuration options
+- Data is saved to `./data/` in the working directory
 
-### Running the scripts
+### GUI Launcher Features
 
-```bash
-# Quick start with fresh RNG and distractors ON
-python WAND_practice_plateau.py
-
-# Fully reproducible run, no distractors
-python WAND_full_induction.py --seed 1234 --distractors off
-
-# Test run and saving confirmation
-python Dummy_Run.py
-```
+The launcher provides a 6-page wizard:
+1. **Study Setup**: Name, participant ID, preset loading
+2. **Task Selection**: Enable/disable Sequential, Spatial, Dual tasks
+3. **Timings**: Per-task display duration and ISI settings
+4. **Options**: Fullscreen, RNG seed, breaks/measures scheduling
+5. **Block Builder**: Visual drag-and-drop experiment structure
+6. **Launch**: Mode selection (Practice or Full Induction) and confirmation
 
 ### Hot keys during an experiment
 
@@ -205,7 +310,7 @@ Key tunables used by the scripts and `wand_common.py`:
 
 ## Code Architecture
 
-To ensure consistency and maintainability, the codebase is organized into distinct layers:
+To ensure consistency and maintainability, the codebase is organised into distinct layers:
 
 1.  **Configuration (`config/`)**: All static parameters (timings, colors, window settings) and participant-facing text are externalized in JSON files. This allows researchers to adjust the protocol without touching Python code.
 2.  **Shared Logic**:
@@ -220,10 +325,9 @@ To ensure consistency and maintainability, the codebase is organized into distin
 | `WAND_full_induction.py` | Entry point for the main experiment. Manages the 65-minute block schedule. |
 | `wand_common.py` | **Core Engine**. Contains the shared functions used by both scripts above. |
 | `wand_analysis.py` | **Metrics Helper**. Contains statistical functions (d', A') used to score performance. |
-| `config/params.json` | Global settings (timings, colors, stimulus sizes). |
+| `config/params.json` | Global settings (timings, colors, stimulus sizes, EEG triggers). |
 | `config/text_en.json` | All on-screen instructions and feedback text. |
 | `Tests/test_metrics.py` | **Automated Validation**. Unit tests that verify mathematical accuracy of analysis metrics. |
-| `Tests/test_results_detailed.txt` | **Verification Log**. A generated report showing inputs/outputs for every test case. |
 
 ## Stimuli Setup
 
@@ -231,28 +335,31 @@ The suite expects images in `Abstract Stimuli/apophysis`. Ensure:
 - The folder is next to the scripts
 - It contains at least 24 PNG files
 
-Repository sketch:
+Repository structure:
 
 ```
 /
-├── WAND_practice_plateau.py
-├── WAND_full_induction.py
-├── Dummy_Run.py
-├── Dummy_Run_Practice.py
-├── wand_common.py
+├── WAND_Launcher.py          # GUI wizard (recommended entry point)
+├── WAND_practice_plateau.py  # Practice calibration
+├── WAND_full_induction.py    # Main fatigue induction
+├── block_builder.py          # Visual experiment designer
+├── wand_common.py            # Shared utilities
+├── wand_analysis.py          # SDT metrics and analysis
 ├── config/
-│   ├── params.json
-│   └── text_en.json
+│   ├── params.json           # Settings (EEG triggers, timings)
+│   └── text_en.json          # On-screen instructions
+├── Tests/
+│   ├── quicktest_induction.py
+│   ├── test_metrics.py
+│   └── ...
 ├── Abstract Stimuli/
 │   └── apophysis/
-│       ├── apophysis1.png
-│       ├── apophysis2.png
-│       └── ...
+├── docs/                     # Screenshots
+├── Logo/                     # Branding
+├── pyproject.toml            # Package configuration
 ├── requirements.txt
 ├── README.md
-├── README_experiment.md
-├── LICENSE.txt
-└── data/
+└── data/                     # Output (auto-created)
 ```
 
 ## Testing
@@ -263,6 +370,7 @@ To run the test suite locally:
 
 ```bash
 python -m pytest
+```
 
 ## License
 

@@ -1,0 +1,27 @@
+# Include config files
+recursive-include config *.json
+
+# Include stimuli and assets
+recursive-include "Abstract Stimuli" *
+recursive-include Logo *
+
+# Include documentation
+include README.md
+include README_experiment.md
+include Changelog.md
+include LICENSE.txt
+
+# Include example data
+recursive-include Examples *
+
+# Exclude development files
+exclude .gitignore
+exclude *.pyc
+prune __pycache__
+prune .git
+prune .github
+prune .idea
+prune .venv
+prune .venv_test
+prune .pytest_cache
+prune data

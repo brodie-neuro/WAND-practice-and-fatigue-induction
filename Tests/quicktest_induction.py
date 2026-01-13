@@ -1,26 +1,21 @@
 #!/usr/bin/env python3
 """
-WAND-Dummy-Run
+WAND Quicktest - Full Induction
 
-Standalone runner for a short Sequential N-back check using the WAND suite.
+Automated smoke test for the Full Induction (WAND_full_induction.py).
 
-- Loads selected functions from the main WAND induction module
-- Runs a single Sequential N-back block (default: 2-back, 35 trials)
-- Saves a timestamped CSV into ./data/
-- Quits cleanly
+Usage:
+    python Tests/quicktest_induction.py --quicktest   # Automated (no input)
+    python Tests/quicktest_induction.py               # Manual demo
 
-Use this script to verify task logic, display settings, and data output.
-
-Quicktest Mode (--quicktest):
-- Mocks keyboard input (no human interaction required)
-- Uses fast timings (0.05s display, 0.05s ISI)
-- Runs 10 trials in ~5 seconds
-- Verifies PsychoPy installation works without crashing
+Output:
+    - Console: PASS/FAIL summary
+    - CSV: data/quicktest_*.csv
+    - Markdown: Tests/results/quicktest_induction_report.md
 
 Author: Brodie Mangan
 Version: 1.1.0
 License: MIT
-Requires: PsychoPy ≥ 2024.2.1, Python 3.8+
 """
 
 import argparse
@@ -28,12 +23,27 @@ import os
 import random
 import sys
 import time
+from datetime import datetime
+
+# =============================================================================
+# SETUP PATHS (for running from Tests/ folder)
+# =============================================================================
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
+RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
+
+# Add project root to path so we can import WAND modules
+sys.path.insert(0, PROJECT_DIR)
+
+# Ensure results directory exists
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # =============================================================================
 # ARGUMENT PARSING (must happen before conditional mocking)
 # =============================================================================
 
-parser = argparse.ArgumentParser(description="Quick dummy Sequential N‑back test")
+parser = argparse.ArgumentParser(description="WAND Full Induction Quicktest")
 parser.add_argument("--level", type=int, default=2, help="N‑back level (default = 2)")
 parser.add_argument(
     "--trials", type=int, default=35, help="Number of trials (default = 35)"
@@ -48,7 +58,6 @@ args = parser.parse_args()
 # =============================================================================
 # CONDITIONAL MOCKING FOR QUICKTEST MODE
 # =============================================================================
-# This MUST happen before importing WAND modules which import psychopy
 
 QUICKTEST_DISPLAY = 0.05
 QUICKTEST_ISI = 0.05
@@ -62,34 +71,23 @@ if args.quicktest:
     _original_waitKeys = event.waitKeys
     _original_getKeys = event.getKeys
 
-    def mock_waitKeys(keyList=None, maxWait=float("inf"), *args, **kwargs):
-        """
-        Mock replacement for event.waitKeys.
-        Returns a random key from keyList immediately without waiting.
-        """
+    def mock_waitKeys(keyList=None, maxWait=float("inf"), *a, **kw):
+        """Mock replacement - returns random key immediately."""
         core.wait(0.001)
-
         if keyList is None:
             keyList = ["space"]
-
         safe_keys = [k for k in keyList if k != "escape"]
         if not safe_keys:
             safe_keys = ["space"]
-
         return [random.choice(safe_keys)]
 
-    def mock_getKeys(keyList=None, *args, **kwargs):
-        """
-        Mock replacement for event.getKeys.
-        Simulates ~40% chance of a keypress (realistic response rate).
-        """
+    def mock_getKeys(keyList=None, *a, **kw):
+        """Mock replacement - 40% chance of keypress."""
         if keyList is None:
             return []
-
         safe_keys = [k for k in keyList if k != "escape"]
         if not safe_keys:
             return []
-
         if random.random() < 0.4:
             return [random.choice(safe_keys)]
         return []
@@ -109,38 +107,70 @@ if args.quicktest:
 # IMPORT WAND MODULES (after potential mocking)
 # =============================================================================
 
-from WAND_full_induction import (
-    base_dir,
-    run_sequential_nback_block,
-    save_results_to_csv,
-    win,
-)
+from WAND_full_induction import run_sequential_nback_block, save_results_to_csv, win
 
 
-def run_dummy_sequential(
+def generate_markdown_report(results: dict, elapsed: float, csv_path: str) -> str:
+    """Generate markdown report content."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    status = "PASSED" if results.get("Accuracy", 0) >= 0 else "FAILED"
+
+    report = f"""# WAND Quicktest Report - Full Induction
+
+**Generated:** {timestamp}  
+**Status:** {status}
+
+## Test Configuration
+
+| Parameter | Value |
+|-----------|-------|
+| N-back Level | {args.level} |
+| Trials | {args.trials} |
+| Display Duration | {QUICKTEST_DISPLAY}s |
+| ISI | {QUICKTEST_ISI}s |
+
+## Results
+
+| Metric | Value |
+|--------|-------|
+| Accuracy | {results.get('Accuracy', 'N/A'):.1f}% |
+| Correct Responses | {results.get('Correct Responses', 'N/A')} |
+| Incorrect Responses | {results.get('Incorrect Responses', 'N/A')} |
+| Lapses | {results.get('Lapses', 'N/A')} |
+
+## Signal Detection Theory Metrics
+
+| Metric | Value |
+|--------|-------|
+| D-Prime (d') | {results.get('Overall D-Prime', 'N/A'):.3f} |
+| Criterion (c) | {results.get('Criterion', 'N/A'):.3f} |
+| Hits | {results.get('Hits', 'N/A')} |
+| Misses | {results.get('Misses', 'N/A')} |
+| False Alarms | {results.get('False Alarms', 'N/A')} |
+| Correct Rejections | {results.get('Correct Rejections', 'N/A')} |
+| Hit Rate | {results.get('Hit Rate', 'N/A'):.3f} |
+| FA Rate | {results.get('FA Rate', 'N/A'):.3f} |
+
+## Execution
+
+| Metric | Value |
+|--------|-------|
+| Time Elapsed | {elapsed:.2f}s |
+| CSV Output | `{csv_path}` |
+
+## Conclusion
+
+Your WAND Full Induction installation is working correctly.
+"""
+    return report
+
+
+def run_quicktest(
     n_back_level: int = 2, num_trials: int = 35, quicktest: bool = False
 ) -> None:
-    """
-    Run a short dummy Sequential N-back block for test/demo purposes.
+    """Run a short Sequential N-back block for testing."""
 
-    This function uses the main WAND task logic to execute a brief Sequential N-back task
-    using a small stimulus pool. It saves the results to a timestamped CSV file in the
-    `/data/` directory and then exits cleanly.
-
-    Args:
-        n_back_level (int, optional): The N-back level to test (default = 2).
-        num_trials (int, optional): Number of trials to run (default = 35).
-        quicktest (bool, optional): If True, use fast timings for automated testing.
-
-    Side effects:
-        - Runs a PsychoPy visual window task.
-        - Saves a CSV file named `dummySeq_n{level}_{timestamp}.csv` to `/data/`.
-        - Prints file location to console.
-        - Closes the PsychoPy window and exits the script.
-
-    Raises:
-        SystemExit: Always exits after completion.
-    """
     if quicktest:
         display_duration = QUICKTEST_DISPLAY
         isi = QUICKTEST_ISI
@@ -151,7 +181,7 @@ def run_dummy_sequential(
 
     start_time = time.time()
 
-    # 1. Run the block
+    # Run the block
     results = run_sequential_nback_block(
         win=win,
         n=n_back_level,
@@ -164,11 +194,10 @@ def run_dummy_sequential(
         block_number=0,
     )
 
-    # 2. Save results
+    # Save CSV results
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-
     if quicktest:
-        fname = f"quicktest_{timestamp}.csv"
+        fname = f"quicktest_induction_{timestamp}.csv"
         participant_id = "quicktest"
         block_name = "quicktest"
     else:
@@ -189,7 +218,7 @@ def run_dummy_sequential(
 
     elapsed = time.time() - start_time
 
-    # 3. Notify user
+    # Console output
     if quicktest:
         print("\n" + "=" * 60)
         print("QUICKTEST PASSED")
@@ -199,19 +228,35 @@ def run_dummy_sequential(
         print(f"  - Correct: {results.get('Correct Responses', 'N/A')}")
         print(f"  - Incorrect: {results.get('Incorrect Responses', 'N/A')}")
         print(f"  - Lapses: {results.get('Lapses', 'N/A')}")
-        print(f"  - D-Prime: {results.get('Overall D-Prime', 'N/A'):.3f}")
+        print(f"\nSDT Metrics:")
+        print(f"  - D-Prime (d'): {results.get('Overall D-Prime', 'N/A'):.3f}")
+        print(f"  - Criterion (c): {results.get('Criterion', 'N/A'):.3f}")
+        print(f"  - Hits: {results.get('Hits', 'N/A')}")
+        print(f"  - Misses: {results.get('Misses', 'N/A')}")
+        print(f"  - False Alarms: {results.get('False Alarms', 'N/A')}")
+        print(f"  - Correct Rejections: {results.get('Correct Rejections', 'N/A')}")
+        print(f"  - Hit Rate: {results.get('Hit Rate', 'N/A'):.3f}")
+        print(f"  - FA Rate: {results.get('FA Rate', 'N/A'):.3f}")
         print(f"\n  - Time elapsed: {elapsed:.2f}s")
         print(f"  - CSV saved to: {csv_path}")
-        print("\nYour WAND installation is working correctly!\n")
+
+        # Generate and save markdown report
+        report = generate_markdown_report(results, elapsed, csv_path)
+        report_path = os.path.join(RESULTS_DIR, "quicktest_induction_report.md")
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(report)
+        print(f"  - Report saved to: {report_path}")
+
+        print("\nYour WAND Full Induction installation is working correctly!\n")
     else:
         print(f"\n✅  Dummy Sequential N-back finished. CSV saved to:\n   {csv_path}\n")
 
-    # 4. Exit
+    # Clean exit
     win.close()
     sys.exit(0)
 
 
 if __name__ == "__main__":
-    run_dummy_sequential(
+    run_quicktest(
         n_back_level=args.level, num_trials=args.trials, quicktest=args.quicktest
     )

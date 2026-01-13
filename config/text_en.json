@@ -1,12 +1,11 @@
 {
   "get_pid": "Enter Participant ID then press Return",
   "get_seed": "Optional: enter RNG seed (blank = random) then press return",
-  "get_n_level": "Select Sequential N-back level\n\nPress 2 or 3",
+  "get_n_level": "[RESEARCHER ONLY]\nSelect Sequential N-back level\n\nPress 2 or 3",
   "get_distractors": "Enable 200 ms distractor flashes?\n\nPress Y for ON   |   N for OFF",
-
   "practice_speed_selection": "Practice-speed selection\n\nCurrent setting: {current}\n\nN  =  Normal speed\nS  =  Slow speed (50 % slower)\n\nPress N or S to continue",
   "practice_welcome": "Welcome to the N-back Practice Session\n\nYou will complete three types of tasks:\n\n1.A Spatial N-back task\n2.A Dual N-back task\n3.A Sequential N-back \n\nPress 'space' to begin.",
-  "practice_seq_start_level": "Sequential N-back Task\n\nYou can choose your starting level:\nPress '2' for 2-back\nPress '3' for 3-back\n\nPress the corresponding key to begin.",
+  "practice_seq_start_level": "[RESEARCHER ONLY]\nSequential N-back Task Setup\n\nPlease select the participant's starting level:\nPress '2' for 2-back\nPress '3' for 3-back\nPress the corresponding key to begin.",
   "practice_block_results": "{task_name} N-back Block Results\n\nAccuracy: {accuracy:.1f}%\n\nPress 'space' to continue.",
   "practice_grace_period": "You've moved up to 3-back!\n\nThis next block is for familiarisation.\nYour score won't be used to change the level.",
   "practice_level_change": "Level change: Now switching to {n_level}-back.",
@@ -15,8 +14,7 @@
   "practice_slow_retry": "Below 65 %. Another slow block will start.\nPress SPACE to continue.",
   "practice_streak": "Need 2 successive {task_name} blocks >= 65 %.\nCurrent streak: {passes}/2.\n\nPress SPACE to continue.",
   "practice_complete": "Practice Session Completed!\n\nPlease note this level for the main induction.\nPress 'space' to exit.",
-
-  "induction_welcome": "Welcome to this Cognitive Study\n\nIn this experiment, you will complete a series of cognitive tasks involving working memory and attention.\n\nYou will perform different variations of these tasks, with several short breaks spaced out inbetween.\n\nThese tasks are designed to be difficult.\n\nThe entire session will last approximately 90 minutes.\n\nPlease try to stay focused and do your very best throughout the entire experiment.\n\n\n\nPress 'space' to begin.",
+  "induction_welcome": "Welcome to this Cognitive Study\n\nIn this experiment, you will complete a series of cognitive tasks involving working memory and attention.\n\nYou will perform different variations of these tasks, with several short breaks spaced out inbetween.\n\nThese tasks are designed to be difficult.\n\nThe entire session will last approximately {duration} minutes.\n\nPlease try to stay focused and do your very best throughout the entire experiment.\n\n\n\nPress 'space' to begin.",
   "induction_task_welcome_seq": "Sequential N-back Task\n\nDecide if the current image is the same as the image from {n_back_level} steps back.\nPress 'Z' for match, 'M' for no match.\nIgnore the background grid and distractors.",
   "induction_task_welcome_spa": "Spatial N-back Task\n\nDecide if the highlighted position matches the one from N steps back.\nPress 'Z' for match, 'M' for no match.",
   "induction_task_welcome_dual": "Dual N-back Task\n\nDecide if both the image and the position match those from N steps back.\nPress 'Z' for match, 'M' for no match.",
@@ -36,7 +34,6 @@
   "induction_final_summary_page": "{task_name} Summary:\n\nCorrect Responses:   {correct_responses}\nIncorrect Responses: {incorrect_responses}\nLapses:              {lapses}\n\nOverall Accuracy:      {accuracy:.2f}%\nAverage Reaction Time: {avg_rt:.3f} s\nD-Prime:               {d_prime:.3f}\n\nPage {current_page} of {total_pages}\n{controls_text}",
   "induction_final_summary_controls_continue": "Press 'space' to continue or 'backspace' to go back.",
   "induction_final_summary_controls_finish": "Press 'space' to finish.",
-
   "no_response_needed": "No response required for the first {n} trials",
   "lapse_feedback": "Previous lapse, please respond",
   "error_saving": "An error occurred while saving data. Please inform the researcher.",
@@ -45,12 +42,10 @@
   "timer_remaining": "Time remaining: {seconds} seconds",
   "level_label": "Level: {n}-back",
   "error_generic": "An unexpected error occurred.\nPlease inform the researcher.",
-
   "practice_instructions_intro": "Welcome to the {task_name} Task\n\nYou will first complete a demonstration, followed by a practice session.\n\n",
   "practice_instructions_seq": "You will see a series of images displayed one after another.\nYour task is to decide if the current image matches the image from {nb} steps back.\n\nPress 'Z' if the current image matches the image from N steps back.\nPress 'M' if it does not match.\n\nNo response is required for the first {nb} images.\nAfter that, you must respond to every image.\n\n**Important:**\n- A grid will be displayed in the background during the task. This grid is **not part of the task**. Please **ignore it** and focus solely on the images.\n- Occasionally, a brief distractor image (a square) will appear. **Ignore these distractors** and stay focused on the main task.\n\nRespond as quickly and accurately as possible.\n",
   "practice_instructions_spa": "You will see a series of positions highlighted on a circular grid.\nYour task is to decide if the current position matches the position from N steps back (starting at N = 2).\n\nPress 'Z' if the current position matches the position N steps back.\nPress 'M' if it does not match.\n\nNo response is required for the first two positions.\nAfter that, you must respond to every position.\n\n**Important:**\n- A grid will be displayed in the background. This grid is **not part of the task**.\n\nRespond as quickly and accurately as possible.\n",
   "practice_instructions_dual": "You will see a sequence of images and corresponding positions on a grid.\nYour task is to decide if BOTH the image AND the position match those from N steps back (starting at N = 2).\n\nPress 'Z' if both the image and position match.\nPress 'M' if either the image or the position (or both) do not match.\n\nNo response is required for the first two trials.\nAfter that, you must respond to every trial.\n\n**Important:**\n- A grid will be displayed in the background. This grid is **not part of the task**.\n\nRespond as quickly and accurately as possible.\n",
-  
   "demo_intro": "{task_name} {n}-back Demo\n\nWe will show {num_demo_trials} trials in two passes:\n  1) Normal speed (brief feedback)\n  2) Slowed/Explanatory version – after extended feedback, press SPACE to proceed\n\nPress SPACE to begin.",
   "demo_pass1_intro": "PASS 1: {num_demo_trials} trials at normal speed.\nFor the first {n} trials, no feedback is shown.\nFrom trial {n_plus_one} onward, a brief ✓ or ✗ will appear.\n\nPress SPACE to start PASS 1.",
   "demo_pass1_end": "End of PASS 1.\nPress SPACE to continue to PASS 2 (Explanatory).",
@@ -68,6 +63,5 @@
   "demo_pass2_end": "End of PASS 2 (Explanatory).\nPress SPACE to finish the demo.",
   "demo_seq_building": "Building up sequence ({trial_num}/{n} trials).",
   "demo_seq_wait": "This is trial {n}. We need to wait until trial {n_plus_one} to have a complete {n}-back reference.",
-
   "practice_seq_summary": "Sequential N-back Practice Block {block_count} (Level: {n_level}-back):\n\nAccuracy: {accuracy:.2f}%\nAverage Reaction Time: {avg_reaction_time:.2f} s\n\nPress 'space' to continue."
 }

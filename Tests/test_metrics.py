@@ -12,29 +12,41 @@ from wand_analysis import (
     calculate_A_prime,
     calculate_accuracy_and_rt,
     calculate_dprime,
+    calculate_sdt_metrics,
     summarise_sequential_block,
 )
 
 # --- LOGGING HELPER ---
 # This allows us to save the "evidence" to a file
-LOG_FILE = "test_results_detailed.txt"
+RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
+os.makedirs(RESULTS_DIR, exist_ok=True)
+LOG_FILE = os.path.join(RESULTS_DIR, "test_metrics_results.md")
 
 
 def log_evidence(test_name, input_desc, expected, actual, status):
-    with open(LOG_FILE, "a") as f:
-        f.write(f"TEST: {test_name}\n")
-        f.write(f"  INPUT:    {input_desc}\n")
-        f.write(f"  EXPECTED: {expected}\n")
-        f.write(f"  ACTUAL:   {actual}\n")
-        f.write(f"  STATUS:   {status}\n")
-        f.write("-" * 50 + "\n")
+    """Log test evidence to Markdown file."""
+    status_icon = "✅" if status == "PASS" else "❌"
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"### {status_icon} {test_name}\n\n")
+        f.write(f"| Field | Value |\n")
+        f.write(f"|-------|-------|\n")
+        f.write(f"| **Status** | {status} |\n")
+        f.write(f"| **Input** | {input_desc} |\n")
+        f.write(f"| **Expected** | `{expected}` |\n")
+        f.write(f"| **Actual** | `{actual}` |\n")
+        f.write(f"\n---\n\n")
 
 
 # Clear the log file at the start of the run
 @pytest.hookimpl(tryfirst=True)
 def pytest_sessionstart(session):
-    with open(LOG_FILE, "w") as f:
-        f.write("=== WAND BEHAVIOURAL METRICS TEST EVIDENCE ===\n\n")
+    from datetime import datetime
+
+    with open(LOG_FILE, "w", encoding="utf-8") as f:
+        f.write("# WAND Metrics Test Results\n\n")
+        f.write(f"**Run Date**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        f.write("---\n\n")
+        f.write("## Test Results\n\n")
 
 
 # --- TEST DATA FIXTURES ---
@@ -262,3 +274,222 @@ def test_summarise_sequential_block(block_data_with_distractor):
 
     assert post_acc == 0.0
     assert isclose(post_rt, 0.8, abs_tol=0.0001)
+
+
+# --- SDT METRICS TESTS ---
+
+
+def test_sdt_metrics_perfect(perfect_data):
+    """Perfect performance: high d', neutral criterion, all hits/CRs."""
+    sdt = calculate_sdt_metrics(perfect_data)
+
+    log_evidence(
+        "SDT Metrics (Perfect)",
+        "4 Correct Trials (2 Hits, 2 CRs)",
+        "Hits=2, FA=0, d'>1.5",
+        f"Hits={sdt['hits']}, FA={sdt['false_alarms']}, d'={sdt['d_prime']:.2f}",
+        "PASS" if sdt["hits"] == 2 and sdt["false_alarms"] == 0 else "FAIL",
+    )
+
+    assert sdt["hits"] == 2
+    assert sdt["misses"] == 0
+    assert sdt["false_alarms"] == 0
+    assert sdt["correct_rejections"] == 2
+    assert sdt["d_prime"] > 1.5  # High sensitivity
+
+
+def test_sdt_metrics_criterion_unbiased(perfect_data):
+    """Unbiased responder should have criterion near 0."""
+    sdt = calculate_sdt_metrics(perfect_data)
+
+    log_evidence(
+        "Criterion (Unbiased)",
+        "Equal targets/non-targets, 100% correct",
+        "criterion ~= 0 (neutral)",
+        f"c = {sdt['criterion']:.4f}",
+        "PASS" if abs(sdt["criterion"]) < 1.0 else "FAIL",
+    )
+
+    # Perfect performance with balanced trials = criterion near 0
+    assert abs(sdt["criterion"]) < 1.0
+
+
+def test_sdt_metrics_random(random_data):
+    """Random guesser: d' near 0, mixed SDT counts."""
+    sdt = calculate_sdt_metrics(random_data)
+
+    log_evidence(
+        "SDT Metrics (Random)",
+        "Random responses (50% accuracy)",
+        "d' ~= 0",
+        f"d' = {sdt['d_prime']:.4f}, c = {sdt['criterion']:.4f}",
+        "PASS" if abs(sdt["d_prime"]) < 1.0 else "FAIL",
+    )
+
+    # Random guessing = low d-prime
+    assert abs(sdt["d_prime"]) < 1.0
+
+
+def test_sdt_metrics_in_block_summary(block_data_with_distractor):
+    """Block summary should include all SDT metrics."""
+    summary = summarise_sequential_block(
+        block_data_with_distractor, [5], block_number=1
+    )
+
+    # Check all SDT fields exist
+    required_fields = [
+        "Overall D-Prime",
+        "Criterion",
+        "Hits",
+        "Misses",
+        "False Alarms",
+        "Correct Rejections",
+        "Hit Rate",
+        "FA Rate",
+    ]
+    missing = [f for f in required_fields if f not in summary]
+
+    log_evidence(
+        "SDT Metrics in Block Summary",
+        "summarise_sequential_block output",
+        "All 8 SDT fields present",
+        f"Missing: {missing}" if missing else "All present",
+        "PASS" if not missing else "FAIL",
+    )
+
+    assert not missing, f"Missing SDT fields: {missing}"
+    assert isinstance(summary["Criterion"], float)
+    assert isinstance(summary["Hits"], int)
+
+
+@pytest.fixture
+def liberal_bias_data():
+    """Responder who says 'match' too often (liberal bias, c < 0)."""
+    return [
+        {
+            "Trial": 1,
+            "Is Target": True,
+            "Response": "match",
+            "Reaction Time": 0.5,
+            "Accuracy": True,
+        },  # Hit
+        {
+            "Trial": 2,
+            "Is Target": True,
+            "Response": "match",
+            "Reaction Time": 0.5,
+            "Accuracy": True,
+        },  # Hit
+        {
+            "Trial": 3,
+            "Is Target": False,
+            "Response": "match",
+            "Reaction Time": 0.5,
+            "Accuracy": False,
+        },  # FA
+        {
+            "Trial": 4,
+            "Is Target": False,
+            "Response": "match",
+            "Reaction Time": 0.5,
+            "Accuracy": False,
+        },  # FA
+        {
+            "Trial": 5,
+            "Is Target": False,
+            "Response": "match",
+            "Reaction Time": 0.5,
+            "Accuracy": False,
+        },  # FA
+        {
+            "Trial": 6,
+            "Is Target": False,
+            "Response": "non-match",
+            "Reaction Time": 0.5,
+            "Accuracy": True,
+        },  # CR
+    ]
+
+
+@pytest.fixture
+def conservative_bias_data():
+    """Responder who says 'non-match' too often (conservative bias, c > 0)."""
+    return [
+        {
+            "Trial": 1,
+            "Is Target": True,
+            "Response": "non-match",
+            "Reaction Time": 0.5,
+            "Accuracy": False,
+        },  # Miss
+        {
+            "Trial": 2,
+            "Is Target": True,
+            "Response": "non-match",
+            "Reaction Time": 0.5,
+            "Accuracy": False,
+        },  # Miss
+        {
+            "Trial": 3,
+            "Is Target": True,
+            "Response": "match",
+            "Reaction Time": 0.5,
+            "Accuracy": True,
+        },  # Hit
+        {
+            "Trial": 4,
+            "Is Target": False,
+            "Response": "non-match",
+            "Reaction Time": 0.5,
+            "Accuracy": True,
+        },  # CR
+        {
+            "Trial": 5,
+            "Is Target": False,
+            "Response": "non-match",
+            "Reaction Time": 0.5,
+            "Accuracy": True,
+        },  # CR
+        {
+            "Trial": 6,
+            "Is Target": False,
+            "Response": "non-match",
+            "Reaction Time": 0.5,
+            "Accuracy": True,
+        },  # CR
+    ]
+
+
+def test_sdt_liberal_bias(liberal_bias_data):
+    """Liberal responder: says 'match' too often, negative criterion."""
+    sdt = calculate_sdt_metrics(liberal_bias_data)
+
+    log_evidence(
+        "SDT Metrics (Liberal Bias)",
+        "2 Hits, 3 FAs, 1 CR",
+        "c < 0 (liberal)",
+        f"Hits={sdt['hits']}, FA={sdt['false_alarms']}, c={sdt['criterion']:.3f}",
+        "PASS" if sdt["criterion"] < 0 else "FAIL",
+    )
+
+    assert sdt["hits"] == 2
+    assert sdt["false_alarms"] == 3
+    assert sdt["criterion"] < 0, "Liberal bias should have negative criterion"
+
+
+def test_sdt_conservative_bias(conservative_bias_data):
+    """Conservative responder: says 'non-match' too often, positive criterion."""
+    sdt = calculate_sdt_metrics(conservative_bias_data)
+
+    log_evidence(
+        "SDT Metrics (Conservative Bias)",
+        "1 Hit, 2 Misses, 3 CRs",
+        "c > 0 (conservative)",
+        f"Hits={sdt['hits']}, Misses={sdt['misses']}, c={sdt['criterion']:.3f}",
+        "PASS" if sdt["criterion"] > 0 else "FAIL",
+    )
+
+    assert sdt["hits"] == 1
+    assert sdt["misses"] == 2
+    assert sdt["correct_rejections"] == 3
+    assert sdt["criterion"] > 0, "Conservative bias should have positive criterion"

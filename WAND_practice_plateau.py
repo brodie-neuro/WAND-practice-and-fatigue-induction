@@ -15,7 +15,7 @@ Brodie E. Mangan
 
 Version
 -------
-1.0.4
+1.1.0
 
 Environment
 -----------
@@ -36,10 +36,12 @@ MIT (see LICENSE).
 import argparse
 import csv
 import datetime
+import logging
 import math
 import os
 import random
 import sys
+import time
 import traceback
 from typing import List, Tuple
 
@@ -52,6 +54,7 @@ from wand_common import (
     display_dual_stimulus,
     display_grid,
     draw_grid,
+    emergency_quit,
     generate_dual_nback_sequence,
     generate_positions_with_matches,
     generate_sequential_image_sequence,
@@ -60,6 +63,7 @@ from wand_common import (
     get_text,
     install_error_hook,
     load_config,
+    load_gui_config,
     prompt_choice,
     prompt_text_input,
     set_grid_lines,
@@ -285,6 +289,7 @@ def _set_speed(profile: str):
     global SPEED_PROFILE, SPEED_MULT
     SPEED_PROFILE = profile
     SPEED_MULT = float(get_param(f"practice.speed_multiplier.{profile}", 1.0))
+    logging.info(f"Speed profile set to: {profile.upper()} (multiplier={SPEED_MULT})")
 
 
 # Defaults pulled from config (with safe fallbacks)
@@ -307,6 +312,52 @@ def T(sec: float) -> float:
         Scaled duration in seconds (`sec * SPEED_MULT`).
     """
     return sec * SPEED_MULT
+
+
+# GUI Configuration cache (loaded once at startup if available)
+_GUI_CONFIG = None
+_GUI_CONFIG_LOADED = False
+
+
+def _get_gui_config():
+    """Get cached GUI config, loading it once if available."""
+    global _GUI_CONFIG, _GUI_CONFIG_LOADED
+    if not _GUI_CONFIG_LOADED:
+        try:
+            _GUI_CONFIG = load_gui_config()
+            if _GUI_CONFIG:
+                print("[PRACTICE] Using timing config from launcher")
+        except Exception:
+            _GUI_CONFIG = None
+        _GUI_CONFIG_LOADED = True
+    return _GUI_CONFIG
+
+
+def get_gui_timing(task_type, param_name, default):
+    """
+    Get timing parameter from launcher GUI config, falling back to default.
+
+    The value returned is the BASE timing before speed multiplier is applied.
+    This allows slow mode to work on top of GUI-configured timings.
+
+    Parameters
+    ----------
+    task_type : str
+        One of "sequential", "spatial", "dual"
+    param_name : str
+        One of "display_duration", "isi"
+    default : float
+        Fallback value if GUI config not available.
+
+    Returns
+    -------
+    float
+        The timing value in seconds.
+    """
+    gui_config = _get_gui_config()
+    if gui_config and task_type in gui_config:
+        return float(gui_config[task_type].get(param_name, default))
+    return default
 
 
 # Stimulus setup
@@ -435,17 +486,57 @@ def show_task_instructions(win, task_name, n_back_level=None):
     show_text_screen(win, welcome_text, keys=["space"])
 
 
-def show_practice_entry_screen(win):
+def show_practice_entry_screen(
+    win, spa_enabled=True, dual_enabled=True, seq_enabled=True
+):
     """
-    Display the initial practice welcome screens and wait for Space.
+    Display the initial practice welcome screen with dynamic task list.
 
     Parameters
     ----------
     win : psychopy.visual.Window
         The PsychoPy window.
+    spa_enabled : bool
+        Whether Spatial N-back is enabled.
+    dual_enabled : bool
+        Whether Dual N-back is enabled.
+    seq_enabled : bool
+        Whether Sequential N-back is enabled (always True for practice).
     """
-    pilot_text = get_text("practice_welcome")
-    show_text_screen(win, pilot_text, keys=["space"])
+    # Build dynamic task list
+    tasks = []
+    if spa_enabled:
+        tasks.append("A Spatial N-back task")
+    if dual_enabled:
+        tasks.append("A Dual N-back task")
+    if seq_enabled:
+        tasks.append("A Sequential N-back task")
+
+    task_count = len(tasks)
+    if task_count == 0:
+        task_count = 1
+        tasks = ["A Sequential N-back task"]  # Fallback
+
+    # Build numbered list
+    task_list = "\n".join([f"{i+1}. {t}" for i, t in enumerate(tasks)])
+
+    # Generate welcome text
+    if task_count == 1:
+        type_word = "one type of task"
+    elif task_count == 2:
+        type_word = "two types of tasks"
+    else:
+        type_word = "three types of tasks"
+
+    welcome_text = f"""Welcome to the N-back Practice Session
+
+You will complete {type_word}:
+
+{task_list}
+
+Press 'space' to begin."""
+
+    show_text_screen(win, welcome_text, keys=["space"])
 
 
 def show_countdown():
@@ -677,6 +768,46 @@ def draw_n_back_box(win, pos, size, is_match):
 # =============================================================================
 
 
+def prompt_demo_choice(win, task_name):
+    """
+    Prompt participant to optionally view the demonstration.
+
+    Parameters
+    ----------
+    win : visual.Window
+        PsychoPy window.
+    task_name : str
+        Name of the task (e.g., "Spatial", "Dual", "Sequential").
+
+    Returns
+    -------
+    bool
+        True if participant wants to watch demo, False to skip.
+    """
+    prompt_text = (
+        f"Would you like to watch a brief demonstration\n"
+        f"of the {task_name} task?\n\n"
+        f"Press 'D' to watch demonstration\n"
+        f"Press SPACE to skip and begin practice"
+    )
+
+    text_stim = visual.TextStim(
+        win,
+        text=prompt_text,
+        color="white",
+        height=28,
+        wrapWidth=800,
+    )
+    text_stim.draw()
+    win.flip()
+
+    keys = event.waitKeys(keyList=["d", "space", "escape"])
+
+    if keys and keys[0] == "d":
+        return True
+    return False
+
+
 def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0):
     """
     Run a two-pass Spatial N-back demo (normal, then explanatory).
@@ -718,7 +849,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
     intro_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
     n_plus_one = n + 1
@@ -731,7 +864,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
     pass1_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
     nback_queue = []
@@ -773,7 +908,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
     pass1_end_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
     pass2_text = get_text("demo_pass2_intro_spa", num_demo_trials=num_demo_trials)
@@ -783,7 +920,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
     pass2_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
     # Reset queue for PASS 2
@@ -892,7 +1031,9 @@ def show_spatial_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.0
     pass2_end_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
 
@@ -940,7 +1081,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
     intro_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
     n_plus_one = n + 1
@@ -953,7 +1096,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
     pass1_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
     nback_queue = []
@@ -1018,7 +1163,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
     pass1_end_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
     pass2_text = get_text("demo_pass2_intro_dual", num_demo_trials=num_demo_trials)
@@ -1028,7 +1175,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
     pass2_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
     # Reset queue for PASS 2.
@@ -1165,7 +1314,9 @@ def show_dual_demo(win, n=2, num_demo_trials=6, display_duration=1.0, isi=1.2):
     pass2_end_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
 
@@ -1214,7 +1365,9 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
     intro_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
     # Use the same size for stimuli in both passes
@@ -1260,7 +1413,9 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
     end_pass1.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
     # -------------- PASS 2: EXPLANATORY (MOVING WINDOW) --------------
@@ -1271,7 +1426,9 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
     pass2_stim.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
     # Adjust spacing to match the larger stimuli size
@@ -1378,7 +1535,9 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
     end_pass2.draw()
     win.flip()
     keys = event.waitKeys(keyList=["space", "escape", "5"])
-    if "escape" in keys or "5" in keys:
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
         return
 
 
@@ -1387,7 +1546,7 @@ def show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=
 # =============================================================================
 
 
-def run_spatial_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.0):
+def run_spatial_nback_practice(n, num_trials=50, display_duration=None, isi=None):
     """
     Run one block of Spatial N-back practice.
 
@@ -1403,15 +1562,21 @@ def run_spatial_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.0):
     num_trials : int, optional
         Number of trials to present. Default 50.
     display_duration : float, optional
-        On-screen time (s) per stimulus (scaled by `T`). Default 1.0.
+        On-screen time (s) per stimulus (scaled by `T`). Uses GUI config or 1.0.
     isi : float, optional
-        Inter-stimulus interval (s) (scaled by `T`). Default 1.0.
+        Inter-stimulus interval (s) (scaled by `T`). Uses GUI config or 1.0.
 
     Returns
     -------
     Tuple[float, int, int, int]
         (accuracy_pct, correct_responses, incorrect_responses, lapses)
     """
+    # Get timing from GUI config if not explicitly provided
+    if display_duration is None:
+        display_duration = get_gui_timing("spatial", "display_duration", 1.0)
+    if isi is None:
+        isi = get_gui_timing("spatial", "isi", 1.0)
+
     display_duration = T(display_duration)
     isi = T(isi)
     global skip_to_next_stage
@@ -1466,7 +1631,7 @@ def run_spatial_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.0):
         display_grid(win, highlight_pos=None, highlight=False, n_level=n)
         win.flip()
 
-        # Define the feedback behavior: Draw result, wait brief moment, then clear
+        # Define the feedback behaviour: Draw result, wait brief moment, then clear
         def feedback_action(user_resp):
             # Draw green/red feedback
             display_grid(win, highlight_pos=None, highlight=False, n_level=n)
@@ -1512,7 +1677,7 @@ def run_spatial_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.0):
     return accuracy, correct_responses, incorrect_responses, lapses
 
 
-def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
+def run_dual_nback_practice(n, num_trials=50, display_duration=None, isi=None):
     """
     Run one block of Dual N-back practice on a 3×3 grid.
 
@@ -1527,15 +1692,21 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
     num_trials : int, optional
         Number of trials to present. Default 50.
     display_duration : float, optional
-        On-screen time (s) per stimulus (scaled by `T`). Default 1.0.
+        On-screen time (s) per stimulus (scaled by `T`). Uses GUI config or 1.0.
     isi : float, optional
-        Inter-stimulus interval (s) (scaled by `T`). Default 1.2.
+        Inter-stimulus interval (s) (scaled by `T`). Uses GUI config or 1.2.
 
     Returns
     -------
     Tuple[float, int, int, int]
         (accuracy_pct, correct_responses, incorrect_responses, lapses)
     """
+    # Get timing from GUI config if not explicitly provided
+    if display_duration is None:
+        display_duration = get_gui_timing("dual", "display_duration", 1.0)
+    if isi is None:
+        isi = get_gui_timing("dual", "isi", 1.2)
+
     display_duration = T(display_duration)
     isi = T(isi)
     global skip_to_next_stage
@@ -1661,7 +1832,7 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=1.0, isi=1.2):
 
 
 def run_sequential_nback_practice(
-    n, num_trials=90, target_percentage=0.5, display_duration=0.8, isi=1.0
+    n, num_trials=90, target_percentage=0.5, display_duration=None, isi=None
 ):
     """
     Run one block of Sequential N-back practice (with optional 200 ms distractors).
@@ -1678,16 +1849,22 @@ def run_sequential_nback_practice(
         Total trials in this block.
     target_percentage : float, default 0.5
         Proportion of target trials (matches).
-    display_duration : float, default 0.8
-        Seconds each stimulus is shown.
-    isi : float, default 1.0
-        Inter-stimulus interval *before* speed multiplier.
+    display_duration : float, optional
+        Seconds each stimulus is shown. Uses GUI config or 0.8.
+    isi : float, optional
+        Inter-stimulus interval *before* speed multiplier. Uses GUI config or 1.0.
 
     Returns
     -------
     tuple
         (accuracy_pct, incorrect_responses, lapses, avg_reaction_time)
     """
+    # Get timing from GUI config if not explicitly provided
+    if display_duration is None:
+        display_duration = get_gui_timing("sequential", "display_duration", 0.8)
+    if isi is None:
+        isi = get_gui_timing("sequential", "isi", 1.0)
+
     display_duration = T(display_duration)
     isi = T(isi)
     global skip_to_next_stage
@@ -1944,6 +2121,10 @@ def run_sequential_nback_until_plateau(starting_level):
         accuracy, errors, lapses, avg_reaction_time = run_sequential_nback_practice(
             n_level, num_trials=num_trials
         )
+        elapsed = time.time() - START_TIME
+        logging.info(
+            f"Sequential Block {block_count} (Level {n_level}) finished. Accuracy: {accuracy:.1f}%, Avg RT: {avg_reaction_time:.3f}s. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+        )
 
         # 3. Log Results (if not in a special slow phase)
         if not slow_phase:
@@ -1988,10 +2169,12 @@ def run_sequential_nback_until_plateau(starting_level):
             )
             level_change_stim.draw()
             win.flip()
+            logging.info(f"Level promoted to {n_level}-back")
             core.wait(2)
 
         elif check_plateau(block_results, variance_threshold=7):
             # --- PLATEAU PATH ---
+            logging.info("Plateau reached (accuracy stable). Finishing practice.")
             # This runs ONLY if we did NOT just promote.
             # If performance is stable at the current level, we finish practice.
             break
@@ -2045,9 +2228,19 @@ def main():
     None
     """
     global skip_to_next_stage, win, grid_lines, PARTICIPANT_ID, CSV_PATH
-    global GLOBAL_SEED, DISTRACTORS_ENABLED, SPEED_PROFILE, SPEED_MULT
+    global GLOBAL_SEED, DISTRACTORS_ENABLED, SPEED_PROFILE, SPEED_MULT, START_TIME
 
     print("Starting script...")
+
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - [PRACTICE] %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    logging.info("Practice session started")
+    START_TIME = time.time()
+
     print("Creating window...")
     try:
         win = visual.Window(
@@ -2090,119 +2283,172 @@ def main():
         DISTRACTORS_ENABLED = options["Distractors"]
         _apply_seed(GLOBAL_SEED)
 
-        show_practice_entry_screen(win)
+        # --- Load Enable Flags from GUI Config ---
+        from wand_common import load_gui_config
+
+        gui_config = load_gui_config()
+        if gui_config:
+            spa_enabled = gui_config.get("spatial_enabled", True)
+            dual_enabled = gui_config.get("dual_enabled", True)
+            seq_enabled = gui_config.get("sequential_enabled", True)
+            print(
+                f"Tasks Enabled: Spatial={spa_enabled}, Dual={dual_enabled}, Sequential={seq_enabled}"
+            )
+        else:
+            spa_enabled = True
+            dual_enabled = True
+            seq_enabled = True
+
+        show_practice_entry_screen(
+            win,
+            spa_enabled=spa_enabled,
+            dual_enabled=dual_enabled,
+            seq_enabled=seq_enabled,
+        )
 
         # ===== Spatial phase =====
-        show_task_instructions(win, "Spatial")
-        show_spatial_demo(win, n=2)
-        _set_speed(choose_practice_speed(win, SPEED_PROFILE))
+        if spa_enabled:
+            show_task_instructions(win, "Spatial")
+            if prompt_demo_choice(win, "Spatial"):
+                logging.info("User chose to watch Spatial demo")
+                show_spatial_demo(win, n=2)
+            else:
+                logging.info("User skipped Spatial demo")
+            _set_speed(choose_practice_speed(win, SPEED_PROFILE))
 
-        # Slow gating loop, promote on first block ≥ 65 %
-        if SPEED_PROFILE == "slow":
-            while True:
+            # Slow gating loop, promote on first block ≥ 65 %
+            if SPEED_PROFILE == "slow":
+                while True:
+                    show_countdown()
+                    acc, corr, incorr, lapses = run_spatial_nback_practice(
+                        n=2, num_trials=60
+                    )
+                    elapsed = time.time() - START_TIME
+                    logging.info(
+                        f"Spatial-SLOW Block finished. Accuracy: {acc:.1f}%. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                    )
+                    display_block_results(
+                        win, "Spatial-slow", acc, corr, incorr, lapses
+                    )
+
+                    if skip_to_next_stage:
+                        break
+
+                    if acc >= 65:
+                        _set_speed("normal")
+                        visual.TextStim(
+                            win,
+                            text=get_text("practice_slow_promo"),
+                            color="white",
+                            height=24,
+                            wrapWidth=800,
+                        ).draw()
+                        win.flip()
+                        core.wait(2)
+                        break
+
+                    visual.TextStim(
+                        win,
+                        text=get_text("practice_slow_retry"),
+                        color="white",
+                        height=24,
+                        wrapWidth=800,
+                    ).draw()
+                    win.flip()
+                    event.waitKeys(keyList=["space"])
+
+            # Need two successive normal-speed blocks ≥ 65 %
+            passes = 0
+            while passes < 2 and not skip_to_next_stage:
                 show_countdown()
                 acc, corr, incorr, lapses = run_spatial_nback_practice(
                     n=2, num_trials=60
                 )
-                display_block_results(win, "Spatial-slow", acc, corr, incorr, lapses)
+                elapsed = time.time() - START_TIME
+                logging.info(
+                    f"Spatial-NORMAL Block finished. Accuracy: {acc:.1f}%. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                )
+                display_block_results(win, "Spatial", acc, corr, incorr, lapses)
 
                 if skip_to_next_stage:
                     break
 
-                if acc >= 65:
-                    _set_speed("normal")
+                passes = passes + 1 if acc >= 65 else 0
+                if passes < 2:
                     visual.TextStim(
                         win,
-                        text=get_text("practice_slow_promo"),
+                        text="Let's do another block to make sure the performance is consistent.\n\nPress SPACE to continue.",
                         color="white",
                         height=24,
                         wrapWidth=800,
                     ).draw()
                     win.flip()
-                    core.wait(2)
-                    break
-
-                visual.TextStim(
-                    win,
-                    text=get_text("practice_slow_retry"),
-                    color="white",
-                    height=24,
-                    wrapWidth=800,
-                ).draw()
-                win.flip()
-                event.waitKeys(keyList=["space"])
-
-        # Need two successive normal-speed blocks ≥ 65 %
-        passes = 0
-        while passes < 2 and not skip_to_next_stage:
-            show_countdown()
-            acc, corr, incorr, lapses = run_spatial_nback_practice(n=2, num_trials=60)
-            display_block_results(win, "Spatial", acc, corr, incorr, lapses)
-
-            if skip_to_next_stage:
-                break
-
-            passes = passes + 1 if acc >= 65 else 0
-            if passes < 2:
-                visual.TextStim(
-                    win,
-                    text="Let's do another block to make sure the performance is consistent.\n\nPress SPACE to continue.",
-                    color="white",
-                    height=24,
-                    wrapWidth=800,
-                ).draw()
-                win.flip()
-                event.waitKeys(keyList=["space"])
+                    event.waitKeys(keyList=["space"])
 
         skip_to_next_stage = False  # reset for next phase
 
         # ===== Dual phase =====
-        show_task_instructions(win, "Dual")
-        show_dual_demo(win, n=2)
-        _set_speed(choose_practice_speed(win, SPEED_PROFILE))
+        if dual_enabled:
+            show_task_instructions(win, "Dual")
+            if prompt_demo_choice(win, "Dual"):
+                logging.info("User chose to watch Dual demo")
+                show_dual_demo(win, n=2)
+            else:
+                logging.info("User skipped Dual demo")
+            _set_speed(choose_practice_speed(win, SPEED_PROFILE))
 
-        # Slow gating loop, promote on first block ≥ 65 %
-        if SPEED_PROFILE == "slow":
-            while True:
-                show_countdown()
-                acc, corr, incorr, lapses = run_dual_nback_practice(n=2, num_trials=60)
-                display_block_results(win, "Dual-slow", acc, corr, incorr, lapses)
+            # Slow gating loop, promote on first block ≥ 65 %
+            if SPEED_PROFILE == "slow":
+                while True:
+                    show_countdown()
+                    acc, corr, incorr, lapses = run_dual_nback_practice(
+                        n=2, num_trials=60
+                    )
+                    elapsed = time.time() - START_TIME
+                    logging.info(
+                        f"Dual-SLOW Block finished. Accuracy: {acc:.1f}%. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                    )
+                    display_block_results(win, "Dual-slow", acc, corr, incorr, lapses)
 
-                if skip_to_next_stage:
-                    break
+                    if skip_to_next_stage:
+                        break
 
-                if acc >= 65:
-                    _set_speed("normal")
+                    if acc >= 65:
+                        _set_speed("normal")
+                        visual.TextStim(
+                            win,
+                            text=get_text("practice_slow_promo"),
+                            color="white",
+                            height=24,
+                            wrapWidth=800,
+                        ).draw()
+                        win.flip()
+                        core.wait(2)
+                        break
+
                     visual.TextStim(
                         win,
-                        text=get_text("practice_slow_promo"),
+                        text=get_text("practice_slow_retry"),
                         color="white",
                         height=24,
                         wrapWidth=800,
                     ).draw()
                     win.flip()
-                    core.wait(2)
+                    event.waitKeys(keyList=["space"])
+
+            # Need two successive normal-speed blocks ≥ 65 %
+            passes = 0
+            while passes < 2 and not skip_to_next_stage:
+                show_countdown()
+                acc, corr, incorr, lapses = run_dual_nback_practice(n=2, num_trials=60)
+                elapsed = time.time() - START_TIME
+                logging.info(
+                    f"Dual-NORMAL Block finished. Accuracy: {acc:.1f}%. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                )
+                display_block_results(win, "Dual", acc, corr, incorr, lapses)
+
+                if skip_to_next_stage:
                     break
-
-                visual.TextStim(
-                    win,
-                    text=get_text("practice_slow_retry"),
-                    color="white",
-                    height=24,
-                    wrapWidth=800,
-                ).draw()
-                win.flip()
-                event.waitKeys(keyList=["space"])
-
-        # Need two successive normal-speed blocks ≥ 65 %
-        passes = 0
-        while passes < 2 and not skip_to_next_stage:
-            show_countdown()
-            acc, corr, incorr, lapses = run_dual_nback_practice(n=2, num_trials=60)
-            display_block_results(win, "Dual", acc, corr, incorr, lapses)
-
-            if skip_to_next_stage:
-                break
 
             passes = passes + 1 if acc >= 65 else 0
             if passes < 2:
@@ -2219,54 +2465,58 @@ def main():
         skip_to_next_stage = False
 
         # ===== Sequential phase =====
-        show_task_instructions(win, "Sequential", n_back_level=2)
-        show_sequential_demo(win, n=2, num_demo_trials=6, display_duration=0.8, isi=1.0)
-        _set_speed(choose_practice_speed(win, SPEED_PROFILE))
+        if seq_enabled:
+            show_task_instructions(win, "Sequential", n_back_level=2)
+            if prompt_demo_choice(win, "Sequential"):
+                show_sequential_demo(
+                    win, n=2, num_demo_trials=6, display_duration=0.8, isi=1.0
+                )
+            _set_speed(choose_practice_speed(win, SPEED_PROFILE))
 
-        # Slow gating for sequential
-        if SPEED_PROFILE == "slow":
-            while True:
-                show_countdown()
-                acc, _, _, _ = run_sequential_nback_practice(n=2, num_trials=60)
-                display_block_results(win, "Sequential-slow", acc, 0, 0, 0)
+            # Slow gating for sequential
+            if SPEED_PROFILE == "slow":
+                while True:
+                    show_countdown()
+                    acc, _, _, _ = run_sequential_nback_practice(n=2, num_trials=60)
+                    display_block_results(win, "Sequential-slow", acc, 0, 0, 0)
 
-                if skip_to_next_stage:
-                    break
+                    if skip_to_next_stage:
+                        break
 
-                if acc >= 65:
-                    _set_speed("normal")
+                    if acc >= 65:
+                        _set_speed("normal")
+                        visual.TextStim(
+                            win,
+                            text=get_text("practice_slow_promo"),
+                            color="white",
+                            height=24,
+                            wrapWidth=800,
+                        ).draw()
+                        win.flip()
+                        core.wait(2)
+                        break
+
                     visual.TextStim(
                         win,
-                        text=get_text("practice_slow_promo"),
+                        text=get_text("practice_slow_retry"),
                         color="white",
                         height=24,
                         wrapWidth=800,
                     ).draw()
                     win.flip()
-                    core.wait(2)
-                    break
+                    event.waitKeys(keyList=["space"])
 
-                visual.TextStim(
-                    win,
-                    text=get_text("practice_slow_retry"),
-                    color="white",
-                    height=24,
-                    wrapWidth=800,
-                ).draw()
-                win.flip()
-                event.waitKeys(keyList=["space"])
+            # Adaptive plateau routine, unless user skipped
+            if not skip_to_next_stage:
+                starting_level = prompt_starting_level()
+                show_countdown()
+                (
+                    final_n_level,
+                    final_accuracy,
+                    final_avg_rt,
+                ) = run_sequential_nback_until_plateau(starting_level)
 
-        # Adaptive plateau routine, unless user skipped
-        if not skip_to_next_stage:
-            starting_level = prompt_starting_level()
-            show_countdown()
-            (
-                final_n_level,
-                final_accuracy,
-                final_avg_rt,
-            ) = run_sequential_nback_until_plateau(starting_level)
-
-        skip_to_next_stage = False  # reset before exit
+            skip_to_next_stage = False  # reset before exit
 
         # ===== Final summary =====
         final_summary = get_text("practice_complete")

@@ -1,5 +1,5 @@
 ---
-title: 'WAND (Working-memory Active-fatigue with N-back Difficulty): A Modular Software Suite for Cognitive Fatigue Research'
+title: 'WAND (Working-memory Adaptive-fatigue with N-back Difficulty): A Modular Software Suite for Cognitive Fatigue Research'
 authors:
   - name: Brodie E. Mangan 
     orcid: 0009-0002-8466-5423
@@ -26,7 +26,7 @@ archive:
 
 # Summary
 
-WAND (Working-memory Active-fatigue with N-back Difficulty) is an open-source PsychoPy [@peirce2019psychopy2] software suite for cognitive fatigue research. It provides a modular N-back framework to classify performance, calibrate stable baselines via plateau detection (mitigating learning effects), and systematically induce active fatigue using varied N-back tasks with integrated distractors. This MIT-licensed paper outlines WAND's design and use.
+WAND (Working-memory Adaptive-fatigue with N-back Difficulty) is an open-source PsychoPy [@peirce2019psychopy2] software suite for cognitive fatigue research. It provides a modular N-back framework to classify performance, calibrate stable baselines via plateau detection (mitigating learning effects), and systematically induce active fatigue using varied N-back tasks with integrated distractors. This MIT-licensed paper outlines WAND's design and use.
 
 # Statement of Need
 

@@ -17,11 +17,11 @@ Brodie E. Mangan
 
 Version
 -------
-1.0.4
+1.1.0
 
 Environment
 -----------
-Tested on Windows, Python 3.8. See requirements.txt for exact pins.
+Tested on Windows, Python 3.8, 3.10+. See requirements.txt for exact pins.
 
 License
 -------
@@ -49,6 +49,7 @@ from wand_common import (
     display_dual_stimulus,
     display_grid,
     draw_grid,
+    emergency_quit,
     generate_dual_nback_sequence,
     generate_positions_with_matches,
     generate_sequential_image_sequence,
@@ -200,15 +201,94 @@ preloaded_images_dual = {
     for image_file in image_files
 }
 
-# EEG Configuration
-EEG_ENABLED = False  # Set True to activate EEG triggering
+# EEG Configuration - loaded from params.json
+EEG_ENABLED = bool(get_param("eeg.enabled", False))
+EEG_PORT_ADDRESS = get_param("eeg.port_address", "0x378")
+EEG_TRIGGER_DURATION = float(get_param("eeg.trigger_duration", 0.005))
+EEG_TRIGGERS = get_param("eeg.triggers", {})
+
+# Parallel port instance (initialized lazily if needed)
+_parallel_port = None
 
 
-def send_trigger(trigger_code):
-    """Send EEG trigger if configured. Placeholder."""
-    if EEG_ENABLED:
-        # Insert parallel port code here (e.g., port.setData(trigger_code))
-        core.wait(0.005)  # Simulate duration
+def _get_parallel_port():
+    """Lazily initialize the parallel port connection."""
+    global _parallel_port
+    if _parallel_port is None and EEG_ENABLED:
+        try:
+            from psychopy import parallel
+
+            port_addr = (
+                int(EEG_PORT_ADDRESS, 16)
+                if isinstance(EEG_PORT_ADDRESS, str)
+                else EEG_PORT_ADDRESS
+            )
+            _parallel_port = parallel.ParallelPort(address=port_addr)
+            logging.info(f"EEG parallel port initialized at {EEG_PORT_ADDRESS}")
+        except Exception as e:
+            logging.warning(f"Failed to initialize parallel port: {e}")
+            _parallel_port = False  # Mark as failed, don't retry
+    return _parallel_port if _parallel_port else None
+
+
+def send_trigger(trigger_name_or_code):
+    """
+    Send EEG trigger if configured.
+
+    Parameters
+    ----------
+    trigger_name_or_code : str or int
+        Either a trigger name from config (e.g., "sequential_stimulus")
+        or a raw integer trigger code.
+
+    Notes
+    -----
+    Trigger codes are defined in config/params.json under eeg.triggers.
+    To enable EEG triggering, set eeg.enabled to true in params.json.
+    """
+    if not EEG_ENABLED:
+        return
+
+    # Resolve trigger code
+    if isinstance(trigger_name_or_code, str):
+        trigger_code = EEG_TRIGGERS.get(trigger_name_or_code, 0)
+        if trigger_code == 0:
+            logging.warning(f"Unknown trigger name: {trigger_name_or_code}")
+            return
+    else:
+        trigger_code = int(trigger_name_or_code)
+
+    port = _get_parallel_port()
+    if port:
+        try:
+            port.setData(trigger_code)
+            core.wait(EEG_TRIGGER_DURATION)
+            port.setData(0)  # Reset
+        except Exception as e:
+            logging.warning(f"Failed to send trigger {trigger_code}: {e}")
+
+
+# =============================================================================
+#  SECTION 3B: SKIP-TO-NEXT FUNCTIONALITY (for testing)
+# =============================================================================
+
+# Global flag for skipping blocks (press 5 during task)
+skip_to_next_block = False
+
+
+def set_skip_flag():
+    """Mark that the user has requested to skip the current block.
+
+    When bound to global key '5', this allows testers to skip long blocks
+    during manual verification. The skip is logged for transparency.
+    """
+    global skip_to_next_block
+    skip_to_next_block = True
+    logging.warning("SKIP REQUESTED: User pressed '5' to skip current block")
+
+
+# Global key registration removed - causes issues with instruction screens
+# Skip is now checked via event.getKeys() during trial response collection
 
 
 # =============================================================================
@@ -218,31 +298,88 @@ def send_trigger(trigger_code):
 
 def get_participant_info(win):
     """
-    Collect participant information using the shared prompt helpers.
+    Collect participant information.
+
+    First checks for GUI config (from WAND_Launcher.py). If found, uses those
+    settings and skips the on-screen prompts. If not found, falls back to
+    the normal on-screen prompt workflow.
+
+    Parameters
+    ----------
+    win : psychopy.visual.Window
+        The PsychoPy window (used for on-screen prompts if needed).
 
     Returns
     -------
     dict
-        {
-            "Participant ID": str,
-            "N-back Level": int,
-            "Seed": Optional[int],
-            "Distractors": bool
-        }
+        Dictionary containing:
+        - "Participant ID": str
+        - "N-back Level": int (2 or 3)
+        - "Seed": int or None
+        - "Distractors": bool
     """
+    # ─────────────────────────────────────────────────────────────────────────
+    # Check for GUI config first
+    # ─────────────────────────────────────────────────────────────────────────
+    from wand_common import load_gui_config
+
+    gui_config = load_gui_config()
+
+    if gui_config:
+        # Extract settings we CAN use from GUI, but don't return yet
+        participant_id_val = gui_config["participant_id"]
+        seed_val = gui_config.get("rng_seed")  # Use .get() for optional value
+        # Distractors is nested under "sequential" in the Launcher config
+        distractors_val = gui_config.get("sequential", {}).get(
+            "distractors_enabled", True
+        )
+        print(f"       Participant: {participant_id_val}")
+        # print(f"       N-back Level: {gui_config['n_back_level']}") # REMOVED - Asking user now
+        print(f"       Distractors: {'ON' if distractors_val else 'OFF'}")
+
+    else:
+        # ─────────────────────────────────────────────────────────────────────────
+        # No GUI config - use normal on-screen prompts
+        # ─────────────────────────────────────────────────────────────────────────
+        text_style = dict(height=24, color="white", wrapWidth=900)
+
+        # Participant ID (required, free text)
+        participant_id_val = prompt_text_input(
+            win,
+            get_text("get_pid"),
+            initial_text="",
+            allow_empty=False,
+            restrict_digits=False,
+            text_style=text_style,
+        )
+
+        # Optional RNG seed (digits only, empty allowed = None)
+        seed_str = prompt_text_input(
+            win,
+            get_text("get_seed"),
+            initial_text="",
+            allow_empty=True,
+            restrict_digits=True,
+            text_style=text_style,
+        )
+        seed_val = int(seed_str) if seed_str else None
+
+        # Distractors on / off → boolean
+        distractors_val = prompt_choice(
+            win,
+            get_text("get_distractors"),
+            key_map={"y": True, "n": False},
+            allow_escape_quit=False,
+            text_style=text_style,
+        )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # ALWAYS PROMPT FOR N-BACK LEVEL (Induction Decision)
+    # ─────────────────────────────────────────────────────────────────────────
+    # Even if we have a GUI config, the user must select the level (2 or 3)
+    # based on their practice performance.
     text_style = dict(height=24, color="white", wrapWidth=900)
 
-    # Participant ID (required, free text)
-    participant_id = prompt_text_input(
-        win,
-        get_text("get_pid"),
-        initial_text="",
-        allow_empty=False,
-        restrict_digits=False,
-        text_style=text_style,
-    )
-
-    # N-back level for the induction (2 or 3)
     n_level = prompt_choice(
         win,
         get_text("get_n_level"),
@@ -251,31 +388,11 @@ def get_participant_info(win):
         text_style=text_style,
     )
 
-    # Optional RNG seed (digits only, empty allowed = None)
-    seed_str = prompt_text_input(
-        win,
-        get_text("get_seed"),
-        initial_text="",
-        allow_empty=True,
-        restrict_digits=True,
-        text_style=text_style,
-    )
-    seed_val = int(seed_str) if seed_str else None
-
-    # Distractors on / off → boolean
-    distractors = prompt_choice(
-        win,
-        get_text("get_distractors"),
-        key_map={"y": True, "n": False},
-        allow_escape_quit=False,
-        text_style=text_style,
-    )
-
     return {
-        "Participant ID": participant_id,
+        "Participant ID": participant_id_val,
         "N-back Level": int(n_level),
         "Seed": seed_val,
-        "Distractors": distractors,
+        "Distractors": distractors_val,
     }
 
 
@@ -321,6 +438,9 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
         with open(full_path, mode=mode, newline="") as file:
             writer = csv.writer(file)
 
+            # Default participant_id in case results is empty
+            participant_id = "Unknown"
+
             # ─────────────────────────────────────────────────────────
             #   first‑time header rows  (only if we are *creating* file)
             # ─────────────────────────────────────────────────────────
@@ -364,6 +484,14 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
                             "Total Reaction Time",
                             "Average Reaction Time",
                             "Overall D-Prime",
+                            # Add full SDT metrics
+                            "Criterion",
+                            "Hit Rate",
+                            "FA Rate",
+                            "Hits",
+                            "Misses",
+                            "False Alarms",
+                            "Correct Rejections",
                         ]:
                             writer.writerow(
                                 [
@@ -446,7 +574,7 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
             )
             error_stim.draw()
             win.flip()
-            event.waitKeys()
+            event.waitKeys(keyList=["space", "escape", "5"])
         except Exception as inner_e:
             logging.error(f"Error displaying save‑failure message: {inner_e}")
 
@@ -495,7 +623,7 @@ def save_sequential_results(participant_id, n_back_level, block_name, seq_result
 # =============================================================================
 
 
-def show_overall_welcome_screen(win):
+def show_overall_welcome_screen(win, duration=90):
     """
     Display the experiment welcome screen and wait for Space.
 
@@ -503,8 +631,10 @@ def show_overall_welcome_screen(win):
     ----------
     win : psychopy.visual.Window
         The active PsychoPy window.
+    duration : int
+        Estimated experiment duration in minutes.
     """
-    welcome_text = get_text("induction_welcome")
+    welcome_text = get_text("induction_welcome", duration=duration)
     show_text_screen(win, welcome_text, keys=["space"])
 
 
@@ -697,6 +827,9 @@ def get_progressive_timings(task_name, block_number):
     """
     Compute block-dependent presentation and ISI durations.
 
+    If GUI config is available (from WAND_Launcher.py), uses those base timings.
+    Otherwise falls back to default values.
+
     Parameters
     ----------
     task_name : str
@@ -709,23 +842,69 @@ def get_progressive_timings(task_name, block_number):
     Tuple[float, float]
         (presentation_time_s, isi_time_s) after applying per-block reductions.
     """
+    # Try to get base timings from GUI config
+    from wand_common import load_gui_config
+
+    gui_config = load_gui_config()
+
     if task_name == "Spatial N-back":
-        base_presentation = 1.0  # Base presentation time in seconds
-        base_isi = 1.0  # Base ISI in seconds
-        presentation_reduction_per_block = 0.03  # Reduction per block in seconds
-        isi_reduction_per_block = 0.05  # Reduction per block in seconds
-        max_presentation_reduction = 0.15  # Maximum total reduction in seconds
-        max_isi_reduction = 0.225  # Maximum total reduction in seconds
+        # Check GUI config for spatial timings
+        if gui_config and "spatial" in gui_config:
+            base_presentation = float(
+                gui_config["spatial"].get("display_duration", 1.0)
+            )
+            base_isi = float(gui_config["spatial"].get("isi", 1.0))
+            # Check if time compression is enabled
+            time_compression = gui_config["spatial"].get("time_compression", True)
+        else:
+            base_presentation = 1.0  # Base presentation time in seconds
+            base_isi = 1.0  # Base ISI in seconds
+            time_compression = True
+
+        if time_compression:
+            presentation_reduction_per_block = 0.03  # Reduction per block in seconds
+            isi_reduction_per_block = 0.05  # Reduction per block in seconds
+            max_presentation_reduction = 0.15  # Maximum total reduction in seconds
+            max_isi_reduction = 0.225  # Maximum total reduction in seconds
+        else:
+            presentation_reduction_per_block = 0.0
+            isi_reduction_per_block = 0.0
+            max_presentation_reduction = 0.0
+            max_isi_reduction = 0.0
+
     elif task_name == "Dual N-back":
-        base_presentation = 1.0  # Base presentation time in seconds
-        base_isi = 1.2  # Base ISI in seconds
-        presentation_reduction_per_block = 0.03  # Reduction per block in seconds
-        isi_reduction_per_block = 0.05  # Reduction per block in seconds
-        max_presentation_reduction = 0.15  # Maximum total reduction in seconds
-        max_isi_reduction = 0.15  # Maximum total reduction in seconds
+        # Check GUI config for dual timings
+        if gui_config and "dual" in gui_config:
+            base_presentation = float(gui_config["dual"].get("display_duration", 1.0))
+            base_isi = float(gui_config["dual"].get("isi", 1.2))
+            # Check if time compression is enabled
+            time_compression = gui_config["dual"].get("time_compression", True)
+        else:
+            base_presentation = 1.0  # Base presentation time in seconds
+            base_isi = 1.2  # Base ISI in seconds
+            time_compression = True
+
+        if time_compression:
+            presentation_reduction_per_block = 0.03  # Reduction per block in seconds
+            isi_reduction_per_block = 0.05  # Reduction per block in seconds
+            max_presentation_reduction = 0.15  # Maximum total reduction in seconds
+            max_isi_reduction = 0.15  # Maximum total reduction in seconds
+        else:
+            presentation_reduction_per_block = 0.0
+            isi_reduction_per_block = 0.0
+            max_presentation_reduction = 0.0
+            max_isi_reduction = 0.0
+
     else:
-        base_presentation = 1.0
-        base_isi = 1.0
+        # Sequential or other - check GUI config
+        if gui_config and "sequential" in gui_config:
+            base_presentation = float(
+                gui_config["sequential"].get("display_duration", 0.8)
+            )
+            base_isi = float(gui_config["sequential"].get("isi", 1.0))
+        else:
+            base_presentation = 1.0
+            base_isi = 1.0
         presentation_reduction_per_block = 0.0
         isi_reduction_per_block = 0.0
         max_presentation_reduction = 0.0
@@ -738,6 +917,17 @@ def get_progressive_timings(task_name, block_number):
 
     presentation_time = base_presentation - presentation_reduction
     isi = base_isi - isi_reduction
+
+    if time_compression and (presentation_reduction > 0 or isi_reduction > 0):
+        logging.info(
+            f"Time Compression Applied ({task_name} Block {block_number+1}): -{presentation_reduction:.3f}s presentation, -{isi_reduction:.3f}s ISI"
+        )
+    elif time_compression:
+        logging.info(
+            f"Time Compression Active ({task_name}): No reduction for Block {block_number+1} yet"
+        )
+    else:
+        logging.debug(f"Time Compression OFF ({task_name})")
 
     return presentation_time, isi
 
@@ -920,6 +1110,11 @@ def run_sequential_nback_block(
     """
     skip_responses = n
 
+    # Clear any pending skip requests and keyboard buffer
+    global skip_to_next_block
+    skip_to_next_block = False
+    event.clearEvents()
+
     num_images_to_generate = (
         max(num_images, num_trials) if num_trials is not None else num_images
     )
@@ -996,6 +1191,15 @@ def run_sequential_nback_block(
         core.wait(2)
 
     for i in range(total_trials):
+        # Check for skip request (press 5)
+        if "5" in event.getKeys(keyList=["5"]):
+            skip_to_next_block = True
+            logging.warning(f"Sequential block SKIPPED at trial {i+1}/{total_trials}")
+            break
+        if skip_to_next_block:
+            logging.warning(f"Sequential block SKIPPED at trial {i+1}/{total_trials}")
+            break
+
         img = images[i]
         feedback_text = None
         if last_lapse and i >= skip_responses:
@@ -1003,7 +1207,7 @@ def run_sequential_nback_block(
             last_lapse = False
 
         display_image(win, img, level_indicator, feedback_text=feedback_text)
-        send_trigger(1)
+        send_trigger("sequential_stimulus_onset")
 
         resp1, rt1 = collect_trial_response(
             win,
@@ -1012,6 +1216,8 @@ def run_sequential_nback_block(
             is_valid_trial=(i >= skip_responses),
             stop_on_response=False,
         )
+
+        send_trigger("sequential_stimulus_offset")
 
         draw_grid()
         fixation_cross.draw()
@@ -1110,6 +1316,7 @@ def run_spatial_nback_block(
     isi=1.0,
     is_first_encounter=True,
     block_number=0,
+    sub_block_index=None,
 ):
     """
     Run one block of the Spatial N-back task on a 12-position radial grid.
@@ -1122,14 +1329,21 @@ def run_spatial_nback_block(
         isi (float): Base inter-stimulus interval (seconds), jittered.
         is_first_encounter (bool): If True, shows the initial “no response needed” prompt.
         block_number (int): Zero-based block index for logging/messages.
-
-    Returns:
-        int: Updated N-back level after performance is evaluated.
+        sub_block_index (Optional[int]): Zero-based sub-block index (0, 1, 2) for logging.
     """
+    block_label = f"{block_number + 1}"
+    if sub_block_index is not None:
+        block_label += f".{sub_block_index + 1}"
+
     positions = generate_positions_with_matches(num_trials, n)
     logging.info(
-        f"Block {block_number + 1} timings - Presentation: {display_duration * 1000}ms, ISI: {isi * 1000}ms"
+        f"Spatial Block {block_label} timings - Presentation: {display_duration * 1000}ms, ISI: {isi * 1000}ms"
     )
+
+    # Clear any pending skip requests and keyboard buffer
+    global skip_to_next_block
+    skip_to_next_block = False
+    event.clearEvents()
 
     nback_queue = []
     correct_responses = 0
@@ -1152,6 +1366,15 @@ def run_spatial_nback_block(
         core.wait(0.5)
 
     for i, pos in enumerate(positions):
+        # Check for skip request (press 5)
+        if "5" in event.getKeys(keyList=["5"]):
+            skip_to_next_block = True
+            logging.warning(f"Spatial block SKIPPED at trial {i+1}/{len(positions)}")
+            break
+        if skip_to_next_block:
+            logging.warning(f"Spatial block SKIPPED at trial {i+1}/{len(positions)}")
+            break
+
         feedback_text = None
         if last_lapse:
             feedback_text = get_text("lapse_feedback")
@@ -1209,6 +1432,7 @@ def run_dual_nback_block(
     isi=1.2,
     is_first_encounter=True,
     block_number=0,
+    sub_block_index=None,
 ):
     """
     Run one Dual N-back block on a 3×3 grid with image overlays.
@@ -1229,14 +1453,20 @@ def run_dual_nback_block(
         If True, shows an initial “no response” screen. Default True.
     block_number : int, optional
         Zero-based block index for logging. Default 0.
+    sub_block_index : int | None, optional
+        Zero-based sub-block index for logging. Default None.
 
     Returns
     -------
     int
         Updated N-back level after applying `adjust_nback_level`.
     """
+    block_label = f"{block_number + 1}"
+    if sub_block_index is not None:
+        block_label += f".{sub_block_index + 1}"
+
     logging.info(
-        f"Dual N-back Block {block_number + 1} timings - Presentation: {display_duration * 1000}ms, ISI: {isi * 1000}ms"
+        f"Dual N-back Block {block_label} timings - Presentation: {display_duration * 1000}ms, ISI: {isi * 1000}ms"
     )
 
     positions, images = generate_dual_nback_sequence(num_trials, 3, n, image_files)
@@ -1270,7 +1500,21 @@ def run_dual_nback_block(
 
     last_lapse = False
 
+    # Clear any pending skip requests and keyboard buffer
+    global skip_to_next_block
+    skip_to_next_block = False
+    event.clearEvents()
+
     for i, (pos, img) in enumerate(zip(positions, images)):
+        # Check for skip request (press 5)
+        if "5" in event.getKeys(keyList=["5"]):
+            skip_to_next_block = True
+            logging.warning(f"Dual block SKIPPED at trial {i+1}/{num_trials}")
+            break
+        if skip_to_next_block:
+            logging.warning(f"Dual block SKIPPED at trial {i+1}/{num_trials}")
+            break
+
         if last_lapse:
             lapse_feedback = get_text("lapse_feedback")
             last_lapse = False
@@ -1308,7 +1552,6 @@ def run_dual_nback_block(
         image_stim.draw()
 
         win.flip()
-        send_trigger(1)
         core.wait(get_jitter(display_duration))
 
         draw_grid()
@@ -1378,7 +1621,7 @@ def run_adaptive_nback_task(
         Total duration for the whole task (seconds).
     run_block_function : Callable
         Function with signature:
-        `(win, n, num_trials, display_duration, isi, is_first_encounter, block_number) -> int`
+        `(win, n, num_trials, display_duration, isi, is_first_encounter, block_number, sub_block_index) -> int`
         returning the (possibly updated) N-back level.
     starting_block_number : int, optional
         Offset for progressive timing across tasks. Default 0.
@@ -1391,6 +1634,7 @@ def run_adaptive_nback_task(
     -----
     Splits each block into 3 sub-blocks computed from `target_duration/num_blocks`.
     """
+    global skip_to_next_block
     n_level = initial_n
     # Loop through main blocks
     for block in range(num_blocks):
@@ -1406,7 +1650,18 @@ def run_adaptive_nback_task(
 
         # Calculate the number of trials per sub-block
         sub_block_duration = target_duration / num_blocks / 3
-        sub_block_trials = int(sub_block_duration / (display_duration + isi))
+
+        # Guard against explosion if timings are very small (testing mode)
+        effective_duration = display_duration + isi
+        if effective_duration < 0.5:
+            logging.warning(
+                f"Detected fast timings ({effective_duration:.3f}s/trial). Using nominal 2.2s for trial count calculation to avoid explosion."
+            )
+            effective_duration = 2.2
+
+        sub_block_trials = int(sub_block_duration / effective_duration)
+        # Ensure minimum trials
+        sub_block_trials = max(sub_block_trials, 1)  # At least 1 trial
 
         for sub_block in range(3):
             is_first_encounter = cumulative_block_number == 0 and sub_block == 0
@@ -1421,7 +1676,16 @@ def run_adaptive_nback_task(
                 isi=isi,
                 is_first_encounter=is_first_encounter,
                 block_number=cumulative_block_number,
+                sub_block_index=sub_block,
             )
+
+            # Check for skip request (press 5)
+            if skip_to_next_block:
+                logging.warning(
+                    f"Block {cumulative_block_number + 1} of {task_name} SKIPPED by user at sub-block {sub_block + 1}"
+                )
+                skip_to_next_block = False  # Reset for next block
+                break  # Exit sub-block loop, move to next main block
 
             # Display level change if n-back level was adjusted
             if n_level != initial_n:
@@ -1481,7 +1745,11 @@ def run_dummy_session(win, n_back_level=2, num_trials=20):
     )
     instr.draw()
     win.flip()
-    event.waitKeys(keyList=["space"])
+    keys = event.waitKeys(keyList=["space", "escape", "5"])
+    if "escape" in keys:
+        emergency_quit(win, "User pressed Escape - exiting experiment.")
+    if "5" in keys:
+        return None
 
     # --- 3) Run the tiny sequential N-back block ---
     dummy_results = run_sequential_nback_block(
@@ -1566,6 +1834,120 @@ def main_task_flow():
             except ModuleNotFoundError:
                 pass
 
+        # -- Load sequential timing from GUI config ------------
+        from wand_common import load_gui_config
+
+        gui_config = load_gui_config()
+        if gui_config and "sequential" in gui_config:
+            seq_display = float(gui_config["sequential"].get("display_duration", 0.8))
+            seq_isi = float(gui_config["sequential"].get("isi", 1.0))
+            logging.info(
+                f"[GUI] Sequential timing from config: display={seq_display}s, isi={seq_isi}s"
+            )
+        else:
+            seq_display = 0.8  # Default
+            seq_isi = 1.0  # Default
+            logging.info(
+                f"[GUI] Using default sequential timing: display={seq_display}s, isi={seq_isi}s"
+            )
+
+        # -- Load spatial timing from GUI config ------------
+        if gui_config and "spatial" in gui_config:
+            spa_display = float(gui_config["spatial"].get("display_duration", 1.0))
+            spa_isi = float(gui_config["spatial"].get("isi", 1.0))
+            spa_compression = gui_config["spatial"].get("time_compression", True)
+            logging.info(
+                f"[GUI] Spatial timing from config: display={spa_display}s, isi={spa_isi}s, compression={spa_compression}"
+            )
+        else:
+            spa_display = 1.0  # Default
+            spa_isi = 1.0  # Default
+            spa_compression = True
+            logging.info(
+                f"[GUI] Using default spatial timing: display={spa_display}s, isi={spa_isi}s"
+            )
+
+        # -- Load dual timing from GUI config ------------
+        if gui_config and "dual" in gui_config:
+            dual_display = float(gui_config["dual"].get("display_duration", 1.0))
+            dual_isi = float(gui_config["dual"].get("isi", 1.2))
+            dual_compression = gui_config["dual"].get("time_compression", True)
+            logging.info(
+                f"[GUI] Dual timing from config: display={dual_display}s, isi={dual_isi}s, compression={dual_compression}"
+            )
+        else:
+            dual_display = 1.0  # Default
+            dual_isi = 1.2  # Default
+            dual_compression = True
+            logging.info(
+                f"[GUI] Using default dual timing: display={dual_display}s, isi={dual_isi}s"
+            )
+
+        # -- Load task enable/disable settings from GUI config ------------
+        if gui_config:
+            seq_enabled = gui_config.get("sequential_enabled", True)
+            spa_enabled = gui_config.get("spatial_enabled", True)
+            dual_enabled = gui_config.get("dual_enabled", True)
+            logging.info(
+                f"[GUI] Tasks enabled: Sequential={seq_enabled}, Spatial={spa_enabled}, Dual={dual_enabled}"
+            )
+        else:
+            seq_enabled = True
+            spa_enabled = True
+            dual_enabled = True
+            logging.info("[GUI] Using default: all tasks enabled")
+
+        # -- Load block counts from GUI config ------------
+        if gui_config:
+            seq_blocks = int(gui_config.get("sequential", {}).get("blocks", 5))
+            spa_blocks = int(gui_config.get("spatial", {}).get("blocks", 4))
+            dual_blocks = int(gui_config.get("dual", {}).get("blocks", 4))
+        else:
+            seq_blocks, spa_blocks, dual_blocks = 5, 4, 4
+        logging.info(
+            f"[GUI] Configured Block Counts: Seq={seq_blocks}, Spa={spa_blocks}, Dual={dual_blocks}"
+        )
+
+        # -- Load break/measure schedules from GUI config ------------
+        if gui_config:
+            breaks_schedule = gui_config.get("breaks_schedule", [2, 4])
+            measures_schedule = gui_config.get("measures_schedule", [2, 3, 4, 5])
+            break_duration = int(gui_config.get("break_duration", 20))
+        else:
+            breaks_schedule = [2, 4]
+            measures_schedule = [2, 3, 4, 5]
+            break_duration = 20
+        logging.info(
+            f"[GUI] Schedule: Breaks={breaks_schedule}, Measures={measures_schedule}, Break Duration={break_duration}s"
+        )
+
+        # Helper to run scheduled events (measures/breaks) based on cycle number
+        def run_scheduled_events(cycle_num):
+            """
+            Execute configured events (measures/breaks) for the given cycle.
+
+            Parameters
+            ----------
+            cycle_num : int
+                The current cycle number (1-5) to check against schedules.
+            """
+            # Check for measures
+            if cycle_num in measures_schedule:
+                logging.info(f"Triggering scheduled measure for Cycle {cycle_num}")
+                try:
+                    measures = collect_subjective_measures(win)
+                    subjective_measures[f"Induction_{cycle_num}"] = measures
+                except Exception as e:
+                    logging.error(f"Error collecting measures: {e}")
+
+            # Check for breaks
+            if cycle_num in breaks_schedule:
+                logging.info(f"Triggering scheduled break for Cycle {cycle_num}")
+                try:
+                    show_break_screen(win, break_duration)
+                except Exception as e:
+                    logging.error(f"Error showing break screen: {e}")
+
         # Set up the base directory and data directory
         if getattr(sys, "frozen", False):
             base_dir = sys._MEIPASS
@@ -1594,445 +1976,281 @@ def main_task_flow():
         logging.info(f"Participant ID: {participant_id}")
         logging.info(f"Selected N-back Level: {n_back_level}")
 
-        show_overall_welcome_screen(win)
-        show_welcome_screen(win, "Sequential N-back", n_back_level)
-        logging.info("Welcome screen shown")
-
-        # Familiarisation block before first Sequential N-back
-        logging.info(
-            f"Starting Sequential {n_back_level}-back PRACTICE/FAMILIARISATION round"
+        # Calculate estimated duration (matches GUI flowchart calculation)
+        seq_time = seq_blocks * 5 if seq_enabled else 0
+        spa_time = spa_blocks * 4.5 if spa_enabled else 0
+        dual_time = dual_blocks * 4.5 if dual_enabled else 0
+        max_loops = max(
+            seq_blocks if seq_enabled else 0,
+            spa_blocks if spa_enabled else 0,
+            dual_blocks if dual_enabled else 0,
         )
-        try:
-            familiarisation_text = get_text(
-                "induction_practice_intro", n_back_level=n_back_level
-            )
-            instruction_text = visual.TextStim(
-                win, text=familiarisation_text, color="white", height=24, wrapWidth=800
-            )
-            instruction_text.draw()
-            win.flip()
-            event.waitKeys(keyList=["space"])
+        n_meas = len([m for m in measures_schedule if m <= max_loops])
+        n_breaks = len([b for b in breaks_schedule if b <= max_loops])
+        estimated_duration = int(
+            seq_time + spa_time + dual_time + (n_meas * 1.5) + (n_breaks * 0.5) + 5
+        )
+        logging.info(f"Estimated duration: ~{estimated_duration} minutes")
 
-            # Calculate trials needed for 1 minute (2s per trial)
-            num_practice_trials = int(60 / 2)  # 30 trials will take 1 minute
-            _ = run_sequential_nback_block(
-                win,
-                n_back_level,
-                num_images,
-                target_percentage=0.5,
-                display_duration=0.8,
-                isi=1.0,
-                num_trials=num_practice_trials,
-                is_first_encounter=True,
-                block_number="PRACTICE",  # Changed from numerical block number
+        show_overall_welcome_screen(win, duration=estimated_duration)
+
+        # Familiarisation block before first Sequential N-back (only if Sequential enabled)
+        if seq_enabled:
+            show_welcome_screen(win, "Sequential N-back", n_back_level)
+            logging.info("Welcome screen shown")
+
+            logging.info(
+                f"Starting Sequential {n_back_level}-back PRACTICE/FAMILIARISATION round"
             )
-            completion_text = get_text("induction_practice_complete")
-            completion_stim = visual.TextStim(
-                win, text=completion_text, color="white", height=24, wrapWidth=800
+            try:
+                familiarisation_text = get_text(
+                    "induction_practice_intro", n_back_level=n_back_level
+                )
+                instruction_text = visual.TextStim(
+                    win,
+                    text=familiarisation_text,
+                    color="white",
+                    height=24,
+                    wrapWidth=800,
+                )
+                instruction_text.draw()
+                win.flip()
+                keys = event.waitKeys(keyList=["space", "escape", "5"])
+                if "escape" in keys or "5" in keys:
+                    return
+
+                # Calculate trials needed for 1 minute (2s per trial)
+                num_practice_trials = int(60 / 2)  # 30 trials will take 1 minute
+                _ = run_sequential_nback_block(
+                    win,
+                    n_back_level,
+                    num_images,
+                    target_percentage=0.5,
+                    display_duration=seq_display,
+                    isi=seq_isi,
+                    num_trials=num_practice_trials,
+                    is_first_encounter=True,
+                    block_number="PRACTICE",  # Changed from numerical block number
+                )
+                completion_text = get_text("induction_practice_complete")
+                completion_stim = visual.TextStim(
+                    win, text=completion_text, color="white", height=24, wrapWidth=800
+                )
+                completion_stim.draw()
+                win.flip()
+                keys = event.waitKeys(keyList=["space", "escape", "5"])
+                if "escape" in keys or "5" in keys:
+                    return
+            except Exception as e:
+                logging.info(f"Error in Sequential N-back familiarisation: {e}")
+                logging.exception("Exception occurred")
+        else:
+            logging.info("[GUI] Sequential disabled - skipping familiarisation")
+            logging.warning(
+                "[GUI] No behavioural metrics (d', accuracy, RT) will be collected - Sequential task is disabled"
             )
-            completion_stim.draw()
-            win.flip()
-            event.waitKeys(keyList=["space"])
-        except Exception as e:
-            logging.info(f"Error in Sequential N-back familiarisation: {e}")
-            logging.exception("Exception occurred")
 
         # Collect initial subjective measures
-        initial_measures = collect_subjective_measures(win)
-        subjective_measures["Initial"] = initial_measures
 
-        # Sequential N-back Task - First Block
-        logging.info(
-            f"Starting Sequential {n_back_level}-back Task - Block 1 (display_duration: 800ms, ISI: 1000ms)"
-        )
-        seq1_results = None
-        try:
-            seq1_results = run_sequential_nback_block(
-                win,
-                n_back_level,
-                num_images,
-                target_percentage=0.5,
-                display_duration=0.8,
-                isi=1.0,
-                num_trials=164,
-                is_first_encounter=True,
-                block_number=1,
-            )
-            save_sequential_results(
-                participant_id, n_back_level, "Block_1", seq1_results
-            )
-        except Exception as e:
-            logging.info(f"Error in Sequential N-back Task (Block 1): {e}")
-            logging.exception("Exception occurred")
+        # Prepare for loop
+        # Calculate max loops based on configured blocks
+        max_loops = 0
+        if seq_enabled:
+            max_loops = max(max_loops, seq_blocks)
+        if spa_enabled:
+            max_loops = max(max_loops, spa_blocks)
+        if dual_enabled:
+            max_loops = max(max_loops, dual_blocks)
 
-        # First Spatial N-back Block
-        logging.info("Starting Spatial N-back Task - Block 1")
-        try:
-            show_transition_screen(win, "Spatial N-back")
-            show_welcome_screen(win, "Spatial N-back")
-            run_adaptive_nback_task(
-                win,
-                "Spatial N-back",
-                n_back_level,
-                1,
-                1,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_spatial_nback_block(
-                    w,
-                    n,
-                    num_trials,
-                    display_duration,
-                    isi,
-                    is_first_encounter,
-                    block_number=block_number,
-                ),
-                starting_block_number=spatial_block,
-            )
-            spatial_block += 1
-        except Exception as e:
-            logging.info(f"Error in Spatial N-back Task (Block 1): {e}")
-            logging.exception("Exception occurred")
+        if max_loops == 0:
+            logging.warning("No tasks enabled or blocks=0. Exiting loop.")
 
-        # First Dual N-back Block
-        logging.info("Starting Dual N-back Task - Block 1")
-        try:
-            show_transition_screen(win, "Dual N-back")
-            show_welcome_screen(win, "Dual N-back")
-            run_adaptive_nback_task(
-                win,
-                "Dual N-back",
-                n_back_level,
-                1,
-                1,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_dual_nback_block(
-                    w,
-                    n,
-                    num_trials,
-                    display_duration,
-                    isi,
-                    is_first_encounter,
-                    block_number=block_number,
-                ),
-                starting_block_number=dual_block,
-            )
-            dual_block += 1
-        except Exception as e:
-            logging.info(f"Error in Dual N-back Task (Block 1): {e}")
-            logging.exception("Exception occurred")
+        # Storage for results
+        all_sequential_results_list = []
 
-        # Sequential N-back Task - Second Block
-        logging.info(
-            f"Starting Sequential {n_back_level}-back Task - Block 2 (display_duration: 800ms, ISI: 1000ms))"
-        )
-        seq2_results = None
-        try:
-            show_transition_screen(win, "Sequential N-back")
-            seq2_results = run_sequential_nback_block(
-                win,
-                n_back_level,
-                num_images,
-                target_percentage=0.5,
-                display_duration=0.8,
-                isi=1.0,
-                num_trials=164,
-                is_first_encounter=False,
-                block_number=2,
-            )
-            save_sequential_results(
-                participant_id, n_back_level, "Block_2", seq2_results
-            )
-        except Exception as e:
-            logging.info(f"Error in Sequential N-back Task (Block 2): {e}")
-            logging.exception("Exception occurred")
+        # Force Standard Order: SPA -> DUAL (Counterbalance removed)
+        task_A_name = "SPA"
+        task_B_name = "DUAL"
 
-        induction1_measures = collect_subjective_measures(win)
-        subjective_measures["Induction 1"] = induction1_measures
-        show_break_screen(win, 20)
+        experiment_start_time = time.time()
+        start_time_str = datetime.now().strftime("%H:%M:%S")
 
-        # Dual N-back Task - Second Block
-        logging.info("Starting Dual N-back Task - Block 2")
-        try:
-            show_transition_screen(win, "Dual N-back")
-            run_adaptive_nback_task(
-                win,
-                "Dual N-back",
-                n_back_level,
-                1,
-                1,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_dual_nback_block(
-                    w,
-                    n,
-                    num_trials,
-                    display_duration,
-                    isi,
-                    is_first_encounter,
-                    block_number=block_number,
-                ),
-                starting_block_number=dual_block,
-            )
-            dual_block += 1
-        except Exception as e:
-            logging.info(f"Error in Dual N-back Task (Block 2): {e}")
-            logging.exception("Exception occurred")
+        loop_msg = f"Starting Main Loop at {start_time_str}. Max Loops: {max_loops}."
+        if spa_enabled or dual_enabled:
+            loop_msg += f" (Odd: {task_A_name}->{task_B_name})"
+        logging.info(loop_msg)
 
-        # Spatial N-back Task - Second Block
-        logging.info("Starting Spatial N-back Task - Block 2")
-        try:
-            show_transition_screen(win, "Spatial N-back")
-            run_adaptive_nback_task(
-                win,
-                "Spatial N-back",
-                n_back_level,
-                1,
-                1,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_spatial_nback_block(
-                    w,
-                    n,
-                    num_trials,
-                    display_duration,
-                    isi,
-                    is_first_encounter,
-                    block_number=block_number,
-                ),
-                starting_block_number=spatial_block,
-            )
-            spatial_block += 1
-        except Exception as e:
-            logging.info(f"Error in Spatial N-back Task (Block 2): {e}")
-            logging.exception("Exception occurred")
+        # --- MAIN EXPERIMENT LOOP ------------------------------------------
+        for cycle_num in range(1, max_loops + 1):
+            logging.info(f"--- STARTING LOOP ITERATION {cycle_num} ---")
 
-        # Sequential N-back Task - Third Block
-        logging.info(
-            f"Starting Sequential {n_back_level}-back Task - Block 3 (display_duration: 800ms, ISI: 1000ms)"
-        )
-        seq3_results = None
-        try:
-            show_transition_screen(win, "Sequential N-back")
-            seq3_results = run_sequential_nback_block(
-                win,
-                n_back_level,
-                num_images,
-                target_percentage=0.5,
-                display_duration=0.8,
-                isi=1.0,
-                num_trials=164,
-                is_first_encounter=False,
-                block_number=3,
-            )
-            save_sequential_results(
-                participant_id, n_back_level, "Block_3", seq3_results
-            )
-        except Exception as e:
-            logging.info(f"Error in Sequential N-back Task (Block 3): {e}")
-            logging.exception("Exception occurred")
+            # 1. SEQUENTIAL N-BACK
+            if seq_enabled and cycle_num <= seq_blocks:
+                now_str = datetime.now().strftime("%H:%M:%S")
+                logging.info(
+                    f"[{now_str}] Starting Sequential {n_back_level}-back Task - Block {cycle_num}"
+                )
+                try:
+                    # Show transition only if not Block 1 (or always? Code used Block 1 welcome only, transitions for rest)
+                    if cycle_num > 1:
+                        show_transition_screen(win, "Sequential N-back")
 
-        induction2_measures = collect_subjective_measures(win)
-        subjective_measures["Induction 2"] = induction2_measures
+                    # Logic for Block 1 was using is_first_encounter=True.
+                    is_first = cycle_num == 1
 
-        # Spatial N-back Task - Third Block
-        logging.info("Starting Spatial N-back Task - Block 3")
-        try:
-            show_transition_screen(win, "Spatial N-back")
-            run_adaptive_nback_task(
-                win,
-                "Spatial N-back",
-                n_back_level,
-                1,
-                1,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_spatial_nback_block(
-                    w,
-                    n,
-                    num_trials,
-                    display_duration,
-                    isi,
-                    is_first_encounter,
-                    block_number=block_number,
-                ),
-                starting_block_number=spatial_block,
-            )
-            spatial_block += 1
-        except Exception as e:
-            logging.info(f"Error in Spatial N-back Task (Block 3): {e}")
-            logging.exception("Exception occurred")
+                    seq_res = run_sequential_nback_block(
+                        win,
+                        n_back_level,
+                        num_images,
+                        target_percentage=0.5,
+                        display_duration=seq_display,
+                        isi=seq_isi,
+                        num_trials=164,
+                        is_first_encounter=is_first,
+                        block_number=cycle_num,
+                    )
 
-        # Dual N-back Task - Third Block
-        logging.info("Starting Dual N-back Task - Block 3")
-        try:
-            show_transition_screen(win, "Dual N-back")
-            run_adaptive_nback_task(
-                win,
-                "Dual N-back",
-                n_back_level,
-                1,
-                1,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_dual_nback_block(
-                    w,
-                    n,
-                    num_trials,
-                    display_duration,
-                    isi,
-                    is_first_encounter,
-                    block_number=block_number,
-                ),
-                starting_block_number=dual_block,
-            )
-            dual_block += 1
-        except Exception as e:
-            logging.info(f"Error in Dual N-back Task (Block 3): {e}")
-            logging.exception("Exception occurred")
+                    # Save immediately
+                    save_sequential_results(
+                        participant_id, n_back_level, f"Block_{cycle_num}", seq_res
+                    )
 
-        # Sequential N-back Task - Fourth Block
-        logging.info(
-            f"Starting Sequential {n_back_level}-back Task - Block 4 (display_duration: 800ms, ISI: 1000ms)"
-        )
-        seq4_results = None
-        try:
-            show_transition_screen(win, "Sequential N-back")
-            seq4_results = run_sequential_nback_block(
-                win,
-                n_back_level,
-                num_images,
-                target_percentage=0.5,
-                display_duration=0.8,
-                isi=1.0,
-                num_trials=164,
-                is_first_encounter=False,
-                block_number=4,
-            )
-            save_sequential_results(
-                participant_id, n_back_level, "Block_4", seq4_results
-            )
-        except Exception as e:
-            logging.info(f"Error in Sequential N-back Task (Block 4): {e}")
-            logging.exception("Exception occurred")
+                    # Store for final summary
+                    # Store for final summary
+                    all_sequential_results_list.append((cycle_num, seq_res))
+                    elapsed = time.time() - experiment_start_time
+                    logging.info(
+                        f"Sequential N-back Task - Block {cycle_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                    )
 
-        # Collect measures after fourth Sequential block
-        induction3_measures = collect_subjective_measures(win)
-        subjective_measures["Induction 3"] = induction3_measures
-        show_break_screen(win, 20)
+                except Exception as e:
+                    logging.error(
+                        f"Error in Sequential N-back Task (Block {cycle_num}): {e}"
+                    )
+                    logging.exception("Exception occurred")
 
-        # Dual N-back Task - Fourth Block
-        logging.info("Starting Dual N-back Task - Block 4")
-        try:
-            show_transition_screen(win, "Dual N-back")
-            run_adaptive_nback_task(
-                win,
-                "Dual N-back",
-                n_back_level,
-                1,
-                1,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_dual_nback_block(
-                    w,
-                    n,
-                    num_trials,
-                    display_duration,
-                    isi,
-                    is_first_encounter,
-                    block_number=block_number,
-                ),
-                starting_block_number=dual_block,
-            )
-            dual_block += 1
-        except Exception as e:
-            logging.info(f"Error in Dual N-back Task (Block 4): {e}")
-            logging.exception("Exception occurred")
+            # 2. SCHEDULED EVENTS (Breaks / Measures)
+            # Run these immediately after Sequential (matches logic of previous Block 2-5)
+            # This ensures "Break after Block X" happens before the Spatial/Dual loads.
+            run_scheduled_events(cycle_num)
 
-        # Spatial N-back Task - Fourth Block
-        logging.info("Starting Spatial N-back Task - Block 4")
-        try:
-            show_transition_screen(win, "Spatial N-back")
-            run_adaptive_nback_task(
-                win,
-                "Spatial N-back",
-                n_back_level,
-                1,
-                1,
-                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number: run_spatial_nback_block(
-                    w,
-                    n,
-                    num_trials,
-                    display_duration,
-                    isi,
-                    is_first_encounter,
-                    block_number=block_number,
-                ),
-                starting_block_number=spatial_block,
-            )
-            spatial_block += 1
-        except Exception as e:
-            logging.info(f"Error in Spatial N-back Task (Block 4): {e}")
-            logging.exception("Exception occurred")
+            # 3. GROUP (SPATIAL / DUAL)
+            # Determine order for this cycle
+            # Odd (1, 3...): [A, B]
+            # Even (2, 4...): [B, A]
+            if cycle_num % 2 != 0:
+                current_order = [task_A_name, task_B_name]
+            else:
+                current_order = [task_B_name, task_A_name]
 
-        # Sequential N-back Task - Fifth Block
-        logging.info(
-            f"Starting Sequential {n_back_level}-back Task - Block 5 (display_duration: 800ms, ISI: 1000ms)"
-        )
-        seq5_results = None
-        try:
-            show_transition_screen(win, "Sequential N-back")
-            seq5_results = run_sequential_nback_block(
-                win,
-                n_back_level,
-                num_images,
-                target_percentage=0.5,
-                display_duration=0.8,
-                isi=1.0,
-                num_trials=164,
-                is_first_encounter=False,
-                block_number=5,
-            )
-            save_sequential_results(
-                participant_id, n_back_level, "Block_5", seq5_results
-            )
-        except Exception as e:
-            logging.info(f"Error in Sequential N-back Task (Block 5): {e}")
-            logging.exception("Exception occurred")
+            if spa_enabled or dual_enabled:
+                logging.info(f"Loop {cycle_num} Group Order: {current_order}")
 
-        post_all_measures = collect_subjective_measures(win)
-        subjective_measures["Post-All"] = post_all_measures
+            for task_type in current_order:
+                # --- SPATIAL ---
+                if task_type == "SPA":
+                    if spa_enabled and cycle_num <= spa_blocks:
+                        now_str = datetime.now().strftime("%H:%M:%S")
+                        logging.info(
+                            f"[{now_str}] Starting Spatial N-back Task - Block {cycle_num}"
+                        )
+                        try:
+                            show_transition_screen(win, "Spatial N-back")
+                            # Block 1 used welcome screen? Standard logic is Transition.
+                            # Previous code: Block 1 had `show_welcome_screen`. Block 2+ Transition.
+                            if cycle_num == 1:
+                                show_welcome_screen(win, "Spatial N-back")
 
-        # Save results to CSV
+                            run_adaptive_nback_task(
+                                win,
+                                "Spatial N-back",
+                                n_back_level,
+                                1,
+                                270,
+                                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number, sub_block_index=None: run_spatial_nback_block(
+                                    w,
+                                    n,
+                                    num_trials,
+                                    display_duration,
+                                    isi,
+                                    is_first_encounter,
+                                    block_number=block_number,
+                                    sub_block_index=sub_block_index,
+                                ),
+                                starting_block_number=spatial_block,
+                            )
+                            spatial_block += 1
+
+                            elapsed = time.time() - experiment_start_time
+                            logging.info(
+                                f"Spatial N-back Task - Block {cycle_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                            )
+                        except Exception as e:
+                            logging.error(
+                                f"Error in Spatial N-back Task ({cycle_num}): {e}"
+                            )
+
+                # --- DUAL ---
+                elif task_type == "DUAL":
+                    if dual_enabled and cycle_num <= dual_blocks:
+                        now_str = datetime.now().strftime("%H:%M:%S")
+                        logging.info(
+                            f"[{now_str}] Starting Dual N-back Task - Block {cycle_num}"
+                        )
+                        try:
+                            show_transition_screen(win, "Dual N-back")
+                            if cycle_num == 1:
+                                show_welcome_screen(win, "Dual N-back")
+
+                            run_adaptive_nback_task(
+                                win,
+                                "Dual N-back",
+                                n_back_level,
+                                1,
+                                270,
+                                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number, sub_block_index=None: run_dual_nback_block(
+                                    w,
+                                    n,
+                                    num_trials,
+                                    display_duration,
+                                    isi,
+                                    is_first_encounter,
+                                    block_number=block_number,
+                                    sub_block_index=sub_block_index,
+                                ),
+                                starting_block_number=dual_block,
+                            )
+                            dual_block += 1
+
+                            elapsed = time.time() - experiment_start_time
+                            logging.info(
+                                f"Dual N-back Task - Block {cycle_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                            )
+                        except Exception as e:
+                            logging.error(
+                                f"Error in Dual N-back Task ({cycle_num}): {e}"
+                            )
+
+        # Save results to CSV (Final Summary)
         logging.info("Saving results to CSV")
         try:
             results_filename = (
                 f"participant_{participant_id}_n{n_back_level}_results.csv"
             )
-            all_results = [
-                {
-                    "Participant ID": participant_id,
-                    "N-back Level": n_back_level,
-                    "Task": f"Sequential {n_back_level}-back",
-                    "Block": 1,
-                    "Results": seq1_results,
-                },
-                {
-                    "Participant ID": participant_id,
-                    "N-back Level": n_back_level,
-                    "Task": f"Sequential {n_back_level}-back",
-                    "Block": 2,
-                    "Results": seq2_results,
-                },
-                {
-                    "Participant ID": participant_id,
-                    "N-back Level": n_back_level,
-                    "Task": f"Sequential {n_back_level}-back",
-                    "Block": 3,
-                    "Results": seq3_results,
-                },
-                {
-                    "Participant ID": participant_id,
-                    "N-back Level": n_back_level,
-                    "Task": f"Sequential {n_back_level}-back",
-                    "Block": 4,
-                    "Results": seq4_results,
-                },
-                {
-                    "Participant ID": participant_id,
-                    "N-back Level": n_back_level,
-                    "Task": f"Sequential {n_back_level}-back",
-                    "Block": 5,
-                    "Results": seq5_results,
-                },
-            ]
+
+            # Construct all_results from stored list
+            all_results = []
+            for b_num, res in all_sequential_results_list:
+                all_results.append(
+                    {
+                        "Participant ID": participant_id,
+                        "N-back Level": n_back_level,
+                        "Task": f"Sequential {n_back_level}-back",
+                        "Block": b_num,
+                        "Results": res,
+                    }
+                )
+
             saved_file_path = save_results_to_csv(
                 results_filename, all_results, subjective_measures
             )
@@ -2049,7 +2267,11 @@ def main_task_flow():
             )
             final_message.draw()
             win.flip()
-            event.waitKeys(keyList=["space"])
+            keys = event.waitKeys(keyList=["space", "escape", "5"])
+            if "escape" in keys:
+                emergency_quit(win, "User pressed Escape - exiting experiment.")
+            if "5" in keys:
+                return
         except Exception as e:
             logging.info(f"Error in saving results to CSV: {e}")
             logging.exception("Exception occurred")

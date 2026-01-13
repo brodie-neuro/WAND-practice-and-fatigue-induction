@@ -162,6 +162,96 @@ def load_config(
     return PARAMS, TEXT
 
 
+def load_gui_config():
+    """
+    Load configuration from GUI launcher if available.
+
+    The GUI launcher (WAND_Launcher.py) saves config to a JSON file and sets
+    the WAND_GUI_CONFIG environment variable to point to it. This function
+    checks for that variable and loads the config if present.
+
+    Returns
+    -------
+    dict or None
+        Configuration dictionary if GUI config exists and is valid.
+        None if no GUI config is available (fall back to normal prompts).
+
+    Usage
+    -----
+    In get_participant_info() or similar setup functions::
+
+        gui_config = load_gui_config()
+        if gui_config:
+            # Use GUI settings, skip prompts
+            return {
+                "Participant ID": gui_config["participant_id"],
+                "N-back Level": gui_config["n_back_level"],
+                ...
+            }
+        # else fall through to normal on-screen prompts
+
+    Notes
+    -----
+    The GUI config JSON contains these keys:
+        - participant_id (str)
+        - task_mode (str): "Full Induction", "Practice Only", or "Quick Test"
+    """
+    config_path = os.environ.get("WAND_GUI_CONFIG")
+
+    # No environment variable set - GUI was not used
+    if not config_path:
+        return None
+
+    # Check if the file actually exists
+    if not os.path.exists(config_path):
+        LOGGER.warning(f"GUI config path set but file not found: {config_path}")
+        return None
+
+    # Try to load the JSON file
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        LOGGER.info(f"Loaded GUI config from: {config_path}")
+        return config
+    except json.JSONDecodeError as e:
+        LOGGER.warning(f"GUI config file is not valid JSON: {e}")
+        return None
+    except Exception as e:
+        LOGGER.warning(f"Failed to load GUI config: {e}")
+        return None
+
+
+def emergency_quit(win=None, message: str = "Experiment terminated by user."):
+    """
+    Emergency quit function - cleanly closes the window and exits Python.
+
+    Call this when Escape is pressed to fully exit the experiment.
+
+    Parameters
+    ----------
+    win : psychopy.visual.Window, optional
+        The PsychoPy window to close. If None, just exits.
+    message : str
+        Message to log before quitting.
+    """
+    LOGGER.info(message)
+    print(f"\n[WAND] {message}")
+
+    try:
+        if win is not None:
+            win.close()
+    except Exception as e:
+        LOGGER.warning(f"Error closing window: {e}")
+
+    try:
+        core.quit()
+    except Exception:
+        pass
+
+    # Fallback if core.quit() doesn't work
+    sys.exit(0)
+
+
 def get_param(path: str, default: Any = None) -> Any:
     """
     Fetch a parameter from the `PARAMS` cache using a dotted path.
@@ -1324,6 +1414,7 @@ __all__ = [
     "load_config",
     "get_param",
     "get_text",
+    "load_gui_config",
     "install_error_hook",
     "create_grid_lines",
     "set_grid_lines",
