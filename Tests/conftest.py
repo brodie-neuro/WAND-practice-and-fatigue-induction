@@ -1,4 +1,3 @@
-
 import sys
 from unittest.mock import MagicMock
 
@@ -26,14 +25,14 @@ mock_psychopy.gui = mock_gui
 
 # Patch sys.modules
 # We need to patch individual submodules because that's how they are often imported
-sys.modules['psychopy'] = mock_psychopy
-sys.modules['psychopy.visual'] = mock_visual
-sys.modules['psychopy.core'] = mock_core
-sys.modules['psychopy.event'] = mock_event
-sys.modules['psychopy.gui'] = mock_gui
+sys.modules["psychopy"] = mock_psychopy
+sys.modules["psychopy.visual"] = mock_visual
+sys.modules["psychopy.core"] = mock_core
+sys.modules["psychopy.event"] = mock_event
+sys.modules["psychopy.gui"] = mock_gui
 
 # Also mock pyglet just in case
 mock_pyglet = MagicMock()
-sys.modules['pyglet'] = mock_pyglet
-sys.modules['pyglet.gl'] = MagicMock()
-sys.modules['pyglet.window'] = MagicMock()
+sys.modules["pyglet"] = mock_pyglet
+sys.modules["pyglet.gl"] = MagicMock()
+sys.modules["pyglet.window"] = MagicMock()
