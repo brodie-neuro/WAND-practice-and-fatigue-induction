@@ -10,20 +10,15 @@ Author: Brodie E. Mangan
 __version__ = "1.1.1"
 __author__ = "Brodie E. Mangan"
 
-# Core utility exports
-from wand_nback.common import (
-    load_config,
-    load_gui_config,
-    get_param,
-    get_text,
-)
-
 # Analysis exports
 from wand_nback.analysis import (
-    summarise_sequential_block,
-    calculate_dprime,
     calculate_A_prime,
+    calculate_dprime,
+    summarise_sequential_block,
 )
+
+# Core utility exports
+from wand_nback.common import get_param, get_text, load_config, load_gui_config
 
 __all__ = [
     "__version__",

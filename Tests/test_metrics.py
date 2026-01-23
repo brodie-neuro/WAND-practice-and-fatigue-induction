@@ -502,10 +502,34 @@ def test_sdt_conservative_bias(conservative_bias_data):
 def all_miss_data():
     """Extreme case: participant misses all targets."""
     return [
-        {"Trial": 1, "Is Target": True, "Response": "non-match", "Reaction Time": 0.5, "Accuracy": False},
-        {"Trial": 2, "Is Target": True, "Response": "non-match", "Reaction Time": 0.5, "Accuracy": False},
-        {"Trial": 3, "Is Target": False, "Response": "non-match", "Reaction Time": 0.5, "Accuracy": True},
-        {"Trial": 4, "Is Target": False, "Response": "non-match", "Reaction Time": 0.5, "Accuracy": True},
+        {
+            "Trial": 1,
+            "Is Target": True,
+            "Response": "non-match",
+            "Reaction Time": 0.5,
+            "Accuracy": False,
+        },
+        {
+            "Trial": 2,
+            "Is Target": True,
+            "Response": "non-match",
+            "Reaction Time": 0.5,
+            "Accuracy": False,
+        },
+        {
+            "Trial": 3,
+            "Is Target": False,
+            "Response": "non-match",
+            "Reaction Time": 0.5,
+            "Accuracy": True,
+        },
+        {
+            "Trial": 4,
+            "Is Target": False,
+            "Response": "non-match",
+            "Reaction Time": 0.5,
+            "Accuracy": True,
+        },
     ]
 
 
@@ -513,10 +537,34 @@ def all_miss_data():
 def all_false_alarm_data():
     """Extreme case: participant says 'match' to all non-targets."""
     return [
-        {"Trial": 1, "Is Target": True, "Response": "match", "Reaction Time": 0.5, "Accuracy": True},
-        {"Trial": 2, "Is Target": True, "Response": "match", "Reaction Time": 0.5, "Accuracy": True},
-        {"Trial": 3, "Is Target": False, "Response": "match", "Reaction Time": 0.5, "Accuracy": False},
-        {"Trial": 4, "Is Target": False, "Response": "match", "Reaction Time": 0.5, "Accuracy": False},
+        {
+            "Trial": 1,
+            "Is Target": True,
+            "Response": "match",
+            "Reaction Time": 0.5,
+            "Accuracy": True,
+        },
+        {
+            "Trial": 2,
+            "Is Target": True,
+            "Response": "match",
+            "Reaction Time": 0.5,
+            "Accuracy": True,
+        },
+        {
+            "Trial": 3,
+            "Is Target": False,
+            "Response": "match",
+            "Reaction Time": 0.5,
+            "Accuracy": False,
+        },
+        {
+            "Trial": 4,
+            "Is Target": False,
+            "Response": "match",
+            "Reaction Time": 0.5,
+            "Accuracy": False,
+        },
     ]
 
 
@@ -535,7 +583,9 @@ def test_sdt_all_miss(all_miss_data):
     assert sdt["hits"] == 0
     assert sdt["misses"] == 2
     assert sdt["false_alarms"] == 0
-    assert isinstance(sdt["d_prime"], float), "d' should be a valid float (not infinity)"
+    assert isinstance(
+        sdt["d_prime"], float
+    ), "d' should be a valid float (not infinity)"
 
 
 def test_sdt_all_false_alarm(all_false_alarm_data):
@@ -558,12 +608,26 @@ def test_sdt_all_false_alarm(all_false_alarm_data):
 def test_accuracy_zero_correct():
     """Edge case: 0% accuracy."""
     all_wrong_data = [
-        {"Trial": 1, "Is Target": True, "Response": "non-match", "Reaction Time": 0.5, "Accuracy": False},
-        {"Trial": 2, "Is Target": False, "Response": "match", "Reaction Time": 0.5, "Accuracy": False},
+        {
+            "Trial": 1,
+            "Is Target": True,
+            "Response": "non-match",
+            "Reaction Time": 0.5,
+            "Accuracy": False,
+        },
+        {
+            "Trial": 2,
+            "Is Target": False,
+            "Response": "match",
+            "Reaction Time": 0.5,
+            "Accuracy": False,
+        },
     ]
-    
-    corr, incorr, lapses, total_rt, avg_rt, acc = calculate_accuracy_and_rt(all_wrong_data)
-    
+
+    corr, incorr, lapses, total_rt, avg_rt, acc = calculate_accuracy_and_rt(
+        all_wrong_data
+    )
+
     log_evidence(
         "Accuracy (0%)",
         "All wrong responses",
@@ -571,8 +635,7 @@ def test_accuracy_zero_correct():
         f"{acc}%",
         "PASS" if acc == 0.0 else "FAIL",
     )
-    
+
     assert acc == 0.0
     assert corr == 0
     assert incorr == 2
-

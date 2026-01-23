@@ -428,7 +428,9 @@ def show_page3_task_timings(config):
             "Inter-stimulus interval between letters. "
             "Block duration = 164 trials × (display + ISI)."
         )
-        tips["SEQ Distractors"] = "Show 200ms white square flashes during ISI to probe vigilance."
+        tips[
+            "SEQ Distractors"
+        ] = "Show 200ms white square flashes during ISI to probe vigilance."
 
     if spa_enabled:
         tips["SPA Display (sec)"] = (
@@ -608,7 +610,7 @@ def generate_flowchart(config):
     custom_order = config.get("custom_block_order")
     if custom_order and config.get("task_mode") != "Practice Only":
         return generate_flowchart_from_custom_order(custom_order, config)
-    
+
     seq_enabled = config.get("sequential_enabled", True)
     spa_enabled = config.get("spatial_enabled", True)
     dual_enabled = config.get("dual_enabled", True)
@@ -715,7 +717,7 @@ def generate_flowchart(config):
     seq_display = seq_config.get("display_duration", 0.8)
     seq_isi = seq_config.get("isi", 1.0)
     seq_block_min = (seq_display + seq_isi) * 164 / 60
-    
+
     seq_time = seq_blocks * seq_block_min if seq_enabled else 0
     spa_time = spa_blocks * 4.5 if spa_enabled else 0  # Fixed 270s
     dual_time = dual_blocks * 4.5 if dual_enabled else 0  # Fixed 270s
@@ -733,14 +735,14 @@ def generate_flowchart(config):
 def generate_flowchart_from_custom_order(block_order, config):
     """
     Generate flowchart from custom block order created by Block Builder.
-    
+
     Parameters
     ----------
     block_order : list
         List of block dictionaries from Block Builder
     config : dict
         Full configuration
-        
+
     Returns
     -------
     str
@@ -748,23 +750,23 @@ def generate_flowchart_from_custom_order(block_order, config):
     """
     spa_comp = config.get("spatial", {}).get("time_compression", True)
     dual_comp = config.get("dual", {}).get("time_compression", True)
-    
+
     lines = []
     lines.append("TASK ORDER:")
     lines.append("─" * 50)
     lines.append("      ── Practice/Familiarisation ──")
-    
+
     step = 1
     seq_count = spa_count = dual_count = 0
     total_time = 0
-    
+
     for block in block_order:
         block_type = block.get("type", "")
-        
+
         # Skip start/end blocks
         if block_type in ("start", "end"):
             continue
-        
+
         if block_type == "seq":
             seq_count += 1
             lines.append(f"  {step}. SEQ Block {seq_count}")
@@ -788,11 +790,11 @@ def generate_flowchart_from_custom_order(block_order, config):
         elif block_type == "measures":
             lines.append("      ── Subjective Measures ──")
             total_time += 1.5
-    
+
     lines.append("─" * 50)
     lines.append("  ⟳ = Time compression enabled")
     lines.append(f"  Estimated duration: approx. {format_duration(total_time)}")
-    
+
     return "\n".join(lines)
 
 
@@ -813,7 +815,7 @@ def show_page5_mode_selection(config):
     # Calculate duration for Full Induction
     # Check for custom block order from Block Builder
     custom_order = config.get("custom_block_order")
-    
+
     if custom_order:
         # Calculate from actual Block Builder selection with timing values
         seq_config = config.get("sequential", {})
@@ -821,10 +823,10 @@ def show_page5_mode_selection(config):
         seq_isi = seq_config.get("isi", 1.0)
         seq_trials = 164  # Fixed trials per SEQ block
         seq_block_min = (seq_display + seq_isi) * seq_trials / 60  # minutes per block
-        
+
         seq_time = spa_time = dual_time = 0
         n_breaks = n_meas = 0
-        
+
         for block in custom_order:
             block_type = block.get("type", "")
             if block_type == "seq":
@@ -837,8 +839,10 @@ def show_page5_mode_selection(config):
                 n_breaks += 1
             elif block_type == "measures":
                 n_meas += 1
-        
-        full_duration = int(seq_time + spa_time + dual_time + (n_meas * 1.5) + (n_breaks * 0.5))
+
+        full_duration = int(
+            seq_time + spa_time + dual_time + (n_meas * 1.5) + (n_breaks * 0.5)
+        )
     else:
         # Fallback to config counts with timing values
         seq_enabled = config.get("sequential_enabled", True)
@@ -855,7 +859,7 @@ def show_page5_mode_selection(config):
         seq_isi = seq_config.get("isi", 1.0)
         seq_trials = 164
         seq_block_min = (seq_display + seq_isi) * seq_trials / 60
-        
+
         seq_time = seq_blocks * seq_block_min if seq_enabled else 0
         spa_time = spa_blocks * 4.5 if spa_enabled else 0  # Fixed 270s
         dual_time = dual_blocks * 4.5 if dual_enabled else 0  # Fixed 270s
@@ -1015,7 +1019,7 @@ def extract_schedules(block_order):
     - Scans blocks linearly.
     - Counts task blocks (SEQ/SPA/DUAL) to determine current cycle.
     - If a Break/Measure is found, it is assigned to the current cycle.
-    
+
     Note: Block builder generates labels like "SEQ", "SPA" without numbers,
     so we count task blocks seen to determine the cycle.
     """
@@ -1025,15 +1029,15 @@ def extract_schedules(block_order):
 
     for block in block_order:
         block_type = block.get("type", "")
-        
+
         # Count task blocks to determine cycle
         if block_type in ("seq", "spa", "dual"):
             task_block_count += 1
-        
+
         # Assign breaks/measures to current cycle (count of task blocks seen)
         # Use max(1, count) so events before first task go to cycle 1
         current_cycle = max(1, task_block_count)
-        
+
         if block_type == "break":
             breaks.add(current_cycle)
         elif block_type == "measures":

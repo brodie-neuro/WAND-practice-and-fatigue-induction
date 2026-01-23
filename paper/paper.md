@@ -46,7 +46,7 @@ WAND thus provides an integrated platform with innovative techniques to overcome
 
 # Implementation and Architecture
 
-WAND is implemented in Python, utilising Psychopy, and comprises two sequential phases, managed by distinct scripts (WAND_practice_plateau.py for familiarisation/calibration, WAND_full_induction.py for induction):
+WAND is implemented in Python, utilising Psychopy, and comprises two sequential phases, managed by distinct modules within the `wand_nback` package (accessed via the GUI launcher `wand-launcher`):
 
 ## Initial Familiarisation and Competency Check
 Participants are familiarised with N-back mechanics via practice on Spatial and Dual N-back tasks (fixed at Level 2). An optional 'slow mode' (50% reduced speed) aids initial onboarding, with progression to normal speed upon achieving basic competency (e.g., an accuracy of 65% or greater in one slow-mode block). Further progression requires meeting a performance threshold at normal speed (e.g., 65% accuracy averaged across the two Level 2 practice blocks for each task type). Written instructions and demonstrations clarify task demands. This prepares participants for Sequential N-back calibration.
@@ -78,17 +78,18 @@ WAND’s novelty lies in its integrated approach to overcoming key limitations i
 
 - **Sophisticated Performance Metrics**: Captures d-prime, A-prime, accuracy, reaction time, and lapse rate, allowing for granular signal detection and behavioural fatigue tracking.
 
+- **Accessible Configuration Interface**: A multi-page graphical wizard simplifies experiment setup, while a drag-and-drop 'Block Builder' allows researchers to visually design and customise complex protocol sequences without coding.
+
 # Availability
 
 - **Operating System**: Platform-independent (Windows, macOS, Linux) via PsychoPy.
-- **Programming Language**: Python (3.8.x), utilising the PsychoPy library.
-- **Dependencies**: Core dependencies are specified in the `requirements.txt` file to ensure a reproducible environment. Key packages include:
-  - `psychopy==2024.1.4`
-  - `numpy==1.24.4` 
-  - `scipy==1.9.3`
-  - `pandas==2.0.3`
-  - `wxPython==4.2.1`
-  - `pyglet==1.5.27`
+- **Programming Language**: Python (3.10+), utilising the PsychoPy library.
+- **Dependencies**: Core dependencies are specified in the `pyproject.toml` file to ensure a reproducible environment. Key packages include:
+  - `psychopy>=2024.1.0`
+  - `numpy` 
+  - `scipy`
+  - `pandas`
+  - `wxPython`
   
 - **Repository**: [https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction](https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction)
 - **License**: MIT License
@@ -96,12 +97,16 @@ WAND’s novelty lies in its integrated approach to overcoming key limitations i
 
 ## Installation
 
-Clone the repository and install dependencies via:
+WAND can be installed directly from GitHub via pip:
 
 ```bash
-git clone https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
-cd WAND-practice-and-fatigue-induction
-pip install -r requirements.txt
+pip install git+https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
+```
+
+Once installed, launch the configuration GUI:
+
+```bash
+wand-launcher
 ``` 
 
 # Acknowledgements

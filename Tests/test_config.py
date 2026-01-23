@@ -126,9 +126,8 @@ def test_practice_get_gui_timing_returns_config_value(mock_config_file):
     get_gui_timing actually returns 1.5, not the default 0.8.
     """
     # Import after setting up config
-    from wand_nback import common as wand_common
-
     # Force reload of GUI config
+    from wand_nback import common as wand_common
     from wand_nback import practice_plateau as practice
 
     practice._GUI_CONFIG = None
