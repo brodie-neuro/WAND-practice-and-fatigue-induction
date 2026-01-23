@@ -1124,7 +1124,7 @@ def display_dual_stimulus(
             caller_globals = inspect.currentframe().f_back.f_globals  # type: ignore[attr-defined]
             image_dir = caller_globals.get("image_dir")
         if image_dir is None:
-            image_dir = os.path.join(BASE_DIR, "Abstract Stimuli", "apophysis")
+            image_dir = os.path.join(BASE_DIR, "stimuli", "apophysis")
 
         path = (
             image_file

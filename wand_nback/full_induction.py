@@ -17,7 +17,7 @@ Brodie E. Mangan
 
 Version
 -------
-1.1.0
+1.1.1
 
 Environment
 -----------
@@ -38,11 +38,12 @@ import os
 import random
 import sys
 import time
+from datetime import datetime
 
 from psychopy import core, event, visual
 
-from wand_analysis import summarise_sequential_block
-from wand_common import (
+from wand_nback.analysis import summarise_sequential_block
+from wand_nback.common import (
     collect_trial_response,
     create_grid,
     create_grid_lines,
@@ -104,7 +105,7 @@ WIN_COLORSP = get_param("window.color_space", "rgb")
 WIN_USEFBO = bool(get_param("window.use_fbo", True))
 
 # Image folder
-image_dir = os.path.join(base_dir, "Abstract Stimuli", "apophysis")
+image_dir = os.path.join(base_dir, "stimuli", "apophysis")
 
 # =============================================================================
 #  SECTION 2: LOGGING & WINDOW INITIALISATION
@@ -321,7 +322,7 @@ def get_participant_info(win):
     # ─────────────────────────────────────────────────────────────────────────
     # Check for GUI config first
     # ─────────────────────────────────────────────────────────────────────────
-    from wand_common import load_gui_config
+    from wand_nback.common import load_gui_config
 
     gui_config = load_gui_config()
 
@@ -843,7 +844,7 @@ def get_progressive_timings(task_name, block_number):
         (presentation_time_s, isi_time_s) after applying per-block reductions.
     """
     # Try to get base timings from GUI config
-    from wand_common import load_gui_config
+    from wand_nback.common import load_gui_config
 
     gui_config = load_gui_config()
 
@@ -1835,7 +1836,7 @@ def main_task_flow():
                 pass
 
         # -- Load sequential timing from GUI config ------------
-        from wand_common import load_gui_config
+        from wand_nback.common import load_gui_config
 
         gui_config = load_gui_config()
         if gui_config and "sequential" in gui_config:
@@ -1921,6 +1922,50 @@ def main_task_flow():
             f"[GUI] Schedule: Breaks={breaks_schedule}, Measures={measures_schedule}, Break Duration={break_duration}s"
         )
 
+        # -- Load custom block order from GUI config (if using Block Builder) --
+        custom_block_order = None
+        if gui_config:
+            custom_block_order = gui_config.get("custom_block_order")
+            if custom_block_order:
+                logging.info(f"[GUI] Custom block order detected: {len(custom_block_order)} blocks")
+                # Print full sequence to terminal for confirmation
+                print("\n" + "=" * 70)
+                print("  FULL EXPERIMENT SEQUENCE (from Block Builder)")
+                print("=" * 70)
+                print("  0. Practice/Familiarisation (always first)")
+                print("-" * 70)
+                step = 1
+                seq_count = spa_count = dual_count = 0
+                for block in custom_block_order:
+                    block_type = block.get("type", "")
+                    if block_type == "start":
+                        continue  # Skip start marker
+                    elif block_type == "end":
+                        continue  # Skip end marker
+                    elif block_type == "seq":
+                        seq_count += 1
+                        print(f"  {step}. Sequential N-back (Block {seq_count})")
+                        step += 1
+                    elif block_type == "spa":
+                        spa_count += 1
+                        print(f"  {step}. Spatial N-back (Block {spa_count})")
+                        step += 1
+                    elif block_type == "dual":
+                        dual_count += 1
+                        print(f"  {step}. Dual N-back (Block {dual_count})")
+                        step += 1
+                    elif block_type == "break":
+                        print(f"       ── Break ──")
+                    elif block_type == "measures":
+                        print(f"       ── Subjective Measures ──")
+                print("-" * 70)
+                print(f"  Total: {seq_count} SEQ, {spa_count} SPA, {dual_count} DUAL blocks")
+                print("=" * 70)
+                print("  >>> Blocks will execute in THIS EXACT ORDER <<<\n")
+            else:
+                logging.info("[GUI] No custom block order - using standard cycle-based execution")
+                print("[INFO] No Block Builder sequence - using standard cycle-based execution")
+
         # Helper to run scheduled events (measures/breaks) based on cycle number
         def run_scheduled_events(cycle_num):
             """
@@ -1976,20 +2021,35 @@ def main_task_flow():
         logging.info(f"Participant ID: {participant_id}")
         logging.info(f"Selected N-back Level: {n_back_level}")
 
-        # Calculate estimated duration (matches GUI flowchart calculation)
-        seq_time = seq_blocks * 5 if seq_enabled else 0
-        spa_time = spa_blocks * 4.5 if spa_enabled else 0
-        dual_time = dual_blocks * 4.5 if dual_enabled else 0
-        max_loops = max(
-            seq_blocks if seq_enabled else 0,
-            spa_blocks if spa_enabled else 0,
-            dual_blocks if dual_enabled else 0,
-        )
-        n_meas = len([m for m in measures_schedule if m <= max_loops])
-        n_breaks = len([b for b in breaks_schedule if b <= max_loops])
-        estimated_duration = int(
-            seq_time + spa_time + dual_time + (n_meas * 1.5) + (n_breaks * 0.5) + 5
-        )
+        # Calculate estimated duration using custom_block_order if available
+        if custom_block_order:
+            # Count actual blocks from Block Builder sequence
+            cbo_seq = sum(1 for b in custom_block_order if b.get("type") == "seq")
+            cbo_spa = sum(1 for b in custom_block_order if b.get("type") == "spa")
+            cbo_dual = sum(1 for b in custom_block_order if b.get("type") == "dual")
+            cbo_meas = sum(1 for b in custom_block_order if b.get("type") == "measures")
+            cbo_breaks = sum(1 for b in custom_block_order if b.get("type") == "break")
+            seq_time = cbo_seq * 5
+            spa_time = cbo_spa * 4.5
+            dual_time = cbo_dual * 4.5
+            estimated_duration = int(
+                seq_time + spa_time + dual_time + (cbo_meas * 1.5) + (cbo_breaks * 0.5) + 5
+            )
+        else:
+            # Fallback to config block counts
+            seq_time = seq_blocks * 5 if seq_enabled else 0
+            spa_time = spa_blocks * 4.5 if spa_enabled else 0
+            dual_time = dual_blocks * 4.5 if dual_enabled else 0
+            max_loops = max(
+                seq_blocks if seq_enabled else 0,
+                spa_blocks if spa_enabled else 0,
+                dual_blocks if dual_enabled else 0,
+            )
+            n_meas = len([m for m in measures_schedule if m <= max_loops])
+            n_breaks = len([b for b in breaks_schedule if b <= max_loops])
+            estimated_duration = int(
+                seq_time + spa_time + dual_time + (n_meas * 1.5) + (n_breaks * 0.5) + 5
+            )
         logging.info(f"Estimated duration: ~{estimated_duration} minutes")
 
         show_overall_welcome_screen(win, duration=estimated_duration)
@@ -2081,8 +2141,131 @@ def main_task_flow():
         logging.info(loop_msg)
 
         # --- MAIN EXPERIMENT LOOP ------------------------------------------
-        for cycle_num in range(1, max_loops + 1):
-            logging.info(f"--- STARTING LOOP ITERATION {cycle_num} ---")
+        # Check if using custom block order from Block Builder
+        if custom_block_order:
+            # CUSTOM ORDER: Execute blocks in exact Block Builder sequence
+            logging.info("--- USING CUSTOM BLOCK ORDER FROM BLOCK BUILDER ---")
+            
+            # Track block counts for numbering
+            seq_block_num = 0
+            spa_block_num = 0
+            dual_block_num = 0
+            measures_count = 0
+            
+            for block_idx, block in enumerate(custom_block_order):
+                block_type = block.get("type", "")
+                
+                # Skip start/end markers
+                if block_type in ("start", "end"):
+                    continue
+                
+                now_str = datetime.now().strftime("%H:%M:%S")
+                logging.info(f"--- CUSTOM BLOCK {block_idx + 1}: {block_type.upper()} ---")
+                
+                # SEQUENTIAL
+                if block_type == "seq" and seq_enabled:
+                    seq_block_num += 1
+                    logging.info(f"[{now_str}] Starting Sequential {n_back_level}-back Task - Block {seq_block_num}")
+                    try:
+                        if seq_block_num > 1:
+                            show_transition_screen(win, "Sequential N-back")
+                        
+                        is_first = seq_block_num == 1
+                        seq_res = run_sequential_nback_block(
+                            win,
+                            n_back_level,
+                            num_images,
+                            target_percentage=0.5,
+                            display_duration=seq_display,
+                            isi=seq_isi,
+                            num_trials=164,
+                            is_first_encounter=is_first,
+                            block_number=seq_block_num,
+                        )
+                        save_sequential_results(
+                            participant_id, n_back_level, f"Block_{seq_block_num}", seq_res
+                        )
+                        all_sequential_results_list.append((seq_block_num, seq_res))
+                        elapsed = time.time() - experiment_start_time
+                        logging.info(f"Sequential Block {seq_block_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s")
+                    except Exception as e:
+                        logging.error(f"Error in Sequential N-back (Block {seq_block_num}): {e}")
+                        logging.exception("Exception occurred")
+                
+                # SPATIAL
+                elif block_type == "spa" and spa_enabled:
+                    spa_block_num += 1
+                    logging.info(f"[{now_str}] Starting Spatial N-back Task - Block {spa_block_num}")
+                    try:
+                        show_transition_screen(win, "Spatial N-back")
+                        if spa_block_num == 1:
+                            show_welcome_screen(win, "Spatial N-back")
+                        
+                        run_adaptive_nback_task(
+                            win,
+                            "Spatial N-back",
+                            n_back_level,
+                            1,
+                            270,
+                            lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number, sub_block_index=None: run_spatial_nback_block(
+                                w, n, num_trials, display_duration, isi, is_first_encounter,
+                                block_number=block_number, sub_block_index=sub_block_index,
+                            ),
+                            starting_block_number=spa_block_num,
+                        )
+                        elapsed = time.time() - experiment_start_time
+                        logging.info(f"Spatial Block {spa_block_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s")
+                    except Exception as e:
+                        logging.error(f"Error in Spatial N-back (Block {spa_block_num}): {e}")
+                
+                # DUAL
+                elif block_type == "dual" and dual_enabled:
+                    dual_block_num += 1
+                    logging.info(f"[{now_str}] Starting Dual N-back Task - Block {dual_block_num}")
+                    try:
+                        show_transition_screen(win, "Dual N-back")
+                        if dual_block_num == 1:
+                            show_welcome_screen(win, "Dual N-back")
+                        
+                        run_adaptive_nback_task(
+                            win,
+                            "Dual N-back",
+                            n_back_level,
+                            1,
+                            270,
+                            lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number, sub_block_index=None: run_dual_nback_block(
+                                w, n, num_trials, display_duration, isi, is_first_encounter,
+                                block_number=block_number, sub_block_index=sub_block_index,
+                            ),
+                            starting_block_number=dual_block_num,
+                        )
+                        elapsed = time.time() - experiment_start_time
+                        logging.info(f"Dual Block {dual_block_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s")
+                    except Exception as e:
+                        logging.error(f"Error in Dual N-back (Block {dual_block_num}): {e}")
+                
+                # BREAK
+                elif block_type == "break":
+                    logging.info(f"[{now_str}] Showing Break Screen")
+                    try:
+                        show_break_screen(win, break_duration)
+                    except Exception as e:
+                        logging.error(f"Error showing break: {e}")
+                
+                # MEASURES
+                elif block_type == "measures":
+                    measures_count += 1
+                    logging.info(f"[{now_str}] Collecting Subjective Measures ({measures_count})")
+                    try:
+                        measures = collect_subjective_measures(win)
+                        subjective_measures[f"Custom_{measures_count}"] = measures
+                    except Exception as e:
+                        logging.error(f"Error collecting measures: {e}")
+        
+        else:
+            # STANDARD CYCLE-BASED EXECUTION (no Block Builder)
+            for cycle_num in range(1, max_loops + 1):
+                logging.info(f"--- STARTING LOOP ITERATION {cycle_num} ---")
 
             # 1. SEQUENTIAL N-BACK
             if seq_enabled and cycle_num <= seq_blocks:

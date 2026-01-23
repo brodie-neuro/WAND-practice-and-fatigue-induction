@@ -1,0 +1,33 @@
+{
+  "study_name": "Default",
+  "created": "2026-01-61T00:00:00",
+  "last_modified": "2026-01-06T00:00:00",
+  "description": "Original WAND protocol - 5 Sequential, 4 Spatial, 4 Dual blocks with standard timings",
+  "task_mode": "Full Induction",
+  "sequential_enabled": true,
+  "spatial_enabled": true,
+  "dual_enabled": true,
+  "sequential": {
+    "blocks": 5,
+    "display_duration": 0.8,
+    "isi": 1.0,
+    "trials_per_block": 164,
+    "distractors_enabled": true
+  },
+  "spatial": {
+    "blocks": 4,
+    "display_duration": 1.0,
+    "isi": 1.0,
+    "time_compression": true
+  },
+  "dual": {
+    "blocks": 4,
+    "display_duration": 1.0,
+    "isi": 1.2,
+    "time_compression": true
+  },
+  "n_back_level": 2,
+  "counterbalance_spatial_dual": false,
+  "fullscreen": true,
+  "rng_seed": null
+}

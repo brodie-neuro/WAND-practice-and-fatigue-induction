@@ -15,7 +15,7 @@ Brodie E. Mangan
 
 Version
 -------
-1.1.0
+1.1.1
 
 Environment
 -----------
@@ -47,7 +47,7 @@ from typing import List, Tuple
 
 from psychopy import core, event, visual
 
-from wand_common import (
+from wand_nback.common import (
     collect_trial_response,
     create_grid,
     create_grid_lines,
@@ -361,7 +361,7 @@ def get_gui_timing(task_type, param_name, default):
 
 
 # Stimulus setup
-image_dir = os.path.join(base_dir, "Abstract Stimuli", "apophysis")
+image_dir = os.path.join(base_dir, "stimuli", "apophysis")
 image_files = [f for f in os.listdir(image_dir) if f.endswith(".png")]
 
 if len(image_files) < 24:
@@ -2284,7 +2284,7 @@ def main():
         _apply_seed(GLOBAL_SEED)
 
         # --- Load Enable Flags from GUI Config ---
-        from wand_common import load_gui_config
+        from wand_nback.common import load_gui_config
 
         gui_config = load_gui_config()
         if gui_config:

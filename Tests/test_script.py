@@ -22,7 +22,7 @@ sys.modules["psychopy.core"] = MagicMock()
 # --- End of Fix ---
 
 # This import is now safe. It will not create a window or hang.
-import WAND_practice_plateau as practice
+from wand_nback import practice_plateau as practice
 
 
 @pytest.mark.parametrize(
@@ -48,7 +48,7 @@ def test_log_seq_block_writes_csv(mocker, tmp_path, n_level, num_trials, block_n
 
     # 3. Use mocker to stop the test from trying to find the `image_files`
     #    list, which is normally created when the real script runs.
-    mocker.patch("WAND_practice_plateau.image_files", ["image1.png", "image2.png"])
+    mocker.patch("wand_nback.practice_plateau.image_files", ["image1.png", "image2.png"])
 
     # 4. We don't need to test the full experiment, only the logging.
     #    So, we directly call the function we want to test with some fake data.

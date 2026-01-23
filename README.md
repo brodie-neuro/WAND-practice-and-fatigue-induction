@@ -62,7 +62,7 @@ WAND is an **open-source cognitive fatigue research suite** built on PsychoPy. I
 
 ---
 
-## 📦 Current Release: v1.1.0
+## 📦 Current Release: v1.1.1
 
 ### Highlights
 - **pip-installable**: standard Python packaging with entry points
@@ -118,6 +118,14 @@ WAND is a set of PsychoPy scripts that calibrate N-back capacity and then induce
 - Timing compression per normal speed block  
   - Presentation: 1.00 s minus 0.03 s times block number, minimum 0.85 s  
   - ISI: 1.20 s minus 0.05 s times block number, minimum 1.05 s
+
+### Block Duration Notes
+
+> **Important for researchers configuring timing parameters:**
+>
+> - **Sequential blocks**: Duration = 164 trials × (display + ISI). Adjusting timing parameters **changes total block duration**.
+> - **Spatial/Dual blocks**: Duration is **fixed at 270 seconds (4.5 minutes)** regardless of timing settings. Adjusting timing affects trial pacing and number of trials, not total block duration.
+> - **Time compression** (SPA/DUAL): Only applied after Block 1. Block 1 always uses standard timing.
 
 ## Key Features for Fatigue Induction
 
@@ -250,6 +258,8 @@ The launcher provides a 6-page wizard:
 4. **Options**: Fullscreen, RNG seed, breaks/measures scheduling
 5. **Block Builder**: Visual drag-and-drop experiment structure
 6. **Launch**: Mode selection (Practice or Full Induction) and confirmation
+
+> **Tip**: Hover over field labels in the dialogs to see helpful tooltips explaining each setting.
 
 ### Hot keys during an experiment
 

@@ -8,7 +8,7 @@ import pytest
 # Ensure we can import modules from the main folder
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from wand_analysis import (
+from wand_nback.analysis import (
     calculate_A_prime,
     calculate_accuracy_and_rt,
     calculate_dprime,
@@ -493,3 +493,86 @@ def test_sdt_conservative_bias(conservative_bias_data):
     assert sdt["misses"] == 2
     assert sdt["correct_rejections"] == 3
     assert sdt["criterion"] > 0, "Conservative bias should have positive criterion"
+
+
+# --- EDGE CASE TESTS ---
+
+
+@pytest.fixture
+def all_miss_data():
+    """Extreme case: participant misses all targets."""
+    return [
+        {"Trial": 1, "Is Target": True, "Response": "non-match", "Reaction Time": 0.5, "Accuracy": False},
+        {"Trial": 2, "Is Target": True, "Response": "non-match", "Reaction Time": 0.5, "Accuracy": False},
+        {"Trial": 3, "Is Target": False, "Response": "non-match", "Reaction Time": 0.5, "Accuracy": True},
+        {"Trial": 4, "Is Target": False, "Response": "non-match", "Reaction Time": 0.5, "Accuracy": True},
+    ]
+
+
+@pytest.fixture
+def all_false_alarm_data():
+    """Extreme case: participant says 'match' to all non-targets."""
+    return [
+        {"Trial": 1, "Is Target": True, "Response": "match", "Reaction Time": 0.5, "Accuracy": True},
+        {"Trial": 2, "Is Target": True, "Response": "match", "Reaction Time": 0.5, "Accuracy": True},
+        {"Trial": 3, "Is Target": False, "Response": "match", "Reaction Time": 0.5, "Accuracy": False},
+        {"Trial": 4, "Is Target": False, "Response": "match", "Reaction Time": 0.5, "Accuracy": False},
+    ]
+
+
+def test_sdt_all_miss(all_miss_data):
+    """Edge case: 0% hit rate. SDT should handle gracefully with log-linear correction."""
+    sdt = calculate_sdt_metrics(all_miss_data)
+
+    log_evidence(
+        "SDT Metrics (All Miss)",
+        "0 Hits, 2 Misses, 0 FA, 2 CR",
+        "d' should be negative (poor sensitivity)",
+        f"Hits={sdt['hits']}, d'={sdt['d_prime']:.3f}",
+        "PASS" if sdt["hits"] == 0 and sdt["d_prime"] < 1.0 else "FAIL",
+    )
+
+    assert sdt["hits"] == 0
+    assert sdt["misses"] == 2
+    assert sdt["false_alarms"] == 0
+    assert isinstance(sdt["d_prime"], float), "d' should be a valid float (not infinity)"
+
+
+def test_sdt_all_false_alarm(all_false_alarm_data):
+    """Edge case: 100% false alarm rate. SDT should handle gracefully."""
+    sdt = calculate_sdt_metrics(all_false_alarm_data)
+
+    log_evidence(
+        "SDT Metrics (All FA)",
+        "2 Hits, 0 Misses, 2 FA, 0 CR",
+        "d' should be near 0 (poor discriminability)",
+        f"FA={sdt['false_alarms']}, d'={sdt['d_prime']:.3f}",
+        "PASS" if sdt["false_alarms"] == 2 and abs(sdt["d_prime"]) < 2.0 else "FAIL",
+    )
+
+    assert sdt["false_alarms"] == 2
+    assert sdt["correct_rejections"] == 0
+    assert isinstance(sdt["d_prime"], float), "d' should be a valid float"
+
+
+def test_accuracy_zero_correct():
+    """Edge case: 0% accuracy."""
+    all_wrong_data = [
+        {"Trial": 1, "Is Target": True, "Response": "non-match", "Reaction Time": 0.5, "Accuracy": False},
+        {"Trial": 2, "Is Target": False, "Response": "match", "Reaction Time": 0.5, "Accuracy": False},
+    ]
+    
+    corr, incorr, lapses, total_rt, avg_rt, acc = calculate_accuracy_and_rt(all_wrong_data)
+    
+    log_evidence(
+        "Accuracy (0%)",
+        "All wrong responses",
+        "0.0%",
+        f"{acc}%",
+        "PASS" if acc == 0.0 else "FAIL",
+    )
+    
+    assert acc == 0.0
+    assert corr == 0
+    assert incorr == 2
+

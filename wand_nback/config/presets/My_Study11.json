@@ -1,0 +1,54 @@
+{
+  "study_name": "My_Study11",
+  "participant_id": "1",
+  "created": "2026-01-21T05:57:35.461050",
+  "last_modified": "2026-01-21T05:57:39.389732",
+  "sequential_enabled": true,
+  "spatial_enabled": false,
+  "dual_enabled": false,
+  "sequential": {
+    "blocks": 1,
+    "display_duration": 0.01,
+    "isi": 0.001,
+    "trials_per_block": 164,
+    "distractors_enabled": true
+  },
+  "spatial": {
+    "blocks": 4,
+    "display_duration": 1.0,
+    "isi": 1.0,
+    "time_compression": true
+  },
+  "dual": {
+    "blocks": 4,
+    "display_duration": 1.0,
+    "isi": 1.2,
+    "time_compression": true
+  },
+  "fullscreen": false,
+  "rng_seed": null,
+  "counterbalance_spatial_dual": false,
+  "num_breaks": 2,
+  "break_duration": 20,
+  "num_measures": 4,
+  "custom_block_order": [
+    {
+      "label": "Start",
+      "type": "start",
+      "movable": false
+    },
+    {
+      "label": "SEQ",
+      "type": "seq",
+      "movable": true
+    },
+    {
+      "label": "End",
+      "type": "end",
+      "movable": false
+    }
+  ],
+  "breaks_schedule": [],
+  "measures_schedule": [],
+  "task_mode": "Full Induction"
+}

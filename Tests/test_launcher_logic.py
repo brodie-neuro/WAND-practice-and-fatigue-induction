@@ -121,7 +121,7 @@ def test_save_runtime_config_creates_file(temp_data_dir, sample_config, monkeypa
     BEHAVIOURAL: save_runtime_config() creates a JSON file on disk.
     """
     # Patch DATA_DIR to our temp directory
-    import WAND_Launcher
+    from wand_nback import launcher as WAND_Launcher
 
     monkeypatch.setattr(WAND_Launcher, "DATA_DIR", temp_data_dir)
 
@@ -146,7 +146,7 @@ def test_save_runtime_config_sets_env_var(temp_data_dir, sample_config, monkeypa
     """
     BEHAVIOURAL: save_runtime_config() sets WAND_GUI_CONFIG environment variable.
     """
-    import WAND_Launcher
+    from wand_nback import launcher as WAND_Launcher
 
     monkeypatch.setattr(WAND_Launcher, "DATA_DIR", temp_data_dir)
 
@@ -178,7 +178,7 @@ def test_saved_config_contains_correct_values(
     """
     BEHAVIOURAL: Saved config file contains the values that were passed in.
     """
-    import WAND_Launcher
+    from wand_nback import launcher as WAND_Launcher
 
     monkeypatch.setattr(WAND_Launcher, "DATA_DIR", temp_data_dir)
 
@@ -215,8 +215,8 @@ def test_scripts_receive_config_via_load_gui_config(
     """
     BEHAVIOURAL: After save_runtime_config(), load_gui_config() returns the values.
     """
-    import wand_common
-    import WAND_Launcher
+    from wand_nback import common as wand_common
+    from wand_nback import launcher as WAND_Launcher
 
     monkeypatch.setattr(WAND_Launcher, "DATA_DIR", temp_data_dir)
 
@@ -244,8 +244,8 @@ def test_timing_values_accessible_after_save(temp_data_dir, sample_config, monke
     """
     BEHAVIOURAL: After save, scripts can read timing values via load_gui_config.
     """
-    import wand_common
-    import WAND_Launcher
+    from wand_nback import common as wand_common
+    from wand_nback import launcher as WAND_Launcher
 
     monkeypatch.setattr(WAND_Launcher, "DATA_DIR", temp_data_dir)
 
@@ -279,7 +279,7 @@ def test_fullscreen_updates_params_json(temp_config_dir, sample_config, monkeypa
     This tests the critical fix we made: Launcher now writes fullscreen to
     params.json BEFORE importing scripts, so the window is created correctly.
     """
-    import WAND_Launcher
+    from wand_nback import launcher as WAND_Launcher
 
     monkeypatch.setattr(WAND_Launcher, "CONFIG_DIR", temp_config_dir)
 
@@ -363,7 +363,7 @@ def test_load_gui_config_returns_none_without_env(monkeypatch):
     """
     BEHAVIOURAL: Without WAND_GUI_CONFIG env var, load_gui_config returns None.
     """
-    import wand_common
+    from wand_nback import common as wand_common
 
     monkeypatch.delenv("WAND_GUI_CONFIG", raising=False)
 

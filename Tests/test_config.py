@@ -126,10 +126,10 @@ def test_practice_get_gui_timing_returns_config_value(mock_config_file):
     get_gui_timing actually returns 1.5, not the default 0.8.
     """
     # Import after setting up config
-    import wand_common
+    from wand_nback import common as wand_common
 
     # Force reload of GUI config
-    import WAND_practice_plateau as practice
+    from wand_nback import practice_plateau as practice
 
     practice._GUI_CONFIG = None
     practice._GUI_CONFIG_LOADED = False
@@ -155,7 +155,7 @@ def test_practice_get_gui_timing_falls_back_to_default(no_config):
     """
     BEHAVIOURAL: Verify get_gui_timing returns DEFAULT when no config exists.
     """
-    import WAND_practice_plateau as practice
+    from wand_nback import practice_plateau as practice
 
     # Force no config
     practice._GUI_CONFIG = None
@@ -181,7 +181,7 @@ def test_practice_spatial_timing_uses_config(mock_config_file):
     """
     BEHAVIOURAL: Verify spatial task uses config timing values.
     """
-    import WAND_practice_plateau as practice
+    from wand_nback import practice_plateau as practice
 
     practice._GUI_CONFIG = None
     practice._GUI_CONFIG_LOADED = False
@@ -204,7 +204,7 @@ def test_practice_dual_timing_uses_config(mock_config_file):
     """
     BEHAVIOURAL: Verify dual task uses config timing values.
     """
-    import WAND_practice_plateau as practice
+    from wand_nback import practice_plateau as practice
 
     practice._GUI_CONFIG = None
     practice._GUI_CONFIG_LOADED = False
@@ -237,7 +237,7 @@ def test_induction_timing_via_load_gui_config(mock_config_file):
     This tests the path that WAND_full_induction.get_progressive_timings() uses
     to read config values, without importing the full module.
     """
-    from wand_common import load_gui_config
+    from wand_nback.common import load_gui_config
 
     config = load_gui_config()
 
@@ -261,7 +261,7 @@ def test_induction_sequential_timing_via_load_gui_config(mock_config_file):
     """
     BEHAVIOURAL: Verify Sequential timing is accessible via load_gui_config.
     """
-    from wand_common import load_gui_config
+    from wand_nback.common import load_gui_config
 
     config = load_gui_config()
 
@@ -287,7 +287,7 @@ def test_induction_dual_timing_via_load_gui_config(mock_config_file):
     """
     BEHAVIOURAL: Verify Dual timing is accessible via load_gui_config.
     """
-    from wand_common import load_gui_config
+    from wand_nback.common import load_gui_config
 
     config = load_gui_config()
 
@@ -318,7 +318,7 @@ def test_load_gui_config_returns_none_without_env(no_config):
     """
     BEHAVIOURAL: Without WAND_GUI_CONFIG, load_gui_config returns None.
     """
-    from wand_common import load_gui_config
+    from wand_nback.common import load_gui_config
 
     config = load_gui_config()
 
@@ -337,7 +337,7 @@ def test_practice_fallback_to_default_timing(no_config):
     """
     BEHAVIOURAL: Without config, Practice uses default timings.
     """
-    import WAND_practice_plateau as practice
+    from wand_nback import practice_plateau as practice
 
     practice._GUI_CONFIG = None
     practice._GUI_CONFIG_LOADED = False

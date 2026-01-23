@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-WAND Launcher v1.1.0 - Comprehensive Study Configuration System
+WAND Launcher v1.1.1 - Comprehensive Study Configuration System
 
 A professional GUI for configuring WAND experiments with:
 - Study presets (save/load configurations)
@@ -10,7 +10,7 @@ A professional GUI for configuring WAND experiments with:
 - Counterbalancing options
 
 Author: Brodie E. Mangan
-Version: 1.1.0
+Version: 1.1.1
 License: MIT
 """
 
@@ -22,7 +22,7 @@ from datetime import datetime
 
 # Import block builder module
 try:
-    from block_builder import show_block_builder
+    from wand_nback.block_builder import show_block_builder
 
     BLOCK_BUILDER_AVAILABLE = True
 except ImportError:
@@ -100,6 +100,28 @@ DEFAULT_CONFIG = {
     "breaks_schedule": [2, 4],
     "measures_schedule": [2, 3, 4, 5],
 }
+
+
+# =============================================================================
+# Utility Functions
+# =============================================================================
+
+
+def format_duration(minutes):
+    """Format duration as 'X min Y sec' for better resolution on short experiments."""
+    if minutes >= 60:
+        hours = int(minutes // 60)
+        mins = int(minutes % 60)
+        return f"{hours}h {mins}m"
+    elif minutes >= 1:
+        mins = int(minutes)
+        secs = int((minutes - mins) * 60)
+        if secs > 0:
+            return f"{mins} min {secs} sec"
+        return f"{mins} min"
+    else:
+        secs = int(minutes * 60)
+        return f"{secs} sec"
 
 
 # =============================================================================
@@ -204,10 +226,10 @@ def show_page1_study_setup():
     """
     presets = get_available_presets()
 
-    # Ensure "Default" is always available and first after <Create New>
-    if "Default" in presets:
-        presets.remove("Default")
-    presets.insert(0, "Default")  # Put Default FIRST (before <Create New>)
+    # Ensure "Standard_WAND_Protocol" is always available and first after <Create New>
+    if "Standard_WAND_Protocol" in presets:
+        presets.remove("Standard_WAND_Protocol")
+    presets.insert(0, "Standard_WAND_Protocol")  # Put Standard first
     # Move <Create New> to end of list
     if "<Create New>" in presets:
         presets.remove("<Create New>")
@@ -215,17 +237,25 @@ def show_page1_study_setup():
 
     # Use OrderedDict with DlgFromDict for reliable cross-version behaviour
     fields = OrderedDict()
-    fields["Load_Preset"] = presets  # Dropdown - Default is now first
+    fields["Load_Preset"] = presets  # Dropdown - Standard_WAND_Protocol is now first
     fields["Study_Name"] = "My_Study"
     fields[
         "Participant_ID"
     ] = ""  # Required but without asterisk to avoid PsychoPy message
+
+    # Tooltips for Study Setup
+    tips = {
+        "Load_Preset": "Load a saved configuration. Standard_WAND_Protocol uses default parameters.",
+        "Study_Name": "Name of your study. Used in output file names.",
+        "Participant_ID": "Unique participant identifier. Used in output file names.",
+    }
 
     dlg = gui.DlgFromDict(
         dictionary=fields,
         title="WAND - Page 1/5: Study Setup",
         sortKeys=False,
         show=False,
+        tip=tips,
     )
 
     dlg.show()
@@ -281,10 +311,21 @@ def show_page2_task_selection(config):
     fields["Dual_Enabled"] = config.get("dual_enabled", True)
     fields["Dual_Blocks"] = config.get("dual", {}).get("blocks", 4)
 
+    # Tooltips for Task Selection
+    tips = {
+        "Sequential_Enabled": "Image-based N-back. Duration varies with timing (164 trials × display + ISI).",
+        "Sequential_Blocks": "Number of Sequential blocks. Each block = 164 trials.",
+        "Spatial_Enabled": "Grid-based spatial N-back. Fixed 270 seconds per block.",
+        "Spatial_Blocks": "Number of Spatial blocks. Each block = 270 seconds.",
+        "Dual_Enabled": "Combined image + grid N-back. Fixed 270 seconds per block.",
+        "Dual_Blocks": "Number of Dual blocks. Each block = 270 seconds.",
+    }
+
     dlg = gui.DlgFromDict(
         dictionary=fields,
         title="WAND - Page 2/5: Task Selection",
         sortKeys=False,
+        tip=tips,
     )
 
     if not dlg.OK:
@@ -376,10 +417,52 @@ def show_page3_task_timings(config):
             "dual_compression": True,
         }
 
+    # Tooltips explaining timing behavior
+    tips = {}
+    if seq_enabled:
+        tips["SEQ Display (sec)"] = (
+            "How long each letter is shown. Block duration = 164 trials × (display + ISI). "
+            "Changing timing affects total block duration."
+        )
+        tips["SEQ ISI (sec)"] = (
+            "Inter-stimulus interval between letters. "
+            "Block duration = 164 trials × (display + ISI)."
+        )
+        tips["SEQ Distractors"] = "Show 200ms white square flashes during ISI to probe vigilance."
+
+    if spa_enabled:
+        tips["SPA Display (sec)"] = (
+            "How long each grid is shown. NOTE: Block duration is FIXED at 270 seconds. "
+            "Changing timing affects trial pacing, not total block duration."
+        )
+        tips["SPA ISI (sec)"] = (
+            "Inter-stimulus interval between grids. "
+            "Block duration remains 270 seconds regardless of this setting."
+        )
+        tips["SPA Time Compression"] = (
+            "Reduce BOTH display and ISI times slightly in blocks 2+ to maintain cognitive demand. "
+            "Block 1 always uses standard timing."
+        )
+
+    if dual_enabled:
+        tips["DUAL Display (sec)"] = (
+            "How long each stimulus is shown. NOTE: Block duration is FIXED at 270 seconds. "
+            "Changing timing affects trial pacing, not total block duration."
+        )
+        tips["DUAL ISI (sec)"] = (
+            "Inter-stimulus interval. "
+            "Block duration remains 270 seconds regardless of this setting."
+        )
+        tips["DUAL Time Compression"] = (
+            "Reduce BOTH display and ISI times slightly in blocks 2+ to maintain cognitive demand. "
+            "Block 1 always uses standard timing."
+        )
+
     dlg = gui.DlgFromDict(
         dictionary=fields,
         title="WAND - Page 3/5: Task Timings",
         sortKeys=False,
+        tip=tips,
     )
 
     if not dlg.OK:
@@ -463,10 +546,21 @@ def show_page4_options(config):
     fields["Subjective Measures"] = def_num_measures
     fields["Save as Preset"] = True
 
+    # Tooltips for Options
+    tips = {
+        "Fullscreen": "Run experiment in fullscreen mode. Recommended for data collection.",
+        "RNG Seed (blank = random)": "Fixed seed for reproducible stimulus sequences. Leave blank for true randomisation.",
+        "Number of Breaks": "Short rest periods. Position in Block Builder.",
+        "Break Duration (sec)": "Duration of each break in seconds.",
+        "Subjective Measures": "Questionnaire insertions (e.g., fatigue ratings). Position in Block Builder.",
+        "Save as Preset": "Save this configuration for future use.",
+    }
+
     dlg = gui.DlgFromDict(
         dictionary=fields,
         title="WAND - Page 4/5: Options",
         sortKeys=False,
+        tip=tips,
     )
 
     if not dlg.OK:
@@ -508,7 +602,13 @@ def generate_flowchart(config):
     """
     Generate a text-based flowchart matching the actual WAND task order.
     Dynamically generates the flow for any number of blocks.
+    Uses custom_block_order from Block Builder if present.
     """
+    # Check for custom block order from Block Builder
+    custom_order = config.get("custom_block_order")
+    if custom_order and config.get("task_mode") != "Practice Only":
+        return generate_flowchart_from_custom_order(custom_order, config)
+    
     seq_enabled = config.get("sequential_enabled", True)
     spa_enabled = config.get("spatial_enabled", True)
     dual_enabled = config.get("dual_enabled", True)
@@ -610,18 +710,89 @@ def generate_flowchart(config):
     lines.append("─" * 50)
     lines.append(f"  ⟳ = Time compression enabled")
 
-    # Estimate duration
-    seq_time = seq_blocks * 5 if seq_enabled else 0
-    spa_time = spa_blocks * 4.5 if spa_enabled else 0
-    dual_time = dual_blocks * 4.5 if dual_enabled else 0
+    # Estimate duration using actual timing values
+    seq_config = config.get("sequential", {})
+    seq_display = seq_config.get("display_duration", 0.8)
+    seq_isi = seq_config.get("isi", 1.0)
+    seq_block_min = (seq_display + seq_isi) * 164 / 60
+    
+    seq_time = seq_blocks * seq_block_min if seq_enabled else 0
+    spa_time = spa_blocks * 4.5 if spa_enabled else 0  # Fixed 270s
+    dual_time = dual_blocks * 4.5 if dual_enabled else 0  # Fixed 270s
     # Add time for breaks (20s) and measures
     # Approx 1 min per measure, 0.5 min per break
     n_meas = len([m for m in measures if m <= max_loops])
     n_breaks = len([b for b in breaks if b <= max_loops])
     total_time = seq_time + spa_time + dual_time + (n_meas * 1.5) + (n_breaks * 0.5)
 
-    lines.append(f"  Estimated duration: approx. {int(total_time)} minutes")
+    lines.append(f"  Estimated duration: approx. {format_duration(total_time)}")
 
+    return "\n".join(lines)
+
+
+def generate_flowchart_from_custom_order(block_order, config):
+    """
+    Generate flowchart from custom block order created by Block Builder.
+    
+    Parameters
+    ----------
+    block_order : list
+        List of block dictionaries from Block Builder
+    config : dict
+        Full configuration
+        
+    Returns
+    -------
+    str
+        Formatted flowchart text
+    """
+    spa_comp = config.get("spatial", {}).get("time_compression", True)
+    dual_comp = config.get("dual", {}).get("time_compression", True)
+    
+    lines = []
+    lines.append("TASK ORDER:")
+    lines.append("─" * 50)
+    lines.append("      ── Practice/Familiarisation ──")
+    
+    step = 1
+    seq_count = spa_count = dual_count = 0
+    total_time = 0
+    
+    for block in block_order:
+        block_type = block.get("type", "")
+        
+        # Skip start/end blocks
+        if block_type in ("start", "end"):
+            continue
+        
+        if block_type == "seq":
+            seq_count += 1
+            lines.append(f"  {step}. SEQ Block {seq_count}")
+            step += 1
+            total_time += 5
+        elif block_type == "spa":
+            spa_count += 1
+            c_mark = "⟳" if spa_comp else ""
+            lines.append(f"  {step}. SPA Block {spa_count} {c_mark}")
+            step += 1
+            total_time += 4.5
+        elif block_type == "dual":
+            dual_count += 1
+            c_mark = "⟳" if dual_comp else ""
+            lines.append(f"  {step}. DUAL Block {dual_count} {c_mark}")
+            step += 1
+            total_time += 4.5
+        elif block_type == "break":
+            lines.append("      ── Break ──")
+            total_time += 0.5
+        elif block_type == "measures":
+            lines.append("      ── Subjective Measures ──")
+            total_time += 1.5
+    
+    lines.append("─" * 50)
+    lines.append("  ⟳ = Time compression enabled")
+    lines.append(f"  Estimated duration: approx. {format_duration(total_time)}")
+    
     return "\n".join(lines)
 
 
@@ -640,30 +811,67 @@ def show_page5_mode_selection(config):
         "Full Induction", "Practice Only", or None if cancelled
     """
     # Calculate duration for Full Induction
-    seq_enabled = config.get("sequential_enabled", True)
-    spa_enabled = config.get("spatial_enabled", True)
-    dual_enabled = config.get("dual_enabled", True)
+    # Check for custom block order from Block Builder
+    custom_order = config.get("custom_block_order")
+    
+    if custom_order:
+        # Calculate from actual Block Builder selection with timing values
+        seq_config = config.get("sequential", {})
+        seq_display = seq_config.get("display_duration", 0.8)
+        seq_isi = seq_config.get("isi", 1.0)
+        seq_trials = 164  # Fixed trials per SEQ block
+        seq_block_min = (seq_display + seq_isi) * seq_trials / 60  # minutes per block
+        
+        seq_time = spa_time = dual_time = 0
+        n_breaks = n_meas = 0
+        
+        for block in custom_order:
+            block_type = block.get("type", "")
+            if block_type == "seq":
+                seq_time += seq_block_min
+            elif block_type == "spa":
+                spa_time += 4.5  # Fixed 270s
+            elif block_type == "dual":
+                dual_time += 4.5  # Fixed 270s
+            elif block_type == "break":
+                n_breaks += 1
+            elif block_type == "measures":
+                n_meas += 1
+        
+        full_duration = int(seq_time + spa_time + dual_time + (n_meas * 1.5) + (n_breaks * 0.5))
+    else:
+        # Fallback to config counts with timing values
+        seq_enabled = config.get("sequential_enabled", True)
+        spa_enabled = config.get("spatial_enabled", True)
+        dual_enabled = config.get("dual_enabled", True)
 
-    seq_blocks = config.get("sequential", {}).get("blocks", 5) if seq_enabled else 0
-    spa_blocks = config.get("spatial", {}).get("blocks", 4) if spa_enabled else 0
-    dual_blocks = config.get("dual", {}).get("blocks", 4) if dual_enabled else 0
+        seq_blocks = config.get("sequential", {}).get("blocks", 5) if seq_enabled else 0
+        spa_blocks = config.get("spatial", {}).get("blocks", 4) if spa_enabled else 0
+        dual_blocks = config.get("dual", {}).get("blocks", 4) if dual_enabled else 0
 
-    seq_time = seq_blocks * 5 if seq_enabled else 0
-    spa_time = spa_blocks * 4.5 if spa_enabled else 0
-    dual_time = dual_blocks * 4.5 if dual_enabled else 0
+        # Calculate SEQ time using actual timing values
+        seq_config = config.get("sequential", {})
+        seq_display = seq_config.get("display_duration", 0.8)
+        seq_isi = seq_config.get("isi", 1.0)
+        seq_trials = 164
+        seq_block_min = (seq_display + seq_isi) * seq_trials / 60
+        
+        seq_time = seq_blocks * seq_block_min if seq_enabled else 0
+        spa_time = spa_blocks * 4.5 if spa_enabled else 0  # Fixed 270s
+        dual_time = dual_blocks * 4.5 if dual_enabled else 0  # Fixed 270s
 
-    # Use counts instead of schedules
-    n_meas = config.get("num_measures", 4)
-    n_breaks = config.get("num_breaks", 2)
+        # Use counts instead of schedules
+        n_meas = config.get("num_measures", 4)
+        n_breaks = config.get("num_breaks", 2)
 
-    full_duration = int(
-        seq_time + spa_time + dual_time + (n_meas * 1.5) + (n_breaks * 0.5)
-    )
+        full_duration = int(
+            seq_time + spa_time + dual_time + (n_meas * 1.5) + (n_breaks * 0.5)
+        )
 
     fields = OrderedDict()
     fields["Select_Mode"] = [
         "Practice Only (~20-60 min)",
-        f"Full Induction (~{full_duration} min)",
+        f"Full Induction (~{format_duration(seq_time + spa_time + dual_time + (n_meas * 1.5) + (n_breaks * 0.5))})",
     ]
 
     dlg = gui.DlgFromDict(
@@ -805,26 +1013,30 @@ def extract_schedules(block_order):
 
     Logic:
     - Scans blocks linearly.
-    - Tracks the 'current cycle' based on the last seen task block (SEQ X, SPA X, etc).
+    - Counts task blocks (SEQ/SPA/DUAL) to determine current cycle.
     - If a Break/Measure is found, it is assigned to the current cycle.
+    
+    Note: Block builder generates labels like "SEQ", "SPA" without numbers,
+    so we count task blocks seen to determine the cycle.
     """
     breaks = set()
     measures = set()
-    current_cycle = 1
+    task_block_count = 0  # Count of task blocks seen so far
 
     for block in block_order:
-        label = block.get("label", "")
-
-        # Update cycle from task blocks
-        if "SEQ" in label or "SPA" in label or "DUAL" in label:
-            parts = label.split()
-            if len(parts) > 1 and parts[1].isdigit():
-                current_cycle = int(parts[1])
-
-        # Check for breaks/measures
-        if block.get("type") == "break":
+        block_type = block.get("type", "")
+        
+        # Count task blocks to determine cycle
+        if block_type in ("seq", "spa", "dual"):
+            task_block_count += 1
+        
+        # Assign breaks/measures to current cycle (count of task blocks seen)
+        # Use max(1, count) so events before first task go to cycle 1
+        current_cycle = max(1, task_block_count)
+        
+        if block_type == "break":
             breaks.add(current_cycle)
-        elif block.get("type") == "measures":
+        elif block_type == "measures":
             measures.add(current_cycle)
 
     return sorted(list(breaks)), sorted(list(measures))
@@ -925,7 +1137,7 @@ def launch_experiment(config):
 
     if task_mode == "Practice Only":
         print("[GUI] Launching Practice Protocol...")
-        import WAND_practice_plateau
+        from wand_nback import practice_plateau as WAND_practice_plateau
 
         # Patch the participant ID prompt to return GUI value
         def patched_prompt_participant_id(win):
@@ -960,7 +1172,7 @@ def launch_experiment(config):
         print("[GUI] Launching Full Induction Protocol...")
         print("[GUI] Please wait - experiment window will appear shortly...")
 
-        import WAND_full_induction
+        from wand_nback import full_induction as WAND_full_induction
 
         # Patch removed: WAND_full_induction.py now handles config loading and N-back prompting internally.
         # Try to bring window to front
@@ -1058,7 +1270,7 @@ def show_splash_screen(duration_ms=3000):
     # Version and author
     info_label = tk.Label(
         main_frame,
-        text="v1.1.0  •  Brodie E. Mangan",
+        text="v1.1.1  •  Brodie E. Mangan",
         font=("Segoe UI", 9),
         fg="#555555",
         bg="#0a0a0a",
@@ -1126,7 +1338,7 @@ def main():
 
     print("\n" + "=" * 60)
     print("WAND - Working-memory Adaptive-fatigue with N-back Difficulty")
-    print("GUI Launcher v1.1.0")
+    print("GUI Launcher v1.1.1")
     print("=" * 60 + "\n")
 
     step = 1

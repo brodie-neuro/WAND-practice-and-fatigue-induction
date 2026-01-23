@@ -269,10 +269,44 @@ These tests verify that the Launcher correctly saves and passes configuration.
 
 | File | Tests | What It Validates |
 |------|-------|-------------------|
-| `test_metrics.py` | 5 | Statistical analysis correctness |
+| `test_metrics.py` | 14 | Statistical analysis correctness |
 | `test_config.py` | 9 | Config values are actually USED |
 | `test_block_builder.py` | 7 | Block structure generation |
 | `test_script.py` | 3 | CSV data logging |
-| `test_launcher_logic.py` | 10 | Launcher config saving |
+| `test_launcher_logic.py` | 8 | Launcher config saving |
+| `test_custom_block_order.py` | 14 | Custom block order edge cases |
 
-**Total: 34 tests** covering the core functionality of WAND.
+**Total: 55 tests** covering the core functionality of WAND.
+
+---
+
+## test_custom_block_order.py - Block Execution Order
+
+These tests verify that custom block orders from Block Builder are correctly processed and executed.
+
+### Core Tests
+
+| Test | What It Tests |
+|------|---------------|
+| `test_extract_schedules_counts_task_blocks` | Measures after 4 tasks → cycle 4 |
+| `test_extract_schedules_break_after_first_block` | Break after 1st block → cycle 1 |
+| `test_extract_schedules_multiple_events` | Complex sequences with mixed events |
+| `test_custom_block_order_structure` | Data structure has correct types |
+
+### Edge Case Tests
+
+| Test | Edge Case |
+|------|-----------|
+| `test_empty_block_order` | Only start/end blocks (no tasks) |
+| `test_single_seq_block_only` | Minimal 1-block experiment |
+| `test_all_seq_blocks` | Only Sequential blocks |
+| `test_measures_before_any_task` | Events before first task |
+| `test_break_before_any_task` | Breaks before first task |
+| `test_alternating_tasks_and_events` | Task-event-task pattern |
+| `test_multiple_events_same_position` | Stacked events between blocks |
+| `test_all_dual_blocks` | Only Dual blocks |
+| `test_events_at_end` | Events after all tasks |
+| `test_user_screenshot_sequence` | Real user configuration |
+
+**Why these matter**: The Block Builder bug (all events assigned to cycle 1) was only caught by user testing, not automated tests. These edge cases now catch similar issues.
+

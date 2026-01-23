@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wand-nback"
-version = "1.1.0"
+version = "1.1.1"
 description = "WAND - Working-memory Adaptive-fatigue with N-back Difficulty"
 readme = "README.md"
 license = {text = "MIT"}
@@ -49,27 +49,19 @@ Repository = "https://github.com/brodie-neuro/WAND-practice-and-fatigue-inductio
 Issues = "https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction/issues"
 
 [project.scripts]
-wand-launcher = "WAND_Launcher:main"
-wand-practice = "WAND_practice_plateau:main"
-wand-induction = "WAND_full_induction:main_task_flow"
+wand-launcher = "wand_nback.launcher:main"
+wand-practice = "wand_nback.practice_plateau:main"
+wand-induction = "wand_nback.full_induction:main_task_flow"
 
 [tool.setuptools]
-packages = []
-py-modules = [
-    "WAND_Launcher",
-    "WAND_practice_plateau", 
-    "WAND_full_induction",
-    "wand_common",
-    "wand_analysis",
-    "block_builder",
-]
+packages = ["wand_nback"]
 
 [tool.setuptools.package-data]
-"*" = [
+wand_nback = [
     "config/*.json",
     "config/presets/*.json",
-    "Abstract Stimuli/*",
-    "Logo/*",
+    "stimuli/**/*",
+    "logo/*",
 ]
 
 [tool.black]

@@ -19,7 +19,7 @@ import pytest
 # Ensure we can import modules from the main folder
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from block_builder import BlockBuilderWindow
+from wand_nback.block_builder import BlockBuilderWindow
 
 # Mock configuration for testing
 DEFAULT_CONFIG = {

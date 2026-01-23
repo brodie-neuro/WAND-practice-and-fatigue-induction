@@ -1,0 +1,85 @@
+{
+  "window": {
+    "fullscreen": false,
+    "size": [
+      1650,
+      1000
+    ],
+    "monitor": "testMonitor",
+    "background_color": [
+      -1,
+      -1,
+      -1
+    ],
+    "color_space": "rgb",
+    "use_fbo": true
+  },
+  "practice": {
+    "speed_default": "normal",
+    "speed_multiplier": {
+      "normal": 1.0,
+      "slow": 1.5
+    }
+  },
+  "sequential": {
+    "target_percentage": 0.5,
+    "max_consecutive_matches": 2
+  },
+  "spatial": {
+    "target_percentage": 0.5
+  },
+  "dual": {
+    "target_rate": 0.5
+  },
+  "grid": {
+    "spacing": 100,
+    "color": "gray",
+    "opacity": 0.2
+  },
+  "timing": {
+    "jitter_fraction": 0.1
+  },
+  "colors": {
+    "default": "white",
+    "levels": {
+      "2": "deepskyblue",
+      "3": "orange",
+      "4": "teal"
+    }
+  },
+  "eeg": {
+    "enabled": false,
+    "port_address": "0x378",
+    "trigger_duration": 0.005,
+    "triggers": {
+      "experiment_start": 255,
+      "experiment_end": 254,
+      "sequential_stimulus_onset": 1,
+      "sequential_stimulus_offset": 2,
+      "sequential_target": 3,
+      "sequential_nontarget": 4,
+      "spatial_stimulus_onset": 10,
+      "spatial_stimulus_offset": 11,
+      "spatial_target": 12,
+      "spatial_nontarget": 13,
+      "dual_stimulus_onset": 20,
+      "dual_stimulus_offset": 21,
+      "dual_location_target": 22,
+      "dual_image_target": 23,
+      "dual_both_target": 24,
+      "dual_nontarget": 25,
+      "response_match": 100,
+      "response_nonmatch": 101,
+      "response_lapse": 102,
+      "distractor_onset": 150,
+      "distractor_offset": 151,
+      "block_start": 200,
+      "block_end": 201,
+      "break_start": 210,
+      "break_end": 211,
+      "level_change": 220,
+      "instruction_start": 230,
+      "instruction_end": 231
+    }
+  }
+}

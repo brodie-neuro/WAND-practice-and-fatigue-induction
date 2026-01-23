@@ -14,7 +14,7 @@ Output:
     - Markdown: Tests/results/quicktest_induction_report.md
 
 Author: Brodie Mangan
-Version: 1.1.0
+Version: 1.1.1
 License: MIT
 """
 

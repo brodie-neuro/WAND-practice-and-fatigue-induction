@@ -6,7 +6,7 @@ Horizontal drag-and-drop with dark theme matching WAND launcher.
 Blocks wrap to next row if window is too narrow.
 
 Author: Brodie E. Mangan
-Version: 1.1.0
+Version: 1.1.1
 """
 
 import tkinter as tk
@@ -393,7 +393,7 @@ class BlockBuilderWindow:
             # Show placeholder text if pool is empty
             placeholder = tk.Label(
                 area,
-                text="(empty - all placed)" if pool_type else "(none)",
+                text="All placed" if pool_type else "(none)",
                 font=("Segoe UI", 8, "italic"),
                 bg=COLORS["bg_alt"],
                 fg=COLORS["text_secondary"],
@@ -521,21 +521,7 @@ class BlockBuilderWindow:
         slot_width = BLOCK_WIDTH + BLOCK_PAD_X
         blocks_per_row = max(1, available_width // slot_width)
 
-        # Auto-expand window width if blocks need more space (avoid wrapping)
-        screen_w = self.root.winfo_screenwidth()
-        # Check if we have more blocks than fit in current row AND we have room to expand
-        if len(self.blocks) > blocks_per_row:
-            needed_width = len(self.blocks) * slot_width + 80  # +80 for margins
-            target_width = min(screen_w - 100, max(700, needed_width))
-
-            # If target is significantly larger than current window width, resize
-            current_win_w = self.root.winfo_width()
-            if target_width > current_win_w + 5:  # 5px tolerance
-                self.root.geometry(f"{target_width}x{self.root.winfo_height()}")
-                # The resize event will trigger _render_all again, so we can return or continue.
-                # Continuing matches current flow (renders with old width, then updates).
-
-        # Calculate and set required height
+        # Calculate and set required height for all rows
         num_rows = (len(self.blocks) + blocks_per_row - 1) // blocks_per_row
         req_height = max(80, num_rows * (BLOCK_HEIGHT + BLOCK_PAD_Y) + 20)
         self.block_area.configure(height=req_height)

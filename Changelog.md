@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.1.1] - 2026-01-21
+
+### Added 
+- **Block Builder True Custom Order**: Blocks now execute in the exact sequence defined in Block Builder (previously used fixed cycle-based order)
+- **Terminal Block Sequence Logging**: Full Induction now prints the complete block sequence before execution starts
+- **Custom Block Order Test Suite**: 14 new tests in `test_custom_block_order.py` covering edge cases (empty sequences, events before tasks, alternating patterns, etc.)
+- **Import Verification Tests**: 6 new tests in `test_imports.py` to catch module import errors
+- **Detailed Tooltips**: Task Timings page now includes hover tooltips explaining block duration behaviour and time compression
+- **Block Duration Documentation**: README clarifies Sequential duration varies with timing (164 trials × timing), Spatial/Dual fixed at 270 seconds
+- **Loading Message**: Confirmation screen indicates PsychoPy window will appear shortly
+
+### Changed
+- **Preset Renaming**: Default preset renamed to `Standard_WAND_Protocol.json` for clarity
+- **Config Handling**: GUI settings passed via environment variable instead of writing to `params.json`
+- **Block Builder Layout**: Main sequence now wraps to multiple rows instead of extending horizontally
+- **Duration Calculation**: Now uses actual timing values instead of hardcoded 5 min/block
+- **Duration Display**: Shows as "X min Y sec" for better resolution on short experiments
+
+### Fixed
+- **Stimuli Path**: Fixed `Abstract Stimuli/apophysis` → `stimuli/apophysis` path error
+- **Module Import**: Fixed `from wand_analysis` → `from wand_nback.analysis`
+
+
+---
 ## [1.1.0] - 2026-01-13
 
 ### Added

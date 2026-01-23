@@ -1,0 +1,71 @@
+{
+  "study_name": "My_Study2344",
+  "participant_id": "hhhh",
+  "created": "2026-01-21T06:14:56.722485",
+  "last_modified": "2026-01-21T06:15:02.701410",
+  "sequential_enabled": true,
+  "spatial_enabled": true,
+  "dual_enabled": true,
+  "sequential": {
+    "blocks": 1,
+    "display_duration": 0.01,
+    "isi": 0.01,
+    "trials_per_block": 164,
+    "distractors_enabled": false
+  },
+  "spatial": {
+    "blocks": 1,
+    "display_duration": 1.0,
+    "isi": 1.0,
+    "time_compression": false
+  },
+  "dual": {
+    "blocks": 1,
+    "display_duration": 1.0,
+    "isi": 1.2,
+    "time_compression": true
+  },
+  "fullscreen": false,
+  "rng_seed": null,
+  "counterbalance_spatial_dual": false,
+  "num_breaks": 2,
+  "break_duration": 20,
+  "num_measures": 4,
+  "custom_block_order": [
+    {
+      "label": "Start",
+      "type": "start",
+      "movable": false
+    },
+    {
+      "label": "SEQ",
+      "type": "seq",
+      "movable": true
+    },
+    {
+      "label": "SPA",
+      "type": "spa",
+      "movable": true
+    },
+    {
+      "label": "DUAL",
+      "type": "dual",
+      "movable": true
+    },
+    {
+      "label": "Sub_M",
+      "type": "measures",
+      "movable": true
+    },
+    {
+      "label": "End",
+      "type": "end",
+      "movable": false
+    }
+  ],
+  "breaks_schedule": [],
+  "measures_schedule": [
+    1
+  ],
+  "task_mode": "Full Induction"
+}

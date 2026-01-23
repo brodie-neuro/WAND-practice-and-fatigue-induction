@@ -1,0 +1,76 @@
+{
+  "study_name": "My_Study5455",
+  "participant_id": "11",
+  "created": "2026-01-21T15:36:22.991054",
+  "last_modified": "2026-01-21T15:36:34.568411",
+  "sequential_enabled": true,
+  "spatial_enabled": true,
+  "dual_enabled": true,
+  "sequential": {
+    "blocks": 5,
+    "display_duration": 0.01,
+    "isi": 0.01,
+    "trials_per_block": 164,
+    "distractors_enabled": false
+  },
+  "spatial": {
+    "blocks": 4,
+    "display_duration": 1.0,
+    "isi": 1.0,
+    "time_compression": false
+  },
+  "dual": {
+    "blocks": 4,
+    "display_duration": 1.0,
+    "isi": 1.2,
+    "time_compression": false
+  },
+  "fullscreen": false,
+  "rng_seed": null,
+  "counterbalance_spatial_dual": false,
+  "num_breaks": 2,
+  "break_duration": 20,
+  "num_measures": 4,
+  "custom_block_order": [
+    {
+      "label": "Start",
+      "type": "start",
+      "movable": false
+    },
+    {
+      "label": "SEQ",
+      "type": "seq",
+      "movable": true
+    },
+    {
+      "label": "Sub_M",
+      "type": "measures",
+      "movable": true
+    },
+    {
+      "label": "Sub_M",
+      "type": "measures",
+      "movable": true
+    },
+    {
+      "label": "Sub_M",
+      "type": "measures",
+      "movable": true
+    },
+    {
+      "label": "Sub_M",
+      "type": "measures",
+      "movable": true
+    },
+    {
+      "label": "End",
+      "type": "end",
+      "movable": false
+    }
+  ],
+  "breaks_schedule": [],
+  "measures_schedule": [
+    1
+  ],
+  "task_mode": "Full Induction"
+}
