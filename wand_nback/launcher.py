@@ -241,9 +241,9 @@ def show_page1_study_setup():
     fields = OrderedDict()
     fields["Load_Preset"] = presets  # Dropdown - Standard_WAND_Protocol is now first
     fields["Study_Name"] = "My_Study"
-    fields["Participant_ID"] = (
-        ""  # Required but without asterisk to avoid PsychoPy message
-    )
+    fields[
+        "Participant_ID"
+    ] = ""  # Required but without asterisk to avoid PsychoPy message
 
     # Tooltips for Study Setup
     tips = {
@@ -434,9 +434,9 @@ def show_page3_task_timings(config):
             "Inter-stimulus interval between letters. "
             "Block duration = 164 trials × (display + ISI)."
         )
-        tips["SEQ Distractors"] = (
-            "Show 200ms white square flashes during ISI to probe vigilance."
-        )
+        tips[
+            "SEQ Distractors"
+        ] = "Show 200ms white square flashes during ISI to probe vigilance."
 
     if spa_enabled:
         tips["SPA Display (sec)"] = (
