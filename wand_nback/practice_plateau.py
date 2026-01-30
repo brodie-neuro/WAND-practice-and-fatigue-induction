@@ -15,7 +15,7 @@ Brodie E. Mangan
 
 Version
 -------
-1.1.1
+1.1.2
 
 Environment
 -----------
@@ -30,6 +30,7 @@ License
 -------
 MIT (see LICENSE).
 """
+
 # =============================================================================
 #  SECTION 1: IMPORTS & SETUP
 # =============================================================================
@@ -44,6 +45,8 @@ import sys
 import time
 import traceback
 from typing import List, Tuple
+
+print("Starting WAND, this may take a moment...", flush=True)
 
 from psychopy import core, event, visual
 
@@ -89,6 +92,7 @@ WIN_MONITOR = str(get_param("window.monitor", "testMonitor"))
 WIN_BG = get_param("window.background_color", [-1, -1, -1])
 WIN_COLORSP = get_param("window.color_space", "rgb")
 WIN_USEFBO = bool(get_param("window.use_fbo", True))
+
 
 # =============================================================================
 #  SECTION 2: LOGGING & DATA MANAGEMENT
@@ -367,6 +371,7 @@ image_files = [f for f in os.listdir(image_dir) if f.endswith(".png")]
 if len(image_files) < 24:
     print("Not enough images found in directory")
     sys.exit(1)
+
 
 # =============================================================================
 #  SECTION 4: USER INTERACTION & MENUS

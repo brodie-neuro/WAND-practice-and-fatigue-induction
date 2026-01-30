@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-WAND Launcher v1.1.1 - Comprehensive Study Configuration System
+WAND Launcher v1.1.2 - Comprehensive Study Configuration System
 
 A professional GUI for configuring WAND experiments with:
 - Study presets (save/load configurations)
@@ -10,7 +10,7 @@ A professional GUI for configuring WAND experiments with:
 - Counterbalancing options
 
 Author: Brodie E. Mangan
-Version: 1.1.1
+Version: 1.1.2
 License: MIT
 """
 
@@ -34,6 +34,8 @@ except ImportError:
 # =============================================================================
 # Scale Qt dialogs to be 20% larger (set before importing psychopy.gui)
 os.environ["QT_SCALE_FACTOR"] = "1.2"
+
+print("Starting WAND, this may take a moment...", flush=True)
 
 try:
     from psychopy import gui, logging
@@ -239,9 +241,9 @@ def show_page1_study_setup():
     fields = OrderedDict()
     fields["Load_Preset"] = presets  # Dropdown - Standard_WAND_Protocol is now first
     fields["Study_Name"] = "My_Study"
-    fields[
-        "Participant_ID"
-    ] = ""  # Required but without asterisk to avoid PsychoPy message
+    fields["Participant_ID"] = (
+        ""  # Required but without asterisk to avoid PsychoPy message
+    )
 
     # Tooltips for Study Setup
     tips = {
@@ -344,17 +346,21 @@ def show_page2_task_selection(config):
 
     return {
         "sequential_enabled": seq_enabled,
-        "sequential_blocks": int(fields["Sequential_Blocks"])
-        if str(fields["Sequential_Blocks"]).strip()
-        else 0,
+        "sequential_blocks": (
+            int(fields["Sequential_Blocks"])
+            if str(fields["Sequential_Blocks"]).strip()
+            else 0
+        ),
         "spatial_enabled": spa_enabled,
-        "spatial_blocks": int(fields["Spatial_Blocks"])
-        if str(fields["Spatial_Blocks"]).strip()
-        else 0,
+        "spatial_blocks": (
+            int(fields["Spatial_Blocks"])
+            if str(fields["Spatial_Blocks"]).strip()
+            else 0
+        ),
         "dual_enabled": dual_enabled,
-        "dual_blocks": int(fields["Dual_Blocks"])
-        if str(fields["Dual_Blocks"]).strip()
-        else 0,
+        "dual_blocks": (
+            int(fields["Dual_Blocks"]) if str(fields["Dual_Blocks"]).strip() else 0
+        ),
     }
 
 
@@ -428,9 +434,9 @@ def show_page3_task_timings(config):
             "Inter-stimulus interval between letters. "
             "Block duration = 164 trials × (display + ISI)."
         )
-        tips[
-            "SEQ Distractors"
-        ] = "Show 200ms white square flashes during ISI to probe vigilance."
+        tips["SEQ Distractors"] = (
+            "Show 200ms white square flashes during ISI to probe vigilance."
+        )
 
     if spa_enabled:
         tips["SPA Display (sec)"] = (
@@ -584,9 +590,11 @@ def show_page4_options(config):
         "fullscreen": bool(fields["Fullscreen"]),
         "rng_seed": rng_seed,
         "num_breaks": num_breaks,
-        "break_duration": int(fields["Break Duration (sec)"])
-        if str(fields["Break Duration (sec)"]).strip()
-        else 0,
+        "break_duration": (
+            int(fields["Break Duration (sec)"])
+            if str(fields["Break Duration (sec)"]).strip()
+            else 0
+        ),
         "num_measures": num_measures,
         "save_preset": bool(fields["Save as Preset"]),
         "counterbalance": False,  # Legacy field, forced False
@@ -1274,7 +1282,7 @@ def show_splash_screen(duration_ms=3000):
     # Version and author
     info_label = tk.Label(
         main_frame,
-        text="v1.1.1  •  Brodie E. Mangan",
+        text="v1.1.2  •  Brodie E. Mangan",
         font=("Segoe UI", 9),
         fg="#555555",
         bg="#0a0a0a",
@@ -1342,7 +1350,7 @@ def main():
 
     print("\n" + "=" * 60)
     print("WAND - Working-memory Adaptive-fatigue with N-back Difficulty")
-    print("GUI Launcher v1.1.1")
+    print("GUI Launcher v1.1.2")
     print("=" * 60 + "\n")
 
     step = 1

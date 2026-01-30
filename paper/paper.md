@@ -83,7 +83,7 @@ WAND’s novelty lies in its integrated approach to overcoming key limitations i
 # Availability
 
 - **Operating System**: Platform-independent (Windows, macOS, Linux) via PsychoPy.
-- **Programming Language**: Python (3.10+), utilising the PsychoPy library.
+- **Programming Language**: Python (3.8+/3.10), utilising the PsychoPy library.
 - **Dependencies**: Core dependencies are specified in the `pyproject.toml` file to ensure a reproducible environment. Key packages include:
   - `psychopy>=2024.1.0`
   - `numpy` 

@@ -18,6 +18,7 @@ License
 -------
 MIT (see LICENSE).
 """
+
 from __future__ import annotations
 
 import inspect
@@ -389,7 +390,9 @@ def prompt_text_input(
         prompt_stim.draw()
 
         # Draw the input box (a rectangle) and current buffer text
-        box = visual.Rect(win, width=700, height=60, lineColor="white", pos=(0, 40))
+        box = visual.Rect(
+            win, width=700, height=60, lineColor="white", fillColor=None, pos=(0, 40)
+        )
         box.draw()
 
         buffer_stim = visual.TextStim(
@@ -981,7 +984,13 @@ def display_grid(
     # 12 squares around the circle
     for pos in positions:
         visual.Rect(
-            win, width=50, height=50, pos=pos, lineColor=grid_color, lineWidth=2
+            win,
+            width=50,
+            height=50,
+            pos=pos,
+            lineColor=grid_color,
+            lineWidth=2,
+            fillColor=None,
         ).draw()
 
     # Optional highlight

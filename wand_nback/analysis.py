@@ -15,6 +15,7 @@ License
 -------
 MIT (see LICENSE).
 """
+
 from typing import Any, Dict, List, Optional, Tuple
 
 from scipy.stats import norm

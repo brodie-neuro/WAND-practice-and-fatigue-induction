@@ -17,7 +17,7 @@ Brodie E. Mangan
 
 Version
 -------
-1.1.1
+1.1.2
 
 Environment
 -----------
@@ -27,6 +27,7 @@ License
 -------
 MIT (see LICENSE).
 """
+
 # =============================================================================
 #  SECTION 1: CLI & GLOBAL CONFIGURATION
 # =============================================================================
@@ -39,6 +40,8 @@ import random
 import sys
 import time
 from datetime import datetime
+
+print("Starting WAND, this may take a moment...", flush=True)
 
 from psychopy import core, event, visual
 
@@ -2514,6 +2517,28 @@ def main_task_flow():
     logging.info("Exiting main_task_flow()")
     win.close()
     core.quit()
+
+
+def run_quicktest():
+    """
+    Entry point for the 'wand-quicktest' console script.
+
+    Runs a short 20-trial 2-back dummy session to verify installation
+    and basic functionality without requiring the GUI launcher.
+    """
+    logging.info("Starting WAND Quick Test (Dummy Session)...")
+    try:
+        run_dummy_session(win, n_back_level=2, num_trials=20)
+        logging.info("Quick Test completed successfully.")
+    except Exception as e:
+        logging.error(f"Quick Test failed: {e}")
+        logging.exception("Traceback:")
+    finally:
+        try:
+            win.close()
+        except:
+            pass
+        core.quit()
 
 
 if __name__ == "__main__":

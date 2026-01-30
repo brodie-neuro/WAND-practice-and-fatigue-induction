@@ -3,11 +3,11 @@ WAND Package - Working-memory Adaptive-fatigue with N-back Difficulty
 
 Pip-installable package for the WAND cognitive fatigue induction protocol.
 
-Version: 1.1.1
+Version: 1.1.2
 Author: Brodie E. Mangan
 """
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 __author__ = "Brodie E. Mangan"
 
 # Analysis exports

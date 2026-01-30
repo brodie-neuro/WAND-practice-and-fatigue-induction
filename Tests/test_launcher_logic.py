@@ -231,9 +231,12 @@ def test_scripts_receive_config_via_load_gui_config(
         "After save_runtime_config()",
         f"participant_id={sample_config['participant_id']}",
         f"participant_id={loaded.get('participant_id') if loaded else 'None'}",
-        "PASS"
-        if loaded and loaded.get("participant_id") == sample_config["participant_id"]
-        else "FAIL",
+        (
+            "PASS"
+            if loaded
+            and loaded.get("participant_id") == sample_config["participant_id"]
+            else "FAIL"
+        ),
     )
 
     assert loaded is not None, "load_gui_config should return a dict"
