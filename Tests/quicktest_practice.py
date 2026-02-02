@@ -2,7 +2,7 @@
 """
 WAND Quicktest - Practice
 
-Automated smoke test for the Practice script (WAND_practice_plateau.py).
+Automated smoke test for the Practice script (wand_nback/practice_plateau.py).
 
 Usage:
     python Tests/quicktest_practice.py --quicktest   # Automated (no input)
@@ -14,7 +14,7 @@ Output:
     - Markdown: Tests/results/quicktest_practice_report.md
 
 Author: Brodie Mangan
-Version: 1.1.2
+Version: 1.1.3
 License: MIT
 """
 
@@ -47,7 +47,7 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 
 _parser = argparse.ArgumentParser(description="WAND Practice Quicktest")
 _parser.add_argument(
-    "--module", default="WAND_practice_plateau", help="Practice module"
+    "--module", default="wand_nback.practice_plateau", help="Practice module"
 )
 _parser.add_argument(
     "--level", type=int, default=2, choices=[2, 3], help="N-back level"

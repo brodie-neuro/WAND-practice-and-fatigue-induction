@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wand-nback"
-version = "1.1.2"
+version = "1.1.3"
 description = "WAND - Working-memory Adaptive-fatigue with N-back Difficulty"
 readme = "README.md"
 license = {text = "MIT"}
@@ -52,10 +52,10 @@ Issues = "https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction/is
 wand-launcher = "wand_nback.launcher:main"
 wand-practice = "wand_nback.practice_plateau:main"
 wand-induction = "wand_nback.full_induction:main_task_flow"
-wand-quicktest = "wand_nback.full_induction:run_quicktest"
+wand-quicktest = "Tests.quicktest_induction:main"
 
 [tool.setuptools]
-packages = ["wand_nback"]
+packages = ["wand_nback", "Tests"]
 
 [tool.setuptools.package-data]
 wand_nback = [

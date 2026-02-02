@@ -2,7 +2,7 @@
 """
 WAND Quicktest - Full Induction
 
-Automated smoke test for the Full Induction (WAND_full_induction.py).
+Automated smoke test for the Full Induction (wand_nback/full_induction.py).
 
 Usage:
     python Tests/quicktest_induction.py --quicktest   # Automated (no input)
@@ -14,7 +14,7 @@ Output:
     - Markdown: Tests/results/quicktest_induction_report.md
 
 Author: Brodie Mangan
-Version: 1.1.2
+Version: 1.1.3
 License: MIT
 """
 
@@ -107,7 +107,11 @@ if args.quicktest:
 # IMPORT WAND MODULES (after potential mocking)
 # =============================================================================
 
-from WAND_full_induction import run_sequential_nback_block, save_results_to_csv, win
+from wand_nback.full_induction import (
+    run_sequential_nback_block,
+    save_results_to_csv,
+    win,
+)
 
 
 def generate_markdown_report(results: dict, elapsed: float, csv_path: str) -> str:

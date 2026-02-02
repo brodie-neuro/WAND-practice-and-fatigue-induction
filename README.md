@@ -85,7 +85,7 @@ WAND is an **open-source cognitive fatigue research suite** built on PsychoPy. I
 
 ---
 
-## Current Release: v1.1.2
+## Current Release: v1.1.3
 
 ### Highlights
 - **pip-installable**: standard Python packaging with entry points
@@ -180,13 +180,13 @@ Responses use 1 to 8 Likert scales and are saved alongside behavioural data in `
 
 ### Quick Verification
 
-To verify your installation without running a full 60-minute experiment, run the quicktest script:
+To verify your installation without running a full 60-minute experiment, run the quicktest:
 
 ```bash
-python Tests/quicktest_induction.py
+wand-quicktest
 ```
 
-This simulates a rapid 25-second version of the full induction protocol (Sequential, Spatial, Dual) to verify graphics, sound, and logging.
+This simulates a rapid ~3-second automated test to verify graphics, sound, and logging.
 
 ### Option 1: pip install (Recommended)
 
@@ -244,14 +244,14 @@ wand-induction     # Full fatigue induction
 
 ```bash
 # GUI Launcher (recommended)
-python WAND_Launcher.py
+wand-launcher
 
-# Direct script access
-python WAND_practice_plateau.py
-python WAND_full_induction.py
+# Or run modules directly
+python -m wand_nback.practice_plateau
+python -m wand_nback.full_induction
 
-# Automated smoke test (no user input required)
-python Tests/quicktest_induction.py
+# Automated smoke test (~3 seconds, no user input required)
+wand-quicktest
 ```
 
 ### Automated Installation Verification
@@ -259,17 +259,17 @@ python Tests/quicktest_induction.py
 To verify your PsychoPy installation works correctly without running a full experiment:
 
 ```bash
-python Tests/quicktest_induction.py
+wand-quicktest
 ```
 
-This runs an automated smoke test (~4 seconds) that:
+This runs an automated smoke test (~3 seconds) that:
 - Creates the PsychoPy window
 - Loads stimuli and timing loops
 - Mocks user input with random responses
 - Outputs pass/fail with accuracy and d' values
 
 ### Post installation check
-- Run `wand-launcher` or `python WAND_Launcher.py` to verify everything works
+- Run `wand-launcher` to verify everything works
 - The GUI will guide you through all configuration options
 - Data is saved to `./data/` in the working directory
 

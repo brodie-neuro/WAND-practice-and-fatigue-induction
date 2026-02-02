@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.1.3] - 2026-02-02
+
+### Changed
+- **Tests Folder Included in Package**: The `Tests` folder is now included in pip installs, so users can run the automated test suite without cloning the repo (per reviewer feedback).
+- **`wand-quicktest` Now Uses Automated Test**: Entry point now runs `Tests/quicktest_induction.py` - faster (~3 seconds) and consistent with CI tests.
+
+### Fixed
+- **Quicktest Import Paths**: Fixed broken imports in `quicktest_induction.py` and `quicktest_practice.py` to use new `wand_nback.*` module paths.
+
+### Added
+- **JOSS Paper Citations**: Added validation study reference (Mangan, Kourtis & Tomaz, under review) and theoretical framework citation (Mangan & Kourtis, 2025).
+
+---
+## [1.1.2] - 2026-01-23
+
+### Added
+- **`wand-quicktest` Entry Point**: New console command for quick visual verification without the GUI launcher.
+
+
 ## [1.1.1] - 2026-01-23
 
 ### Added 
