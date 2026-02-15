@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-WAND Launcher v1.1.3 - Comprehensive Study Configuration System
+WAND Launcher v1.2.0 - Comprehensive Study Configuration System
 
 A professional GUI for configuring WAND experiments with:
 - Study presets (save/load configurations)
@@ -10,7 +10,7 @@ A professional GUI for configuring WAND experiments with:
 - Counterbalancing options
 
 Author: Brodie E. Mangan
-Version: 1.1.3
+Version: 1.2.0
 License: MIT
 """
 
@@ -1282,7 +1282,7 @@ def show_splash_screen(duration_ms=3000):
     # Version and author
     info_label = tk.Label(
         main_frame,
-        text="v1.1.3  •  Brodie E. Mangan",
+        text="v1.2.0  •  Brodie E. Mangan",
         font=("Segoe UI", 9),
         fg="#555555",
         bg="#0a0a0a",
@@ -1350,7 +1350,7 @@ def main():
 
     print("\n" + "=" * 60)
     print("WAND - Working-memory Adaptive-fatigue with N-back Difficulty")
-    print("GUI Launcher v1.1.3")
+    print("GUI Launcher v1.2.0")
     print("=" * 60 + "\n")
 
     step = 1

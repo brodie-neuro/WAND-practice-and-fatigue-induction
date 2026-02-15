@@ -85,13 +85,13 @@ WAND is an **open-source cognitive fatigue research suite** built on PsychoPy. I
 
 ---
 
-## Current Release: v1.1.3
+## Current Release: v1.2.0
 
 ### Highlights
 - **pip-installable**: standard Python packaging with entry points
 - **GUI Launcher**: multi-page wizard for complete experiment customisation
 - **Block Builder**: visual drag-and-drop interface for experiment design
-- **EEG Triggers**: fully configurable parallel port codes via `params.json`
+- **EEG Trigger Auto-Detection**: new `wand-eeg-test` command auto-detects TriggerBox and parallel port hardware
 - **Full SDT Metrics**: d', criterion (c), hits, false alarms in all output
 
 See [`Changelog.md`](Changelog.md) for the complete history.
@@ -252,7 +252,32 @@ python -m wand_nback.full_induction
 
 # Automated smoke test (~3 seconds, no user input required)
 wand-quicktest
+
+# EEG trigger detection and configuration
+wand-eeg-test
 ```
+
+### EEG Trigger Setup
+
+Before running EEG experiments, configure your trigger hardware:
+
+```bash
+wand-eeg-test
+```
+
+This utility:
+- **Auto-detects** Brain Products TriggerBox (USB serial) and parallel port adapters
+- **Scans 18 common addresses** for USB-to-parallel adapters
+- **Sends test triggers** to verify hardware
+- **Saves configuration** to `params.json` automatically
+
+For timing validation, run with the jitter flag:
+
+```bash
+wand-eeg-test --jitter
+```
+
+This sends 100 triggers and generates a timing report (for methods sections) saved to `data/eeg_jitter_report_{timestamp}.txt`.
 
 ### Automated Installation Verification
 

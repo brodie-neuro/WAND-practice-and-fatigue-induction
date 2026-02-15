@@ -15,7 +15,7 @@ Brodie E. Mangan
 
 Version
 -------
-1.1.3
+1.2.0
 
 Environment
 -----------
@@ -2455,17 +2455,17 @@ def main():
                 if skip_to_next_stage:
                     break
 
-            passes = passes + 1 if acc >= 65 else 0
-            if passes < 2:
-                visual.TextStim(
-                    win,
-                    text="Let's do another block to make sure the performance is consistent.\n\nPress SPACE to continue.",
-                    color="white",
-                    height=24,
-                    wrapWidth=800,
-                ).draw()
-                win.flip()
-                event.waitKeys(keyList=["space"])
+                passes = passes + 1 if acc >= 65 else 0
+                if passes < 2:
+                    visual.TextStim(
+                        win,
+                        text="Let's do another block to make sure the performance is consistent.\n\nPress SPACE to continue.",
+                        color="white",
+                        height=24,
+                        wrapWidth=800,
+                    ).draw()
+                    win.flip()
+                    event.waitKeys(keyList=["space"])
 
         skip_to_next_stage = False
 

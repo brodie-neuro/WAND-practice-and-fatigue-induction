@@ -72,3 +72,12 @@ marketing/
 # Draft reply files (local work)
 github_reply.txt
 reviewer_reply.txt
+
+# Local setup documentation (not for public repo)
+INSTITUTION_SETUP.md
+
+# EEG processing folders (local analysis, not for public repo)
+pre-processing/
+post-processing/
+preprocessing/
+postprocessing/

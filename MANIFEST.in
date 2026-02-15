@@ -1,9 +1,9 @@
 # Include config files
-recursive-include config *.json
+recursive-include wand_nback/config *.json
 
 # Include stimuli and assets
-recursive-include "Abstract Stimuli" *
-recursive-include Logo *
+recursive-include wand_nback/stimuli *
+recursive-include wand_nback/logo *
 
 # Include documentation
 include README.md

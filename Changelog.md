@@ -6,10 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.2.0] - 2026-02-15
+
+### Added
+- **EEG Trigger Test Utility (`wand-eeg-test`)**: New command-line tool for auto-detecting and configuring EEG trigger hardware before experiments.
+- **TriggerBox Support**: Auto-detection of Brain Products TriggerBox (USB serial) alongside traditional parallel port adapters.
+- **Parallel Port Auto-Detection**: Scans 18 common I/O addresses for USB-to-parallel adapters (supports Delock, StarTech, generic, and PCI/PCIe cards).
+- **Timing Jitter Measurement**: Run `wand-eeg-test --jitter` to send 100 test triggers and generate timing statistics for EEG methods sections.
+- **Interactive Manual Address Entry**: If auto-detection fails, users can enter a custom port address from Device Manager.
+- **Jitter Report Export**: Timing statistics saved to `data/eeg_jitter_report_{timestamp}.txt` with ready-to-use methods section text.
+
+### Changed
+- **Dual-Mode Trigger Support**: `full_induction.py` now supports both TriggerBox (serial) and parallel port modes, auto-configured via params.json.
+- **EEG Configuration**: Added `trigger_mode`, `triggerbox_port` settings to params.json for flexible hardware support.
+
+### Fixed
+- **`wand-quicktest` Entry Point**: Fixed broken entry point referencing non-existent `main` function — now correctly calls `run_quicktest()`.
+- **Missing `Tests/__init__.py`**: Added missing package init file required for `wand-quicktest` to work after pip install.
+- **MANIFEST.in Paths**: Fixed three lines referencing non-existent directories (`config`, `"Abstract Stimuli"`, `Logo`) — now points to correct package paths.
+- **Dual Practice Loop Indentation**: Fixed `passes` counter increment being outside the `while` loop in Dual N-back normal-speed practice (only affected direct script execution, not Block Builder).
+- **Standard Execution Loop Indentation**: Fixed main experiment loop body being outside the `for cycle_num` loop in standard (non-Block Builder) execution path.
+- **Duplicate `config/params.json`**: Removed unused root-level copy; all code uses `wand_nback/config/params.json`.
+
+### Added
+- **Loop Structure Tests**: Three new AST-based tests (`test_loop_structure.py`) to prevent loop indentation regressions.
+- **EEG Configuration Tests**: 13 new tests (`test_eeg.py`) verifying trigger code validity, config structure, and graceful hardware failure — no EEG hardware required.
+
+---
 ## [1.1.3] - 2026-02-02
 
 ### Changed
-- **Tests Folder Included in Package**: The `Tests` folder is now included in pip installs, so users can run the automated test suite without cloning the repo (per reviewer feedback).
+- **Tests Folder Included in Package**: The `Tests` folder is now included in pip installs, so users can run the automated test suite without cloning the repo..
 - **`wand-quicktest` Now Uses Automated Test**: Entry point now runs `Tests/quicktest_induction.py` - faster (~3 seconds) and consistent with CI tests.
 
 ### Fixed

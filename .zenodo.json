@@ -1,8 +1,8 @@
 {
     "title": "WAND (Working-memory Adaptive-fatigue with N-back Difficulty): A Modular Software Suite for Cognitive Fatigue Research",
-    "version": "1.1.3",
-    "publication_date": "2026-02-02",
-    "description": "An open-source PsychoPy software suite for cognitive fatigue research. It provides a modular N-back framework to classify performance, calibrate stable baselines via plateau detection, and systematically induce active fatigue.",
+    "version": "1.2.0",
+    "publication_date": "2026-02-05",
+    "description": "WAND (Working-memory Adaptive-fatigue with N-back Difficulty) is an open-source PsychoPy software suite for cognitive fatigue research. Key features include: (1) a GUI launcher for experiment configuration, (2) adaptive N-back tasks (Sequential, Spatial, Dual) with real-time difficulty adjustment, (3) a practice calibration protocol with plateau detection to establish stable baselines, (4) a ~65-minute fatigue induction protocol with timing compression and mini-distractors, (5) comprehensive Signal Detection Theory metrics (d', A', criterion), (6) EEG trigger support, and (7) pip-installable with console entry points. The suite enables researchers to systematically induce and measure active cognitive fatigue while maintaining participant engagement through adaptive difficulty.",
     "creators": [
         {
             "name": "Mangan, Brodie E.",
