@@ -34,13 +34,13 @@ jobs:
           # Install project requirements (Scipy, PsychoPy, pywin32, etc.)
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Run black (check only)
-        shell: bash
-        run: black --check .
-
       - name: Run isort (check only)
         shell: bash
         run: isort --check .
+
+      - name: Run black (check only)
+        shell: bash
+        run: black --check .
 
       - name: Run tests
         shell: bash

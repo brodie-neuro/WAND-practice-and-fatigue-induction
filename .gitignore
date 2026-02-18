@@ -62,6 +62,7 @@ temp_verify_local/
 # Commercial / Private development (NOT open source)
 WAND_Field/
 MaxCog/
+COC/
 
 # Local backup of original scripts
 _local_backup/
@@ -72,3 +73,15 @@ marketing/
 # Draft reply files (local work)
 github_reply.txt
 reviewer_reply.txt
+
+# Local isolated validation environment
+quicktest_py310_env/
+
+# Local setup documentation (not for public repo)
+INSTITUTION_SETUP.md
+
+# EEG processing folders (local analysis, not for public repo)
+pre-processing/
+post-processing/
+preprocessing/
+postprocessing/
