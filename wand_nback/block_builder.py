@@ -6,7 +6,7 @@ Horizontal drag-and-drop with dark theme matching WAND launcher.
 Blocks wrap to next row if window is too narrow.
 
 Author: Brodie E. Mangan
-Version: 1.1.3
+Version: 1.2.0
 """
 
 import tkinter as tk

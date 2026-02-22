@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.2.0] - 2026-02-22
+
+### Added
+- **EEG Test Utility (`wand-eeg-test`)**: New command-line utility to auto-detect trigger hardware (TriggerBox and parallel port), send test triggers, and measure timing jitter.
+- **EEG Read-back Verification**: Parallel port initialisation now writes test patterns and reads them back to confirm hardware is physically present. Prevents false positives on empty addresses (e.g., `0x378` on Windows).
+- **Loop Structure Tests (`Tests/test_loop_structure.py`)**: AST-based tests to catch indentation bugs in the main experiment loop.
+- **EEG Code Tests (`Tests/test_eeg.py`)**: Tests to verify EEG trigger code structure and config format without requiring hardware.
+
+### Fixed
+- **`wand-quicktest` Entrypoint**: The `main()` function now correctly parses CLI arguments and passes `--quicktest` flag through to `run_quicktest()`. Previously, running `wand-quicktest --quicktest` would silently fall through to the manual test mode.
+- **Main Experiment Loop Indentation**: Fixed critical indentation bug in `full_induction.py` where the task execution code (Sequential, Spatial, Dual blocks) was outside the `for cycle_num` loop body, causing only one iteration to execute.
+
+### Changed
+- **EEG config (`params.json`)**: Added `trigger_mode` and `parallel_port_address` fields for the new auto-detection system.
+
+---
 ## [1.1.3] - 2026-02-02
 
 ### Changed

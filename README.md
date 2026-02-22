@@ -85,7 +85,7 @@ WAND is an **open-source cognitive fatigue research suite** built on PsychoPy. I
 
 ---
 
-## Current Release: v1.1.3
+## Current Release: v1.2.0
 
 ### Highlights
 - **pip-installable**: standard Python packaging with entry points

@@ -49,7 +49,9 @@
   },
   "eeg": {
     "enabled": false,
+    "trigger_mode": "auto",
     "port_address": "0x378",
+    "parallel_port_address": "0x378",
     "trigger_duration": 0.005,
     "triggers": {
       "experiment_start": 255,

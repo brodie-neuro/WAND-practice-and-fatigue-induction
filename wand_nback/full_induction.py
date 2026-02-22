@@ -17,7 +17,7 @@ Brodie E. Mangan
 
 Version
 -------
-1.1.3
+1.2.0
 
 Environment
 -----------
@@ -218,7 +218,7 @@ _parallel_port = None
 def _get_parallel_port():
     """Lazily initialize the parallel port connection."""
     global _parallel_port
-    if _parallel_port is None and EEG_ENABLED:
+    if _parallel_port is None and EEG_ENABLED and EEG_TRIGGER_MODE == "parallel":
         try:
             from psychopy import parallel
 
@@ -227,9 +227,41 @@ def _get_parallel_port():
                 if isinstance(EEG_PORT_ADDRESS, str)
                 else EEG_PORT_ADDRESS
             )
-            _parallel_port = parallel.ParallelPort(address=port_addr)
-            logging.info(f"EEG parallel port initialized at {EEG_PORT_ADDRESS}")
+            port = parallel.ParallelPort(address=port_addr)
+
+            # --- Verification Step ---
+            # Write test patterns and read them back to confirm hardware presence.
+            # Without this, Windows silently succeeds on empty addresses like 0x378.
+            test_patterns = [170, 85]
+            is_valid = True
+            for pattern in test_patterns:
+                port.setData(pattern)
+                core.wait(0.001)
+                if port.readData() != pattern:
+                    is_valid = False
+                    break
+
+            port.setData(0)
+
+            if is_valid:
+                _parallel_port = port
+                print(
+                    f"[EEG] Parallel port initialized and verified at {EEG_PORT_ADDRESS} ✓"
+                )
+                logging.info(f"EEG parallel port initialized at {EEG_PORT_ADDRESS}")
+            else:
+                print(
+                    f"[EEG] ERROR: Parallel port at {EEG_PORT_ADDRESS} did not respond to read-back. Hardware likely absent."
+                )
+                logging.warning(
+                    f"Failed to initialize parallel port: Hardware absent or non-responsive."
+                )
+                _parallel_port = False
+
         except Exception as e:
+            print(
+                f"[EEG] ERROR: Failed to initialize parallel port at {EEG_PORT_ADDRESS}: {e}"
+            )
             logging.warning(f"Failed to initialize parallel port: {e}")
             _parallel_port = False  # Mark as failed, don't retry
     return _parallel_port if _parallel_port else None
@@ -2320,152 +2352,152 @@ def main_task_flow():
             for cycle_num in range(1, max_loops + 1):
                 logging.info(f"--- STARTING LOOP ITERATION {cycle_num} ---")
 
-            # 1. SEQUENTIAL N-BACK
-            if seq_enabled and cycle_num <= seq_blocks:
-                now_str = datetime.now().strftime("%H:%M:%S")
-                logging.info(
-                    f"[{now_str}] Starting Sequential {n_back_level}-back Task - Block {cycle_num}"
-                )
-                try:
-                    # Show transition only if not Block 1 (or always? Code used Block 1 welcome only, transitions for rest)
-                    if cycle_num > 1:
-                        show_transition_screen(win, "Sequential N-back")
-
-                    # Logic for Block 1 was using is_first_encounter=True.
-                    is_first = cycle_num == 1
-
-                    seq_res = run_sequential_nback_block(
-                        win,
-                        n_back_level,
-                        num_images,
-                        target_percentage=0.5,
-                        display_duration=seq_display,
-                        isi=seq_isi,
-                        num_trials=164,
-                        is_first_encounter=is_first,
-                        block_number=cycle_num,
-                    )
-
-                    # Save immediately
-                    save_sequential_results(
-                        participant_id, n_back_level, f"Block_{cycle_num}", seq_res
-                    )
-
-                    # Store for final summary
-                    # Store for final summary
-                    all_sequential_results_list.append((cycle_num, seq_res))
-                    elapsed = time.time() - experiment_start_time
+                # 1. SEQUENTIAL N-BACK
+                if seq_enabled and cycle_num <= seq_blocks:
+                    now_str = datetime.now().strftime("%H:%M:%S")
                     logging.info(
-                        f"Sequential N-back Task - Block {cycle_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                        f"[{now_str}] Starting Sequential {n_back_level}-back Task - Block {cycle_num}"
                     )
+                    try:
+                        # Show transition only if not Block 1 (or always? Code used Block 1 welcome only, transitions for rest)
+                        if cycle_num > 1:
+                            show_transition_screen(win, "Sequential N-back")
 
-                except Exception as e:
-                    logging.error(
-                        f"Error in Sequential N-back Task (Block {cycle_num}): {e}"
-                    )
-                    logging.exception("Exception occurred")
+                        # Logic for Block 1 was using is_first_encounter=True.
+                        is_first = cycle_num == 1
 
-            # 2. SCHEDULED EVENTS (Breaks / Measures)
-            # Run these immediately after Sequential (matches logic of previous Block 2-5)
-            # This ensures "Break after Block X" happens before the Spatial/Dual loads.
-            run_scheduled_events(cycle_num)
-
-            # 3. GROUP (SPATIAL / DUAL)
-            # Determine order for this cycle
-            # Odd (1, 3...): [A, B]
-            # Even (2, 4...): [B, A]
-            if cycle_num % 2 != 0:
-                current_order = [task_A_name, task_B_name]
-            else:
-                current_order = [task_B_name, task_A_name]
-
-            if spa_enabled or dual_enabled:
-                logging.info(f"Loop {cycle_num} Group Order: {current_order}")
-
-            for task_type in current_order:
-                # --- SPATIAL ---
-                if task_type == "SPA":
-                    if spa_enabled and cycle_num <= spa_blocks:
-                        now_str = datetime.now().strftime("%H:%M:%S")
-                        logging.info(
-                            f"[{now_str}] Starting Spatial N-back Task - Block {cycle_num}"
+                        seq_res = run_sequential_nback_block(
+                            win,
+                            n_back_level,
+                            num_images,
+                            target_percentage=0.5,
+                            display_duration=seq_display,
+                            isi=seq_isi,
+                            num_trials=164,
+                            is_first_encounter=is_first,
+                            block_number=cycle_num,
                         )
-                        try:
-                            show_transition_screen(win, "Spatial N-back")
-                            # Block 1 used welcome screen? Standard logic is Transition.
-                            # Previous code: Block 1 had `show_welcome_screen`. Block 2+ Transition.
-                            if cycle_num == 1:
-                                show_welcome_screen(win, "Spatial N-back")
 
-                            run_adaptive_nback_task(
-                                win,
-                                "Spatial N-back",
-                                n_back_level,
-                                1,
-                                270,
-                                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number, sub_block_index=None: run_spatial_nback_block(
-                                    w,
-                                    n,
-                                    num_trials,
-                                    display_duration,
-                                    isi,
-                                    is_first_encounter,
-                                    block_number=block_number,
-                                    sub_block_index=sub_block_index,
-                                ),
-                                starting_block_number=spatial_block,
-                            )
-                            spatial_block += 1
-
-                            elapsed = time.time() - experiment_start_time
-                            logging.info(
-                                f"Spatial N-back Task - Block {cycle_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
-                            )
-                        except Exception as e:
-                            logging.error(
-                                f"Error in Spatial N-back Task ({cycle_num}): {e}"
-                            )
-
-                # --- DUAL ---
-                elif task_type == "DUAL":
-                    if dual_enabled and cycle_num <= dual_blocks:
-                        now_str = datetime.now().strftime("%H:%M:%S")
-                        logging.info(
-                            f"[{now_str}] Starting Dual N-back Task - Block {cycle_num}"
+                        # Save immediately
+                        save_sequential_results(
+                            participant_id, n_back_level, f"Block_{cycle_num}", seq_res
                         )
-                        try:
-                            show_transition_screen(win, "Dual N-back")
-                            if cycle_num == 1:
-                                show_welcome_screen(win, "Dual N-back")
 
-                            run_adaptive_nback_task(
-                                win,
-                                "Dual N-back",
-                                n_back_level,
-                                1,
-                                270,
-                                lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number, sub_block_index=None: run_dual_nback_block(
-                                    w,
-                                    n,
-                                    num_trials,
-                                    display_duration,
-                                    isi,
-                                    is_first_encounter,
-                                    block_number=block_number,
-                                    sub_block_index=sub_block_index,
-                                ),
-                                starting_block_number=dual_block,
-                            )
-                            dual_block += 1
+                        # Store for final summary
+                        # Store for final summary
+                        all_sequential_results_list.append((cycle_num, seq_res))
+                        elapsed = time.time() - experiment_start_time
+                        logging.info(
+                            f"Sequential N-back Task - Block {cycle_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                        )
 
-                            elapsed = time.time() - experiment_start_time
+                    except Exception as e:
+                        logging.error(
+                            f"Error in Sequential N-back Task (Block {cycle_num}): {e}"
+                        )
+                        logging.exception("Exception occurred")
+
+                # 2. SCHEDULED EVENTS (Breaks / Measures)
+                # Run these immediately after Sequential (matches logic of previous Block 2-5)
+                # This ensures "Break after Block X" happens before the Spatial/Dual loads.
+                run_scheduled_events(cycle_num)
+
+                # 3. GROUP (SPATIAL / DUAL)
+                # Determine order for this cycle
+                # Odd (1, 3...): [A, B]
+                # Even (2, 4...): [B, A]
+                if cycle_num % 2 != 0:
+                    current_order = [task_A_name, task_B_name]
+                else:
+                    current_order = [task_B_name, task_A_name]
+
+                if spa_enabled or dual_enabled:
+                    logging.info(f"Loop {cycle_num} Group Order: {current_order}")
+
+                for task_type in current_order:
+                    # --- SPATIAL ---
+                    if task_type == "SPA":
+                        if spa_enabled and cycle_num <= spa_blocks:
+                            now_str = datetime.now().strftime("%H:%M:%S")
                             logging.info(
-                                f"Dual N-back Task - Block {cycle_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                                f"[{now_str}] Starting Spatial N-back Task - Block {cycle_num}"
                             )
-                        except Exception as e:
-                            logging.error(
-                                f"Error in Dual N-back Task ({cycle_num}): {e}"
+                            try:
+                                show_transition_screen(win, "Spatial N-back")
+                                # Block 1 used welcome screen? Standard logic is Transition.
+                                # Previous code: Block 1 had `show_welcome_screen`. Block 2+ Transition.
+                                if cycle_num == 1:
+                                    show_welcome_screen(win, "Spatial N-back")
+
+                                run_adaptive_nback_task(
+                                    win,
+                                    "Spatial N-back",
+                                    n_back_level,
+                                    1,
+                                    270,
+                                    lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number, sub_block_index=None: run_spatial_nback_block(
+                                        w,
+                                        n,
+                                        num_trials,
+                                        display_duration,
+                                        isi,
+                                        is_first_encounter,
+                                        block_number=block_number,
+                                        sub_block_index=sub_block_index,
+                                    ),
+                                    starting_block_number=spatial_block,
+                                )
+                                spatial_block += 1
+
+                                elapsed = time.time() - experiment_start_time
+                                logging.info(
+                                    f"Spatial N-back Task - Block {cycle_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                                )
+                            except Exception as e:
+                                logging.error(
+                                    f"Error in Spatial N-back Task ({cycle_num}): {e}"
+                                )
+
+                    # --- DUAL ---
+                    elif task_type == "DUAL":
+                        if dual_enabled and cycle_num <= dual_blocks:
+                            now_str = datetime.now().strftime("%H:%M:%S")
+                            logging.info(
+                                f"[{now_str}] Starting Dual N-back Task - Block {cycle_num}"
                             )
+                            try:
+                                show_transition_screen(win, "Dual N-back")
+                                if cycle_num == 1:
+                                    show_welcome_screen(win, "Dual N-back")
+
+                                run_adaptive_nback_task(
+                                    win,
+                                    "Dual N-back",
+                                    n_back_level,
+                                    1,
+                                    270,
+                                    lambda w, n, num_trials, display_duration, isi, is_first_encounter, block_number, sub_block_index=None: run_dual_nback_block(
+                                        w,
+                                        n,
+                                        num_trials,
+                                        display_duration,
+                                        isi,
+                                        is_first_encounter,
+                                        block_number=block_number,
+                                        sub_block_index=sub_block_index,
+                                    ),
+                                    starting_block_number=dual_block,
+                                )
+                                dual_block += 1
+
+                                elapsed = time.time() - experiment_start_time
+                                logging.info(
+                                    f"Dual N-back Task - Block {cycle_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
+                                )
+                            except Exception as e:
+                                logging.error(
+                                    f"Error in Dual N-back Task ({cycle_num}): {e}"
+                                )
 
         # Save results to CSV (Final Summary)
         logging.info("Saving results to CSV")
