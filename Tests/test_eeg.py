@@ -30,9 +30,9 @@ class TestEEGTestUtilityCode:
 
     def test_eeg_test_file_exists(self):
         """eeg_test.py must exist in wand_nback/."""
-        assert os.path.exists(EEG_TEST_FILE), (
-            f"wand_nback/eeg_test.py not found at {EEG_TEST_FILE}"
-        )
+        assert os.path.exists(
+            EEG_TEST_FILE
+        ), f"wand_nback/eeg_test.py not found at {EEG_TEST_FILE}"
 
     def test_eeg_test_has_main_function(self):
         """eeg_test.py must have a main() function for the entry point."""
@@ -40,13 +40,9 @@ class TestEEGTestUtilityCode:
             source = f.read()
         tree = ast.parse(source)
         func_names = [
-            node.name
-            for node in ast.walk(tree)
-            if isinstance(node, ast.FunctionDef)
+            node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
         ]
-        assert "main" in func_names, (
-            "eeg_test.py must define a main() function"
-        )
+        assert "main" in func_names, "eeg_test.py must define a main() function"
 
     def test_eeg_test_has_try_port_function(self):
         """eeg_test.py must have a try_port() function."""
@@ -54,24 +50,20 @@ class TestEEGTestUtilityCode:
             source = f.read()
         tree = ast.parse(source)
         func_names = [
-            node.name
-            for node in ast.walk(tree)
-            if isinstance(node, ast.FunctionDef)
+            node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
         ]
-        assert "try_port" in func_names, (
-            "eeg_test.py must define a try_port() function"
-        )
+        assert "try_port" in func_names, "eeg_test.py must define a try_port() function"
 
     def test_eeg_test_has_readback_verification(self):
         """try_port() must contain read-back verification logic."""
         with open(EEG_TEST_FILE, "r", encoding="utf-8") as f:
             source = f.read()
-        assert "readData" in source, (
-            "eeg_test.py must use readData() for read-back verification"
-        )
-        assert "170" in source or "0xAA" in source, (
-            "eeg_test.py must use test pattern 170 (0xAA)"
-        )
+        assert (
+            "readData" in source
+        ), "eeg_test.py must use readData() for read-back verification"
+        assert (
+            "170" in source or "0xAA" in source
+        ), "eeg_test.py must use test pattern 170 (0xAA)"
 
     def test_eeg_test_has_common_addresses(self):
         """eeg_test.py must define COMMON_PORT_ADDRESSES with key addresses."""
@@ -86,13 +78,11 @@ class TestEEGTestUtilityCode:
             source = f.read()
         tree = ast.parse(source)
         func_names = [
-            node.name
-            for node in ast.walk(tree)
-            if isinstance(node, ast.FunctionDef)
+            node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
         ]
-        assert "scan_triggerbox" in func_names, (
-            "eeg_test.py must define scan_triggerbox()"
-        )
+        assert (
+            "scan_triggerbox" in func_names
+        ), "eeg_test.py must define scan_triggerbox()"
 
 
 class TestInductionEEGCode:
@@ -104,29 +94,27 @@ class TestInductionEEGCode:
             source = f.read()
         tree = ast.parse(source)
         func_names = [
-            node.name
-            for node in ast.walk(tree)
-            if isinstance(node, ast.FunctionDef)
+            node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
         ]
-        assert "_get_parallel_port" in func_names, (
-            "full_induction.py must define _get_parallel_port()"
-        )
+        assert (
+            "_get_parallel_port" in func_names
+        ), "full_induction.py must define _get_parallel_port()"
 
     def test_induction_has_readback_verification(self):
         """_get_parallel_port() must contain read-back verification."""
         with open(INDUCTION_FILE, "r", encoding="utf-8") as f:
             source = f.read()
-        assert "readData" in source, (
-            "full_induction.py must use readData() for verification"
-        )
+        assert (
+            "readData" in source
+        ), "full_induction.py must use readData() for verification"
 
     def test_induction_eeg_trigger_mode_check(self):
         """_get_parallel_port() must check EEG_TRIGGER_MODE."""
         with open(INDUCTION_FILE, "r", encoding="utf-8") as f:
             source = f.read()
-        assert "EEG_TRIGGER_MODE" in source, (
-            "full_induction.py must reference EEG_TRIGGER_MODE"
-        )
+        assert (
+            "EEG_TRIGGER_MODE" in source
+        ), "full_induction.py must reference EEG_TRIGGER_MODE"
 
 
 class TestEEGConfig:
@@ -134,9 +122,7 @@ class TestEEGConfig:
 
     def test_config_file_exists(self):
         """params.json must exist."""
-        assert os.path.exists(CONFIG_FILE), (
-            f"Config file not found: {CONFIG_FILE}"
-        )
+        assert os.path.exists(CONFIG_FILE), f"Config file not found: {CONFIG_FILE}"
 
     def test_config_is_valid_json(self):
         """params.json must be valid JSON."""
@@ -157,6 +143,6 @@ class TestEEGConfig:
         eeg = config.get("eeg", {})
         assert "enabled" in eeg, "EEG config must have 'enabled' field"
         assert "trigger_mode" in eeg, "EEG config must have 'trigger_mode' field"
-        assert "parallel_port_address" in eeg, (
-            "EEG config must have 'parallel_port_address' field"
-        )
+        assert (
+            "parallel_port_address" in eeg
+        ), "EEG config must have 'parallel_port_address' field"
