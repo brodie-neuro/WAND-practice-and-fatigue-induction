@@ -408,8 +408,10 @@ def get_practice_options(win):
     win.mouseVisible = False
     txt = dict(height=24, color="white", wrapWidth=900)
 
-    # Seed: only prompt if not supplied via CLI / params
+    # Seed: check params, then CLI arg, then prompt
     seed_val = get_param("runtime.seed", None)
+    if seed_val is None and GLOBAL_SEED is not None:
+        seed_val = GLOBAL_SEED
     if seed_val is None:
         seed_str = prompt_text_input(
             win,
@@ -421,8 +423,10 @@ def get_practice_options(win):
         )
         seed_val = int(seed_str) if seed_str else None
 
-    # Distractors toggle: only prompt if not supplied via CLI / params
+    # Distractors toggle: check params, then CLI arg, then prompt
     distractors = get_param("runtime.distractors", None)
+    if distractors is None and DISTRACTORS_ENABLED is not None:
+        distractors = DISTRACTORS_ENABLED
     if distractors is None:
         distractors = prompt_choice(
             win,
@@ -2455,17 +2459,17 @@ def main():
                 if skip_to_next_stage:
                     break
 
-            passes = passes + 1 if acc >= 65 else 0
-            if passes < 2:
-                visual.TextStim(
-                    win,
-                    text="Let's do another block to make sure the performance is consistent.\n\nPress SPACE to continue.",
-                    color="white",
-                    height=24,
-                    wrapWidth=800,
-                ).draw()
-                win.flip()
-                event.waitKeys(keyList=["space"])
+                passes = passes + 1 if acc >= 65 else 0
+                if passes < 2:
+                    visual.TextStim(
+                        win,
+                        text="Let's do another block to make sure the performance is consistent.\n\nPress SPACE to continue.",
+                        color="white",
+                        height=24,
+                        wrapWidth=800,
+                    ).draw()
+                    win.flip()
+                    event.waitKeys(keyList=["space"])
 
         skip_to_next_stage = False
 

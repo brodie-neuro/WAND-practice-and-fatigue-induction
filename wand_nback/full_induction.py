@@ -209,6 +209,7 @@ preloaded_images_dual = {
 EEG_ENABLED = bool(get_param("eeg.enabled", False))
 EEG_PORT_ADDRESS = get_param("eeg.port_address", "0x378")
 EEG_TRIGGER_DURATION = float(get_param("eeg.trigger_duration", 0.005))
+EEG_TRIGGER_MODE = get_param("eeg.trigger_mode", "parallel")
 EEG_TRIGGERS = get_param("eeg.triggers", {})
 
 # Parallel port instance (initialized lazily if needed)
@@ -432,7 +433,9 @@ def get_participant_info(win):
     }
 
 
-def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
+def save_results_to_csv(
+    filename, results, subjective_measures=None, mode="w", participant_id=None
+):
     """
     Write behavioural results and optional subjective measures to a CSV file.
 
@@ -475,7 +478,8 @@ def save_results_to_csv(filename, results, subjective_measures=None, mode="w"):
             writer = csv.writer(file)
 
             # Default participant_id in case results is empty
-            participant_id = "Unknown"
+            if participant_id is None:
+                participant_id = "Unknown"
 
             # ─────────────────────────────────────────────────────────
             #   first‑time header rows  (only if we are *creating* file)
@@ -644,6 +648,7 @@ def save_sequential_results(participant_id, n_back_level, block_name, seq_result
             "Participant ID": participant_id,
             "Task": f"Sequential {n_back_level}-back",
             "Block": block_name,
+            "N-back Level": n_back_level,
             "Results": seq_results,
         },
     ]
@@ -2253,13 +2258,12 @@ def main_task_flow():
 
                 # SPATIAL
                 elif block_type == "spa" and spa_enabled:
-                    spa_block_num += 1
                     logging.info(
-                        f"[{now_str}] Starting Spatial N-back Task - Block {spa_block_num}"
+                        f"[{now_str}] Starting Spatial N-back Task - Block {spa_block_num + 1}"
                     )
                     try:
                         show_transition_screen(win, "Spatial N-back")
-                        if spa_block_num == 1:
+                        if spa_block_num == 0:
                             show_welcome_screen(win, "Spatial N-back")
 
                         run_adaptive_nback_task(
@@ -2280,6 +2284,7 @@ def main_task_flow():
                             ),
                             starting_block_number=spa_block_num,
                         )
+                        spa_block_num += 1
                         elapsed = time.time() - experiment_start_time
                         logging.info(
                             f"Spatial Block {spa_block_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
@@ -2291,13 +2296,12 @@ def main_task_flow():
 
                 # DUAL
                 elif block_type == "dual" and dual_enabled:
-                    dual_block_num += 1
                     logging.info(
-                        f"[{now_str}] Starting Dual N-back Task - Block {dual_block_num}"
+                        f"[{now_str}] Starting Dual N-back Task - Block {dual_block_num + 1}"
                     )
                     try:
                         show_transition_screen(win, "Dual N-back")
-                        if dual_block_num == 1:
+                        if dual_block_num == 0:
                             show_welcome_screen(win, "Dual N-back")
 
                         run_adaptive_nback_task(
@@ -2318,6 +2322,7 @@ def main_task_flow():
                             ),
                             starting_block_number=dual_block_num,
                         )
+                        dual_block_num += 1
                         elapsed = time.time() - experiment_start_time
                         logging.info(
                             f"Dual Block {dual_block_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
@@ -2520,7 +2525,10 @@ def main_task_flow():
                 )
 
             saved_file_path = save_results_to_csv(
-                results_filename, all_results, subjective_measures
+                results_filename,
+                all_results,
+                subjective_measures,
+                participant_id=participant_id,
             )
             logging.info(f"Results and subjective measures saved to {saved_file_path}")
 

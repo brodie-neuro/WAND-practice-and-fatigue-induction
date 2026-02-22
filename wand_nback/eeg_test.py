@@ -383,7 +383,10 @@ def main():
     # Load current config
     config = load_config()
     eeg_config = config.get("eeg", {})
-    current_addr = eeg_config.get("parallel_port_address", "0x378")
+    # Prefer canonical key used by full_induction.py, but keep legacy fallback
+    current_addr = eeg_config.get("port_address") or eeg_config.get(
+        "parallel_port_address", "0x378"
+    )
     trigger_mode = eeg_config.get("trigger_mode", "auto")
     eeg_enabled = eeg_config.get("enabled", True)
 
@@ -439,6 +442,8 @@ def main():
         # Update config
         eeg_config["enabled"] = True
         eeg_config["trigger_mode"] = "parallel"
+        eeg_config["port_address"] = found_addr
+        # Backward compatibility for older tooling that still reads this key
         eeg_config["parallel_port_address"] = found_addr
         config["eeg"] = eeg_config
         save_config(config)
@@ -491,6 +496,8 @@ def main():
             # Update config
             eeg_config["enabled"] = True
             eeg_config["trigger_mode"] = "parallel"
+            eeg_config["port_address"] = manual_addr
+            # Backward compatibility for older tooling that still reads this key
             eeg_config["parallel_port_address"] = manual_addr
             config["eeg"] = eeg_config
             save_config(config)

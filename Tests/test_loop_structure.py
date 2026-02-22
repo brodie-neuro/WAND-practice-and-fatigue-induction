@@ -68,6 +68,60 @@ def _find_for_cycle_num_loops(source: str):
     return results
 
 
+def _find_practice_pass_control_loops(source: str, task_runner_name: str):
+    """
+    Find `while` loops that both:
+    1) gate on a `passes` condition, and
+    2) execute the given task runner (e.g., run_dual_nback_practice).
+
+    Returns matching ast.While nodes.
+    """
+    tree = ast.parse(source)
+    matches = []
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.While):
+            continue
+
+        # We only care about pass-gated loops (`while passes < ...`)
+        has_passes_guard = any(
+            isinstance(name_node, ast.Name) and name_node.id == "passes"
+            for name_node in ast.walk(node.test)
+        )
+        if not has_passes_guard:
+            continue
+
+        # Ensure this loop actually runs the expected task runner
+        has_task_runner = False
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Call):
+                continue
+            func = child.func
+            if isinstance(func, ast.Name) and func.id == task_runner_name:
+                has_task_runner = True
+                break
+        if has_task_runner:
+            matches.append(node)
+
+    return matches
+
+
+def _loop_body_updates_passes(loop_node: ast.While) -> bool:
+    """
+    Return True if `passes` is reassigned or augmented inside the loop body.
+    """
+    for stmt in loop_node.body:
+        for child in ast.walk(stmt):
+            if isinstance(child, ast.Assign):
+                for target in child.targets:
+                    if isinstance(target, ast.Name) and target.id == "passes":
+                        return True
+            if isinstance(child, ast.AugAssign):
+                if isinstance(child.target, ast.Name) and child.target.id == "passes":
+                    return True
+    return False
+
+
 def test_induction_main_loop_contains_task_code():
     """
     The 'for cycle_num' loop in full_induction.py must contain task execution
@@ -119,3 +173,55 @@ def test_induction_file_parses_cleanly():
         source = f.read()
     # This will raise SyntaxError if the file has issues
     ast.parse(source)
+
+
+def test_practice_spatial_pass_loop_updates_counter():
+    """
+    Spatial pass-gated practice loop must update `passes` *inside* its while body.
+
+    This catches regressions where the counter update is accidentally dedented
+    outside the while loop, which can create a non-terminating loop.
+    """
+    with open(PRACTICE_FILE, "r", encoding="utf-8") as f:
+        source = f.read()
+
+    loops = _find_practice_pass_control_loops(
+        source, task_runner_name="run_spatial_nback_practice"
+    )
+
+    assert loops, (
+        "Expected at least one pass-gated Spatial practice loop "
+        "(`while passes < ...`) but none were found."
+    )
+
+    for loop in loops:
+        assert _loop_body_updates_passes(loop), (
+            f"Spatial pass-gated loop at line {loop.lineno} does not update "
+            "`passes` inside the loop body."
+        )
+
+
+def test_practice_dual_pass_loop_updates_counter():
+    """
+    Dual pass-gated practice loop must update `passes` *inside* its while body.
+
+    This explicitly guards against infinite-loop regressions in the dual normal
+    practice phase.
+    """
+    with open(PRACTICE_FILE, "r", encoding="utf-8") as f:
+        source = f.read()
+
+    loops = _find_practice_pass_control_loops(
+        source, task_runner_name="run_dual_nback_practice"
+    )
+
+    assert loops, (
+        "Expected at least one pass-gated Dual practice loop "
+        "(`while passes < ...`) but none were found."
+    )
+
+    for loop in loops:
+        assert _loop_body_updates_passes(loop), (
+            f"Dual pass-gated loop at line {loop.lineno} does not update "
+            "`passes` inside the loop body."
+        )

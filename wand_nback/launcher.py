@@ -14,6 +14,7 @@ Version: 1.2.0
 License: MIT
 """
 
+import copy
 import json
 import os
 import sys
@@ -165,13 +166,13 @@ def load_preset(preset_name):
         Configuration dictionary, or DEFAULT_CONFIG if not found
     """
     if preset_name == "<Create New>" or not preset_name:
-        return DEFAULT_CONFIG.copy()
+        return copy.deepcopy(DEFAULT_CONFIG)
 
     preset_path = os.path.join(PRESETS_DIR, f"{preset_name}.json")
 
     if not os.path.exists(preset_path):
         print(f"[WARNING] Preset not found: {preset_path}")
-        return DEFAULT_CONFIG.copy()
+        return copy.deepcopy(DEFAULT_CONFIG)
 
     try:
         with open(preset_path, "r", encoding="utf-8") as f:
@@ -180,7 +181,7 @@ def load_preset(preset_name):
         return config
     except Exception as e:
         print(f"[ERROR] Failed to load preset: {e}")
-        return DEFAULT_CONFIG.copy()
+        return copy.deepcopy(DEFAULT_CONFIG)
 
 
 def save_preset(config, preset_name):
@@ -1056,6 +1057,8 @@ def extract_schedules(block_order):
 
 def generate_default_schedules(num_breaks, num_measures, total_cycles):
     """Generate default distributed schedules if Block Builder is skipped."""
+    if total_cycles <= 0:
+        return [], []
     breaks = []
     if num_breaks > 0:
         if num_breaks == 1:
@@ -1389,7 +1392,7 @@ def main():
 
             else:
                 # Create New -> setup defaults
-                base_config = DEFAULT_CONFIG.copy()
+                base_config = copy.deepcopy(DEFAULT_CONFIG)
                 base_config["participant_id"] = page1["participant_id"]
                 base_config["study_name"] = page1["study_name"]
                 step = 2

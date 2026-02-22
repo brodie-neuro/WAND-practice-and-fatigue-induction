@@ -1309,6 +1309,7 @@ def generate_dual_nback_sequence(
     -----
     The target rate is enforced on the eligible range `[n, num_trials)`.
     """
+    target_rate = max(0.0, min(1.0, target_rate))
     positions = [(x, y) for x in range(grid_size) for y in range(grid_size)]
     pos_seq = [random.choice(positions) for _ in range(num_trials)]
     image_seq = [random.choice(image_files) for _ in range(num_trials)]
@@ -1368,6 +1369,7 @@ def generate_sequential_image_sequence(
     controlled by the ``sequential.max_consecutive_matches`` parameter in
     ``params.json`` (default 2).
     """
+    target_percentage = max(0.0, min(1.0, target_percentage))
     available_images = list(image_files)
     random.shuffle(available_images)
 
