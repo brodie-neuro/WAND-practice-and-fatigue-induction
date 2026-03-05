@@ -49,6 +49,8 @@ monitor_timing_test.py
 
 # User-generated presets
 config/presets/
+wand_nback/config/presets/*.json
+!wand_nback/config/presets/Standard_WAND_Protocol.json
 
 # Test output artifacts
 Tests/results/

@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Performance Monitor Core (`wand_nback/performance_monitor.py`)**: Real-time block-level edge-case checks with task-specific criteria (Sequential: d' + lapse rate; Spatial/Dual: lapse rate only).
 - **Launcher Edge Case Warnings Page**: Dedicated GUI settings for monitor enable, thresholds, and action mode (`warn_then_terminate`, `auto_terminate`, `log_only`).
 - **Performance Monitor Tests**: New `Tests/test_performance_monitor.py` coverage for monitor criteria and action modes.
-- **Quick Fail Demo Preset**: Added `wand_nback/config/presets/Quick_Fail_Demo.json` for rapid monitor demonstrations.
 
 ### Changed
 - **Preset Quick-Launch Flow**: Loading a preset now preserves preset task mode/schedules and skips setup dialogs (including Block Builder and mode-selection), proceeding directly to confirmation.
