@@ -14,7 +14,7 @@ Output:
     - Markdown: Tests/results/quicktest_practice_report.md
 
 Author: Brodie Mangan
-Version: 1.2.0
+Version: 1.3.0
 License: MIT
 """
 
@@ -81,7 +81,8 @@ if _args.quicktest:
         core.wait(0.001)
         if keyList is None:
             keyList = ["space"]
-        safe_keys = [k for k in keyList if k != "escape"]
+        # Exclude escape (would quit) and 5 (would skip practice stages)
+        safe_keys = [k for k in keyList if k not in ("escape", "5")]
         if not safe_keys:
             safe_keys = ["space"]
         return [random.choice(safe_keys)]
@@ -90,7 +91,8 @@ if _args.quicktest:
         """Mock replacement - 40% chance of keypress."""
         if keyList is None:
             return []
-        safe_keys = [k for k in keyList if k != "escape"]
+        # Exclude escape (would quit) and 5 (would skip practice stages)
+        safe_keys = [k for k in keyList if k not in ("escape", "5")]
         if not safe_keys:
             return []
         if random.random() < 0.4:

@@ -17,7 +17,7 @@ Brodie E. Mangan
 
 Version
 -------
-1.2.0
+1.3.0
 
 Environment
 -----------
@@ -1462,7 +1462,7 @@ def run_spatial_nback_block(
     total_responses = correct_responses + incorrect_responses + lapses
     accuracy = (correct_responses / total_responses) * 100 if total_responses > 0 else 0
 
-    return adjust_nback_level(n, accuracy)
+    return adjust_nback_level(n, accuracy), lapses, total_responses
 
 
 def run_dual_nback_block(
@@ -1633,7 +1633,7 @@ def run_dual_nback_block(
     total_responses = correct_responses + incorrect_responses + lapses
     accuracy = (correct_responses / total_responses) * 100 if total_responses > 0 else 0
 
-    return adjust_nback_level(n, accuracy)
+    return adjust_nback_level(n, accuracy), lapses, total_responses
 
 
 def run_adaptive_nback_task(
@@ -1704,12 +1704,17 @@ def run_adaptive_nback_task(
         # Ensure minimum trials
         sub_block_trials = max(sub_block_trials, 1)  # At least 1 trial
 
+        # Accumulate lapses across sub-blocks for performance monitoring
+        block_total_lapses = 0
+        block_total_trials = 0
+        block_skipped = False
+
         for sub_block in range(3):
             is_first_encounter = cumulative_block_number == 0 and sub_block == 0
 
             # Run a sub-block using the provided run_block_function
-            # The run_block_function adjusts the n-back level internally based on performance
-            n_level = run_block_function(
+            # Returns (new_level, lapses, total_responses)
+            n_level, sub_lapses, sub_total = run_block_function(
                 win,
                 n_level,
                 num_trials=sub_block_trials,
@@ -1720,12 +1725,16 @@ def run_adaptive_nback_task(
                 sub_block_index=sub_block,
             )
 
+            block_total_lapses += sub_lapses
+            block_total_trials += sub_total
+
             # Check for skip request (press 5)
             if skip_to_next_block:
                 logging.warning(
                     f"Block {cumulative_block_number + 1} of {task_name} SKIPPED by user at sub-block {sub_block + 1}"
                 )
                 skip_to_next_block = False  # Reset for next block
+                block_skipped = True
                 break  # Exit sub-block loop, move to next main block
 
             # Display level change if n-back level was adjusted
@@ -1738,6 +1747,37 @@ def run_adaptive_nback_task(
                     is_first_block=is_first_encounter,
                 )
                 initial_n = n_level  # Update initial_n to the new level
+
+        # --- Performance Monitor: check after each complete main block ---
+        if not block_skipped and block_total_trials > 0:
+            try:
+                from wand_nback.common import load_gui_config
+                from wand_nback.performance_monitor import (
+                    MonitorConfig,
+                    check_adaptive_block,
+                    handle_flag,
+                )
+
+                monitor_cfg = MonitorConfig.from_gui_config(load_gui_config())
+                check = check_adaptive_block(
+                    task_name=task_name,
+                    block_number=cumulative_block_number + 1,
+                    total_lapses=block_total_lapses,
+                    total_trials=block_total_trials,
+                    config=monitor_cfg,
+                )
+                if check.flagged:
+                    decision = handle_flag(
+                        win, task_name, cumulative_block_number + 1, check, monitor_cfg,
+                        n_back_level=n_level,
+                    )
+                    if decision == "terminate":
+                        logging.warning(
+                            f"[PERF MONITOR] Induction terminated after {task_name} Block {cumulative_block_number + 1}"
+                        )
+                        return "terminate"
+            except ImportError:
+                pass  # Monitor module not available — continue normally
 
 
 # =============================================================================
@@ -1860,6 +1900,14 @@ def main_task_flow():
         exp_info = get_participant_info(win)
         participant_id = exp_info["Participant ID"]
         n_back_level = exp_info["N-back Level"]
+
+        # Ensure monitor state is fresh for each new session.
+        try:
+            from wand_nback.performance_monitor import reset_flag_count
+
+            reset_flag_count()
+        except ImportError:
+            pass
 
         # -- apply GUI seed / distractor choices ------------
         global GLOBAL_SEED, DISTRACTORS_ENABLED
@@ -2187,6 +2235,7 @@ def main_task_flow():
 
         experiment_start_time = time.time()
         start_time_str = datetime.now().strftime("%H:%M:%S")
+        terminate_experiment = False
 
         loop_msg = f"Starting Main Loop at {start_time_str}. Max Loops: {max_loops}."
         if spa_enabled or dual_enabled:
@@ -2250,6 +2299,36 @@ def main_task_flow():
                         logging.info(
                             f"Sequential Block {seq_block_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
                         )
+
+                        # --- Performance Monitor: Sequential block ---
+                        try:
+                            from wand_nback.common import load_gui_config
+                            from wand_nback.performance_monitor import (
+                                MonitorConfig,
+                                check_sequential_block,
+                                handle_flag,
+                            )
+
+                            monitor_cfg = MonitorConfig.from_gui_config(load_gui_config())
+                            check = check_sequential_block(seq_res, seq_block_num, monitor_cfg)
+                            if check.flagged:
+                                decision = handle_flag(
+                                    win,
+                                    f"Sequential {n_back_level}-back",
+                                    seq_block_num,
+                                    check,
+                                    monitor_cfg,
+                                    n_back_level=n_back_level,
+                                )
+                                if decision == "terminate":
+                                    logging.warning(
+                                        f"[PERF MONITOR] Induction terminated after Sequential Block {seq_block_num}"
+                                    )
+                                    terminate_experiment = True
+                                    break
+                        except ImportError:
+                            pass  # Monitor module not available
+
                     except Exception as e:
                         logging.error(
                             f"Error in Sequential N-back (Block {seq_block_num}): {e}"
@@ -2266,7 +2345,7 @@ def main_task_flow():
                         if spa_block_num == 0:
                             show_welcome_screen(win, "Spatial N-back")
 
-                        run_adaptive_nback_task(
+                        adaptive_decision = run_adaptive_nback_task(
                             win,
                             "Spatial N-back",
                             n_back_level,
@@ -2284,6 +2363,12 @@ def main_task_flow():
                             ),
                             starting_block_number=spa_block_num,
                         )
+                        if adaptive_decision == "terminate":
+                            logging.warning(
+                                f"[PERF MONITOR] Induction terminated after Spatial Block {spa_block_num + 1}"
+                            )
+                            terminate_experiment = True
+                            break
                         spa_block_num += 1
                         elapsed = time.time() - experiment_start_time
                         logging.info(
@@ -2304,7 +2389,7 @@ def main_task_flow():
                         if dual_block_num == 0:
                             show_welcome_screen(win, "Dual N-back")
 
-                        run_adaptive_nback_task(
+                        adaptive_decision = run_adaptive_nback_task(
                             win,
                             "Dual N-back",
                             n_back_level,
@@ -2322,6 +2407,12 @@ def main_task_flow():
                             ),
                             starting_block_number=dual_block_num,
                         )
+                        if adaptive_decision == "terminate":
+                            logging.warning(
+                                f"[PERF MONITOR] Induction terminated after Dual Block {dual_block_num + 1}"
+                            )
+                            terminate_experiment = True
+                            break
                         dual_block_num += 1
                         elapsed = time.time() - experiment_start_time
                         logging.info(
@@ -2389,12 +2480,41 @@ def main_task_flow():
                         )
 
                         # Store for final summary
-                        # Store for final summary
                         all_sequential_results_list.append((cycle_num, seq_res))
                         elapsed = time.time() - experiment_start_time
                         logging.info(
                             f"Sequential N-back Task - Block {cycle_num} COMPLETED. Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s"
                         )
+
+                        # --- Performance Monitor: Sequential block ---
+                        try:
+                            from wand_nback.common import load_gui_config
+                            from wand_nback.performance_monitor import (
+                                MonitorConfig,
+                                check_sequential_block,
+                                handle_flag,
+                            )
+
+                            monitor_cfg = MonitorConfig.from_gui_config(load_gui_config())
+                            check = check_sequential_block(seq_res, cycle_num, monitor_cfg)
+                            if check.flagged:
+                                decision = handle_flag(
+                                    win,
+                                    f"Sequential {n_back_level}-back",
+                                    cycle_num,
+                                    check,
+                                    monitor_cfg,
+                                    n_back_level=n_back_level,
+                                )
+                                if decision == "terminate":
+                                    logging.warning(
+                                        f"[PERF MONITOR] Induction terminated after Sequential Block {cycle_num}"
+                                    )
+                                    # Jump to final save
+                                    terminate_experiment = True
+                                    break
+                        except ImportError:
+                            pass  # Monitor module not available
 
                     except Exception as e:
                         logging.error(
@@ -2434,7 +2554,7 @@ def main_task_flow():
                                 if cycle_num == 1:
                                     show_welcome_screen(win, "Spatial N-back")
 
-                                run_adaptive_nback_task(
+                                adaptive_decision = run_adaptive_nback_task(
                                     win,
                                     "Spatial N-back",
                                     n_back_level,
@@ -2452,6 +2572,12 @@ def main_task_flow():
                                     ),
                                     starting_block_number=spatial_block,
                                 )
+                                if adaptive_decision == "terminate":
+                                    logging.warning(
+                                        f"[PERF MONITOR] Induction terminated after Spatial Block {spatial_block + 1}"
+                                    )
+                                    terminate_experiment = True
+                                    break
                                 spatial_block += 1
 
                                 elapsed = time.time() - experiment_start_time
@@ -2475,7 +2601,7 @@ def main_task_flow():
                                 if cycle_num == 1:
                                     show_welcome_screen(win, "Dual N-back")
 
-                                run_adaptive_nback_task(
+                                adaptive_decision = run_adaptive_nback_task(
                                     win,
                                     "Dual N-back",
                                     n_back_level,
@@ -2493,6 +2619,12 @@ def main_task_flow():
                                     ),
                                     starting_block_number=dual_block,
                                 )
+                                if adaptive_decision == "terminate":
+                                    logging.warning(
+                                        f"[PERF MONITOR] Induction terminated after Dual Block {dual_block + 1}"
+                                    )
+                                    terminate_experiment = True
+                                    break
                                 dual_block += 1
 
                                 elapsed = time.time() - experiment_start_time
@@ -2503,6 +2635,9 @@ def main_task_flow():
                                 logging.error(
                                     f"Error in Dual N-back Task ({cycle_num}): {e}"
                                 )
+
+                if terminate_experiment:
+                    break
 
         # Save results to CSV (Final Summary)
         logging.info("Saving results to CSV")

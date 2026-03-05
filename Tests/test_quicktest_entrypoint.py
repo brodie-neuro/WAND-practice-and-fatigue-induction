@@ -35,7 +35,7 @@ def test_main_defaults_to_automated_quicktest(monkeypatch):
 
     assert called["patched"] is True
     assert called["level"] == 2
-    assert called["trials"] == 10
+    assert called["trials"] == 20
     assert called["quicktest"] is True
 
 

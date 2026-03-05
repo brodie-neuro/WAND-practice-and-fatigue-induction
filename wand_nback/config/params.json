@@ -83,5 +83,11 @@
       "instruction_start": 230,
       "instruction_end": 231
     }
+  },
+  "performance_monitor": {
+    "enabled": true,
+    "dprime_threshold": 1.0,
+    "missed_response_threshold": 0.20,
+    "action": "warn_then_terminate"
   }
 }

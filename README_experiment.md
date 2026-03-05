@@ -27,6 +27,11 @@ pip install .
 
 After installation, launch the GUI with: `wand-launcher`
 
+If you load `Standard_WAND_Protocol` from the launcher, WAND uses a preset quick-path:
+- skips Block Builder and mode-selection dialogs,
+- preserves the preset task mode and schedule,
+- and opens directly at final confirmation.
+
 ## File Structure
 
 - `wand_nback/launcher.py`: GUI wizard for configuring and launching experiments (recommended entry point).
@@ -74,6 +79,20 @@ Level Decrease: If accuracy is â‰¤65%, the N-back level decreases by 1 (but 
 
 This creates a stable performance window between 65% and 82%, ensuring the task remains challenging but manageable to maintain a state of high cognitive load.
 
+## Edge Case Warnings (Performance Monitor)
+
+WAND includes a real-time performance safeguard for induction:
+
+- Sequential blocks are flagged when either:
+  - d' is below threshold (default: `1.0`), or
+  - lapse rate is above threshold (default: `20%`).
+- Spatial and Dual blocks are flagged using lapse rate only (default: `20%`), computed across all sub-blocks in each main block.
+- Default action is `warn_then_terminate`:
+  - first flag shows a supportive participant-facing pause message,
+  - second flag auto-terminates induction and saves data collected so far.
+
+The monitor can be configured in launcher "Edge Case Warnings" settings or directly in `config/params.json` under `performance_monitor`.
+
 ## Running the Script
 To run the full experiment (approximately 65â€“70 minutes, including short breaks):
 
@@ -86,7 +105,7 @@ Prompt for a Participant ID and N-back level (2 or 3, based on practice calibrat
 Execute five sequential (5 minutes each), four spatial (4.5 minutes each), and four dual N-back (4.5 minutes each) blocks with adaptive difficulty and sub-perceptional time compression (Spatial and Dual) and mini-distractors (Sequential).
 Save results per block and at the end in the data/ directory (e.g., participant_<ID>_n<level>_results.csv).
 
-## Monitor Configuration
+## Display Monitor Configuration
 For accurate stimulus sizing, update the monitor settings in `config/params.json` to match your labâ€™s monitor profile (from PsychoPyâ€™s Monitor Center).
 
 Edit the `"window"` section:

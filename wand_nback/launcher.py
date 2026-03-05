@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-WAND Launcher v1.2.0 - Comprehensive Study Configuration System
+WAND Launcher v1.3.0 - Comprehensive Study Configuration System
 
 A professional GUI for configuring WAND experiments with:
 - Study presets (save/load configurations)
@@ -10,7 +10,7 @@ A professional GUI for configuring WAND experiments with:
 - Counterbalancing options
 
 Author: Brodie E. Mangan
-Version: 1.2.0
+Version: 1.3.0
 License: MIT
 """
 
@@ -151,6 +151,20 @@ def get_available_presets():
     return presets
 
 
+def _deep_merge_defaults(defaults, overrides):
+    """Recursively merge ``overrides`` onto ``defaults``."""
+    if not isinstance(defaults, dict) or not isinstance(overrides, dict):
+        return copy.deepcopy(overrides)
+
+    merged = copy.deepcopy(defaults)
+    for key, value in overrides.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = _deep_merge_defaults(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def load_preset(preset_name):
     """
     Load a study preset from JSON.
@@ -177,6 +191,8 @@ def load_preset(preset_name):
     try:
         with open(preset_path, "r", encoding="utf-8") as f:
             config = json.load(f)
+        # Fill missing fields so older presets still run with current defaults.
+        config = _deep_merge_defaults(DEFAULT_CONFIG, config)
         print(f"[INFO] Loaded preset: {preset_name}")
         return config
     except Exception as e:
@@ -255,7 +271,7 @@ def show_page1_study_setup():
 
     dlg = gui.DlgFromDict(
         dictionary=fields,
-        title="WAND - Page 1/5: Study Setup",
+        title="WAND - Page 1/6: Study Setup",
         sortKeys=False,
         show=False,
         tip=tips,
@@ -326,7 +342,7 @@ def show_page2_task_selection(config):
 
     dlg = gui.DlgFromDict(
         dictionary=fields,
-        title="WAND - Page 2/5: Task Selection",
+        title="WAND - Page 2/6: Task Selection",
         sortKeys=False,
         tip=tips,
     )
@@ -469,7 +485,7 @@ def show_page3_task_timings(config):
 
     dlg = gui.DlgFromDict(
         dictionary=fields,
-        title="WAND - Page 3/5: Task Timings",
+        title="WAND - Page 3/6: Task Timings",
         sortKeys=False,
         tip=tips,
     )
@@ -553,6 +569,7 @@ def show_page4_options(config):
     fields["Number of Breaks"] = def_num_breaks
     fields["Break Duration (sec)"] = config.get("break_duration", 20)
     fields["Subjective Measures"] = def_num_measures
+
     fields["Save as Preset"] = True
 
     # Tooltips for Options
@@ -567,7 +584,7 @@ def show_page4_options(config):
 
     dlg = gui.DlgFromDict(
         dictionary=fields,
-        title="WAND - Page 4/5: Options",
+        title="WAND - Page 4/6: Options",
         sortKeys=False,
         tip=tips,
     )
@@ -587,7 +604,6 @@ def show_page4_options(config):
     num_measures = max(0, min(8, int(measures_str) if measures_str else 0))
 
     result = {
-        # "n_back_level": int(fields["N-back Level"]),  # REMOVED
         "fullscreen": bool(fields["Fullscreen"]),
         "rng_seed": rng_seed,
         "num_breaks": num_breaks,
@@ -807,9 +823,61 @@ def generate_flowchart_from_custom_order(block_order, config):
     return "\n".join(lines)
 
 
-def show_page5_mode_selection(config):
+def show_page5_edge_case_warnings(config):
     """
-    Page 5: Select run mode (Practice or Full Induction).
+    Page 5: Edge Case Warnings Configuration
+    Configures real-time performance safeguards on a dedicated screen.
+    """
+    fields = OrderedDict()
+    
+    # Performance Monitor settings
+    pm_defaults = config.get("performance_monitor", {})
+    fields["Monitor Enabled"] = pm_defaults.get("enabled", True)
+    fields["D-Prime Threshold"] = pm_defaults.get("dprime_threshold", 1.0)
+    fields["Lapse Rate Threshold (%)"] = int(pm_defaults.get("missed_response_threshold", 0.20) * 100)
+    actions = ["warn_then_terminate", "auto_terminate", "log_only"]
+    def_act = pm_defaults.get("action", "warn_then_terminate")
+    if def_act == "prompt_researcher":
+        def_act = "warn_then_terminate"
+    if def_act in actions:
+        actions.remove(def_act)
+    fields["Monitor Action"] = [def_act] + actions
+
+    # Tooltips for Edge Case Warnings
+    tips = {
+        "Monitor Enabled": "Enable/disable real-time performance checks during induction.",
+        "D-Prime Threshold": "Minimum acceptable d' per Sequential block. Below this = flagged. Set to 0 to disable. (Default: 1.0)",
+        "Lapse Rate Threshold (%)": "Maximum % of missed responses per block (any task). Above this = flagged. Set to 100 to disable. (Default: 20%)",
+        "Monitor Action": "warn_then_terminate = 1st flag shows participant encouragement, 2nd flag ends session. auto_terminate = end immediately. log_only = log flag, continue.",
+    }
+
+    dlg = gui.DlgFromDict(
+        dictionary=fields,
+        title="WAND - Page 5/6: Edge Case Warnings",
+        sortKeys=False,
+        tip=tips,
+    )
+
+    if not dlg.OK:
+        return None
+
+    # Parse performance monitor settings
+    lapse_pct_str = str(fields["Lapse Rate Threshold (%)"]).strip()
+    lapse_pct = max(0, min(100, int(lapse_pct_str) if lapse_pct_str else 20))
+
+    result = {
+        "enabled": bool(fields["Monitor Enabled"]),
+        "dprime_threshold": float(fields["D-Prime Threshold"]),
+        "missed_response_threshold": lapse_pct / 100.0,
+        "action": str(fields["Monitor Action"]),
+    }
+
+    return result
+
+
+def show_page6_mode_selection(config):
+    """
+    Run-mode selection page in the create-new wizard flow.
 
     Parameters
     ----------
@@ -889,7 +957,7 @@ def show_page5_mode_selection(config):
 
     dlg = gui.DlgFromDict(
         dictionary=fields,
-        title="WAND - Page 5/6: Select Run Mode",
+        title="WAND - Page 7/8: Select Run Mode",
         sortKeys=False,
     )
 
@@ -908,7 +976,7 @@ def show_page5_mode_selection(config):
 
 def show_page6_confirmation(config):
     """
-    Page 6: Show task order for selected mode and confirm launch.
+    Final confirmation dialog before launch.
 
     Parameters
     ----------
@@ -941,7 +1009,7 @@ def show_page6_confirmation(config):
   Click Cancel to go back
 """
 
-    dlg = gui.Dlg(title=f"WAND - Page 6/6: Confirm & Launch ({mode})")
+    dlg = gui.Dlg(title=f"WAND - Page 8/8: Confirm & Launch ({mode})")
     dlg.addText(summary)
     dlg.show()
 
@@ -953,7 +1021,7 @@ def show_page6_confirmation(config):
 # =============================================================================
 
 
-def build_final_config(page1, page2, page3, page4):
+def build_final_config(page1, page2, page3, page4, page5_edge):
     """
     Combine all page data into final configuration.
 
@@ -1013,6 +1081,7 @@ def build_final_config(page1, page2, page3, page4):
         "num_breaks": page4.get("num_breaks", 2),
         "break_duration": page4.get("break_duration", 20),
         "num_measures": page4.get("num_measures", 4),
+        "performance_monitor": page5_edge,
         # Note: breaks_schedule and measures_schedule will be populated
         # from custom_block_order after Block Builder step
     }
@@ -1285,7 +1354,7 @@ def show_splash_screen(duration_ms=3000):
     # Version and author
     info_label = tk.Label(
         main_frame,
-        text="v1.2.0  •  Brodie E. Mangan",
+        text="v1.3.0  •  Brodie E. Mangan",
         font=("Segoe UI", 9),
         fg="#555555",
         bg="#0a0a0a",
@@ -1353,7 +1422,7 @@ def main():
 
     print("\n" + "=" * 60)
     print("WAND - Working-memory Adaptive-fatigue with N-back Difficulty")
-    print("GUI Launcher v1.2.0")
+    print("GUI Launcher v1.3.0")
     print("=" * 60 + "\n")
 
     step = 1
@@ -1386,9 +1455,13 @@ def main():
                 # Preserve identity from Page 1
                 loaded["participant_id"] = page1["participant_id"]
                 loaded["study_name"] = page1["study_name"]
+                # Ensure core fields exist for older/incomplete presets
+                loaded.setdefault("task_mode", "Full Induction")
+                loaded.setdefault("num_breaks", len(loaded.get("breaks_schedule", [])))
+                loaded.setdefault("num_measures", len(loaded.get("measures_schedule", [])))
                 base_config = loaded
-                # Skip to Confirmation
-                step = 5
+                # Skip setup pages and continue toward final confirmation.
+                step = 7
 
             else:
                 # Create New -> setup defaults
@@ -1444,14 +1517,28 @@ def main():
             step = 5
 
         # ─────────────────────────────────────────────────────────────────────────
-        # Page 5: Block Builder (Visual Block Ordering)
+        # Page 5: Edge Case Warnings
         # ─────────────────────────────────────────────────────────────────────────
         elif step == 5:
+            # For preset path, base_config has PM details to show.
+            page5 = show_page5_edge_case_warnings(base_config)
+            if page5 is None:
+                # Back to Page 4
+                step = 4
+                continue
+
+            pages["page5"] = page5
+            step = 6
+
+        # ─────────────────────────────────────────────────────────────────────────
+        # Page 6: Block Builder (Visual Block Ordering)
+        # ─────────────────────────────────────────────────────────────────────────
+        elif step == 6:
             # Build config for block builder
             if "page2" in pages:
                 # Full wizard path
                 temp_config = build_final_config(
-                    pages["page1"], pages["page2"], pages["page3"], pages["page4"]
+                    pages["page1"], pages["page2"], pages["page3"], pages["page4"], pages["page5"]
                 )
             else:
                 # Preset path
@@ -1463,9 +1550,9 @@ def main():
                 block_order = show_block_builder(temp_config)
 
                 if block_order is None:
-                    # User cancelled -> Back to Page 4
+                    # User cancelled -> Back to Page 5
                     if "page2" in pages:
-                        step = 4
+                        step = 5
                     else:
                         step = 1  # Back to Study Setup for preset path
                     continue
@@ -1476,17 +1563,17 @@ def main():
                 print("[GUI] Block builder not available, using default order")
                 pages["block_order"] = None
 
-            step = 6
+            step = 7
 
         # ─────────────────────────────────────────────────────────────────────────
-        # Page 6: Mode Selection (Practice or Full Induction)
+        # Page 7: Mode Selection (Practice or Full Induction)
         # ─────────────────────────────────────────────────────────────────────────
-        elif step == 6:
+        elif step == 7:
             # Build Final Config first
             if "page2" in pages:
                 # Full wizard path
                 final_config = build_final_config(
-                    pages["page1"], pages["page2"], pages["page3"], pages["page4"]
+                    pages["page1"], pages["page2"], pages["page3"], pages["page4"], pages["page5"]
                 )
             else:
                 # Preset path
@@ -1522,28 +1609,49 @@ def main():
                 )
 
             else:
-                # No Block Builder used - generate defaults from Page 4 counts
-                n_br = final_config.get("num_breaks", 0)
-                n_meas = final_config.get("num_measures", 0)
+                if (
+                    "page2" not in pages
+                    and isinstance(final_config.get("breaks_schedule"), list)
+                    and isinstance(final_config.get("measures_schedule"), list)
+                ):
+                    # Preset path: preserve schedule embedded in preset.
+                    b_sched = final_config.get("breaks_schedule", [])
+                    m_sched = final_config.get("measures_schedule", [])
+                    final_config["breaks_schedule"] = b_sched
+                    final_config["measures_schedule"] = m_sched
+                    print(
+                        f"[GUI] Using schedule from preset: Breaks={b_sched}, Measures={m_sched}"
+                    )
+                else:
+                    # No Block Builder used - generate defaults from Page 4 counts
+                    n_br = final_config.get("num_breaks", 0)
+                    n_meas = final_config.get("num_measures", 0)
 
-                b_sched, m_sched = generate_default_schedules(
-                    n_br, n_meas, total_cycles
-                )
-                final_config["breaks_schedule"] = b_sched
-                final_config["measures_schedule"] = m_sched
-                print(
-                    f"[GUI] Generated default schedules from counts: Breaks={b_sched}, Measures={m_sched}"
-                )
+                    b_sched, m_sched = generate_default_schedules(
+                        n_br, n_meas, total_cycles
+                    )
+                    final_config["breaks_schedule"] = b_sched
+                    final_config["measures_schedule"] = m_sched
+                    print(
+                        f"[GUI] Generated default schedules from counts: Breaks={b_sched}, Measures={m_sched}"
+                    )
 
             # MODE SELECTION
-            selected_mode = show_page5_mode_selection(final_config)
-
-            if selected_mode is None:
-                # User cancelled -> Back to Block Builder
-                step = 5
-                continue
-
-            final_config["task_mode"] = selected_mode
+            if "page2" in pages:
+                # Full wizard path: user explicitly chooses mode.
+                selected_mode = show_page6_mode_selection(final_config)
+                if selected_mode is None:
+                    # User cancelled -> Back to Block Builder
+                    step = 6
+                    continue
+                final_config["task_mode"] = selected_mode
+            else:
+                # Preset path: keep mode from preset and go straight to confirmation.
+                selected_mode = str(final_config.get("task_mode", "Full Induction")).strip()
+                if not selected_mode:
+                    selected_mode = "Full Induction"
+                final_config["task_mode"] = selected_mode
+                print(f"[GUI] Preset mode retained: {selected_mode}")
 
             # WARN: Full Induction without Sequential won't collect behavioural metrics
             if selected_mode == "Full Induction" and not final_config.get(
@@ -1566,19 +1674,23 @@ def main():
 
             pages["final_config"] = final_config
             print(f"[GUI] Selected mode: {selected_mode}")
-            step = 7
+            step = 8
 
         # ─────────────────────────────────────────────────────────────────────────
-        # Page 7: Confirmation with Task Order
+        # Page 8: Confirmation with Task Order
         # ─────────────────────────────────────────────────────────────────────────
-        elif step == 7:
+        elif step == 8:
             final_config = pages["final_config"]
 
             confirmed = show_page6_confirmation(final_config)
 
             if not confirmed:
-                # User cancelled -> Back to mode selection
-                step = 6
+                if "page2" in pages:
+                    # Full wizard: back to mode selection.
+                    step = 7
+                else:
+                    # Preset quick path: back to study setup.
+                    step = 1
                 continue
 
             # --- LAUNCH ---

@@ -63,5 +63,9 @@
   "demo_pass2_end": "End of PASS 2 (Explanatory).\nPress SPACE to finish the demo.",
   "demo_seq_building": "Building up sequence ({trial_num}/{n} trials).",
   "demo_seq_wait": "This is trial {n}. We need to wait until trial {n_plus_one} to have a complete {n}-back reference.",
-  "practice_seq_summary": "Sequential N-back Practice Block {block_count} (Level: {n_level}-back):\n\nAccuracy: {accuracy:.2f}%\nAverage Reaction Time: {avg_reaction_time:.2f} s\n\nPress 'space' to continue."
+  "practice_seq_summary": "Sequential N-back Practice Block {block_count} (Level: {n_level}-back):\n\nAccuracy: {accuracy:.2f}%\nAverage Reaction Time: {avg_reaction_time:.2f} s\n\nPress 'space' to continue.",
+  "perf_monitor_warning_both": "It looks like you missed {lapse_percentage}% of trials in the last block.\n\nPlease try to respond to every trial.\n\nTry to focus on whether what you see matches\nthe sequence from {n_back_level} steps ago.",
+  "perf_monitor_warning_lapse": "It looks like you missed {lapse_percentage}% of trials in the last block.\n\nPlease try to respond to every trial.",
+  "perf_monitor_warning_dprime": "This task is challenging, and that is by design.\n\nTry to focus on whether what you see matches\nthe sequence from {n_back_level} steps ago.\n\nTake your time and do your best.",
+  "perf_monitor_pause_prompt": "Let's take a quick pause.\n\n{body}\n\nPress  SPACE  when you're ready to continue."
 }

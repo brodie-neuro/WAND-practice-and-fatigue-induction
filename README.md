@@ -21,7 +21,7 @@
 
 - [What is WAND?](#what-is-wand)
 - [For Researchers: GUI-First Design](#for-researchers-gui-first-design)
-- [Current Release](#current-release-v112)
+- [Current Release](#current-release-v130)
 - [Overview](#overview)
 - [Task Components](#task-components)
 - [Design Principles](#design-principles)
@@ -85,12 +85,14 @@ WAND is an **open-source cognitive fatigue research suite** built on PsychoPy. I
 
 ---
 
-## Current Release: v1.2.0
+## Current Release: v1.3.0
 
 ### Highlights
 - **pip-installable**: standard Python packaging with entry points
 - **GUI Launcher**: multi-page wizard for complete experiment customisation
 - **Block Builder**: visual drag-and-drop interface for experiment design
+- **Edge Case Warnings Monitor**: real-time block-level safeguards with configurable warning/termination actions
+- **Preset Quick-Launch**: selecting `Standard_WAND_Protocol` skips setup pages and jumps to final confirmation
 - **EEG Triggers**: fully configurable parallel port codes via `params.json`
 - **Full SDT Metrics**: d', criterion (c), hits, false alarms in all output
 
@@ -265,7 +267,7 @@ wand-quicktest
 This runs an automated smoke test (~3 seconds) that:
 - Creates the PsychoPy window
 - Loads stimuli and timing loops
-- Mocks user input with random responses
+- Mocks user input with random responses (excluding admin keys `Esc` and `5`)
 - Outputs pass/fail with accuracy and d' values
 
 ### Post installation check
@@ -283,8 +285,11 @@ The launcher provides a multi-page wizard with the following configurable option
 | **Task Selection** | Enable/disable Sequential, Spatial, Dual tasks |
 | **Timings** | Per-task display duration and ISI settings |
 | **Options** | Fullscreen, RNG seed, mini-distractors toggle, time compression, breaks/measures scheduling |
+| **Edge Case Warnings** | Performance monitor on/off, d' threshold, lapse threshold, action mode |
 | **Block Builder** | Visual drag-and-drop experiment structure |
-| **Launch** | Mode selection (Practice or Full Induction) and confirmation |
+| **Launch** | Mode selection (Practice or Full Induction) and confirmation (create-new flow) |
+
+> **Preset quick path**: If you load a preset (for example `Standard_WAND_Protocol`), the launcher preserves that preset's mode/schedule and skips Block Builder and mode-selection dialogs, going directly to final confirmation.
 
 > **Tip**: Hover over field labels in the dialogs to see helpful tooltips explaining each setting.
 >
@@ -364,6 +369,7 @@ To ensure consistency and maintainability, the codebase is organised into a pip-
 | `wand_nback/full_induction.py` | Entry point for the main experiment. Manages the block schedule. |
 | `wand_nback/launcher.py` | GUI wizard for experiment configuration. |
 | `wand_nback/block_builder.py` | Visual drag-and-drop experiment designer. |
+| `wand_nback/performance_monitor.py` | Real-time edge-case warning and auto-termination logic. |
 | `wand_nback/common.py` | **Core Engine**. Contains the shared functions used by task scripts. |
 | `wand_nback/analysis.py` | **Metrics Helper**. Contains statistical functions (d', A') used to score performance. |
 | `wand_nback/config/params.json` | Global settings (timings, colors, stimulus sizes, EEG triggers). |

@@ -15,7 +15,7 @@ Output:
     - Markdown: Tests/results/quicktest_induction_report.md
 
 Author: Brodie Mangan
-Version: 1.2.0
+Version: 1.3.0
 License: MIT
 """
 
@@ -43,7 +43,7 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 
 QUICKTEST_DISPLAY = 0.05
 QUICKTEST_ISI = 0.05
-QUICKTEST_TRIALS = 10
+QUICKTEST_TRIALS = 20
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -83,19 +83,21 @@ def _enable_quicktest_mode() -> None:
         core.wait(0.001)
         if keyList is None:
             keyList = ["space"]
-        safe_keys = [k for k in keyList if k != "escape"]
+        # Exclude escape (would quit) and 5 (would skip blocks)
+        safe_keys = [k for k in keyList if k not in ("escape", "5")]
         if not safe_keys:
             safe_keys = ["space"]
         return [random.choice(safe_keys)]
 
     def mock_getKeys(keyList=None, *a, **kw):
-        """Mock replacement: 40% chance of random keypress."""
+        """Mock replacement: 70% chance of random keypress (ensures non-zero metrics)."""
         if keyList is None:
             return []
-        safe_keys = [k for k in keyList if k != "escape"]
+        # Exclude escape (would quit) and 5 (would skip the entire block)
+        safe_keys = [k for k in keyList if k not in ("escape", "5")]
         if not safe_keys:
             return []
-        if random.random() < 0.4:
+        if random.random() < 0.7:
             return [random.choice(safe_keys)]
         return []
 
@@ -182,7 +184,6 @@ def run_quicktest(
 
     from wand_nback.full_induction import (
         run_sequential_nback_block,
-        save_results_to_csv,
         win,
     )
 
@@ -202,6 +203,7 @@ def run_quicktest(
     )
 
     # Save CSV results
+    # Output goes to ./data/ in the current working directory (not the venv install path).
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     if quicktest:
         fname = f"quicktest_induction_{timestamp}.csv"
@@ -212,16 +214,32 @@ def run_quicktest(
         participant_id = "dummySeq"
         block_name = "dummy"
 
-    data_row = [
-        {
-            "Participant ID": participant_id,
-            "Task": f"Sequential {n_back_level}-back",
-            "Block": block_name,
-            "N-back Level": n_back_level,
-            "Results": results,
-        }
-    ]
-    csv_path = save_results_to_csv(fname, data_row)
+    # Write CSV to cwd/data/
+    import csv as _csv
+
+    cwd_data_dir = os.path.join(os.getcwd(), "data")
+    os.makedirs(cwd_data_dir, exist_ok=True)
+    csv_path = os.path.join(cwd_data_dir, fname)
+
+    # Re-use save_results_to_csv logic but write to our own path
+    with open(csv_path, "w", newline="", encoding="utf-8") as _f:
+        writer = _csv.writer(_f)
+        writer.writerow(["Seed Used", 12345])
+        writer.writerow(["Participant ID", "Task", "Block", "N-back Level", "Measure", "Value"])
+        for measure in [
+            "Correct Responses", "Incorrect Responses", "Lapses",
+            "Accuracy", "Total Reaction Time", "Average Reaction Time",
+            "Overall D-Prime", "Criterion", "Hit Rate", "FA Rate",
+            "Hits", "Misses", "False Alarms", "Correct Rejections",
+        ]:
+            writer.writerow([
+                participant_id,
+                f"Sequential {n_back_level}-back",
+                block_name,
+                n_back_level,
+                measure,
+                results.get(measure, "N/A"),
+            ])
 
     elapsed = time.time() - start_time
 

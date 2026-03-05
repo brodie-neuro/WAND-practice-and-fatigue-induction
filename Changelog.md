@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [Unreleased]
+
+- No unreleased changes yet.
+
+---
+## [1.3.0] - 2026-03-05
+
+### Added
+- **Performance Monitor Core (`wand_nback/performance_monitor.py`)**: Real-time block-level edge-case checks with task-specific criteria (Sequential: d' + lapse rate; Spatial/Dual: lapse rate only).
+- **Launcher Edge Case Warnings Page**: Dedicated GUI settings for monitor enable, thresholds, and action mode (`warn_then_terminate`, `auto_terminate`, `log_only`).
+- **Performance Monitor Tests**: New `Tests/test_performance_monitor.py` coverage for monitor criteria and action modes.
+- **Quick Fail Demo Preset**: Added `wand_nback/config/presets/Quick_Fail_Demo.json` for rapid monitor demonstrations.
+
+### Changed
+- **Preset Quick-Launch Flow**: Loading a preset now preserves preset task mode/schedules and skips setup dialogs (including Block Builder and mode-selection), proceeding directly to confirmation.
+- **Preset Compatibility**: Presets are merged with launcher defaults at load time so older/incomplete presets still run with current expected fields.
+- **Quicktest Trial Count**: Automated induction quicktest default increased from 10 to 20 trials for more stable non-zero metrics.
+
+### Fixed
+- **Adaptive Monitor Termination Wiring**: `run_adaptive_nback_task()` terminate decisions now propagate correctly through main induction loops (custom-order and cycle-based flows).
+- **Monitor Session State**: Performance-monitor flag counter now resets at session start.
+- **Quicktest Skip-Key Contamination**: Automated quicktests now explicitly exclude admin keys `Esc` and `5` from mocked keypress pools to prevent accidental block skip/abort.
+
+---
 ## [1.2.0] - 2026-02-22
 
 ### Added

@@ -1,0 +1,24 @@
+{
+    "description": "A very short, 2-block protocol designed purely for testing the Performance Monitor auto-termination.",
+    "task_mode": "Full Induction",
+    "sequential_enabled": true,
+    "spatial_enabled": false,
+    "dual_enabled": false,
+    "sequential": {
+        "blocks": 2,
+        "display_duration": 0.8,
+        "isi": 1.0,
+        "trials_per_block": 10,
+        "distractors_enabled": false
+    },
+    "n_back_level": 2,
+    "fullscreen": false,
+    "performance_monitor": {
+        "enabled": true,
+        "dprime_threshold": 1.0,
+        "missed_response_threshold": 0.20,
+        "action": "warn_then_terminate"
+    },
+    "num_breaks": 0,
+    "num_measures": 0
+}
