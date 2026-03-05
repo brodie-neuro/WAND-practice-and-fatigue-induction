@@ -182,10 +182,7 @@ def run_quicktest(
         display_duration = 0.8
         isi = 1.0
 
-    from wand_nback.full_induction import (
-        run_sequential_nback_block,
-        win,
-    )
+    from wand_nback.full_induction import run_sequential_nback_block, win
 
     start_time = time.time()
 
