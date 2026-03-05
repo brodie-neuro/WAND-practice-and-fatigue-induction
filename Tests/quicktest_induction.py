@@ -225,21 +225,35 @@ def run_quicktest(
     with open(csv_path, "w", newline="", encoding="utf-8") as _f:
         writer = _csv.writer(_f)
         writer.writerow(["Seed Used", 12345])
-        writer.writerow(["Participant ID", "Task", "Block", "N-back Level", "Measure", "Value"])
+        writer.writerow(
+            ["Participant ID", "Task", "Block", "N-back Level", "Measure", "Value"]
+        )
         for measure in [
-            "Correct Responses", "Incorrect Responses", "Lapses",
-            "Accuracy", "Total Reaction Time", "Average Reaction Time",
-            "Overall D-Prime", "Criterion", "Hit Rate", "FA Rate",
-            "Hits", "Misses", "False Alarms", "Correct Rejections",
+            "Correct Responses",
+            "Incorrect Responses",
+            "Lapses",
+            "Accuracy",
+            "Total Reaction Time",
+            "Average Reaction Time",
+            "Overall D-Prime",
+            "Criterion",
+            "Hit Rate",
+            "FA Rate",
+            "Hits",
+            "Misses",
+            "False Alarms",
+            "Correct Rejections",
         ]:
-            writer.writerow([
-                participant_id,
-                f"Sequential {n_back_level}-back",
-                block_name,
-                n_back_level,
-                measure,
-                results.get(measure, "N/A"),
-            ])
+            writer.writerow(
+                [
+                    participant_id,
+                    f"Sequential {n_back_level}-back",
+                    block_name,
+                    n_back_level,
+                    measure,
+                    results.get(measure, "N/A"),
+                ]
+            )
 
     elapsed = time.time() - start_time
 

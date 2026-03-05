@@ -1768,7 +1768,11 @@ def run_adaptive_nback_task(
                 )
                 if check.flagged:
                     decision = handle_flag(
-                        win, task_name, cumulative_block_number + 1, check, monitor_cfg,
+                        win,
+                        task_name,
+                        cumulative_block_number + 1,
+                        check,
+                        monitor_cfg,
                         n_back_level=n_level,
                     )
                     if decision == "terminate":
@@ -2309,8 +2313,12 @@ def main_task_flow():
                                 handle_flag,
                             )
 
-                            monitor_cfg = MonitorConfig.from_gui_config(load_gui_config())
-                            check = check_sequential_block(seq_res, seq_block_num, monitor_cfg)
+                            monitor_cfg = MonitorConfig.from_gui_config(
+                                load_gui_config()
+                            )
+                            check = check_sequential_block(
+                                seq_res, seq_block_num, monitor_cfg
+                            )
                             if check.flagged:
                                 decision = handle_flag(
                                     win,
@@ -2495,8 +2503,12 @@ def main_task_flow():
                                 handle_flag,
                             )
 
-                            monitor_cfg = MonitorConfig.from_gui_config(load_gui_config())
-                            check = check_sequential_block(seq_res, cycle_num, monitor_cfg)
+                            monitor_cfg = MonitorConfig.from_gui_config(
+                                load_gui_config()
+                            )
+                            check = check_sequential_block(
+                                seq_res, cycle_num, monitor_cfg
+                            )
                             if check.flagged:
                                 decision = handle_flag(
                                     win,

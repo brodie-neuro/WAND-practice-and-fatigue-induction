@@ -258,9 +258,9 @@ def show_page1_study_setup():
     fields = OrderedDict()
     fields["Load_Preset"] = presets  # Dropdown - Standard_WAND_Protocol is now first
     fields["Study_Name"] = "My_Study"
-    fields[
-        "Participant_ID"
-    ] = ""  # Required but without asterisk to avoid PsychoPy message
+    fields["Participant_ID"] = (
+        ""  # Required but without asterisk to avoid PsychoPy message
+    )
 
     # Tooltips for Study Setup
     tips = {
@@ -451,9 +451,9 @@ def show_page3_task_timings(config):
             "Inter-stimulus interval between letters. "
             "Block duration = 164 trials × (display + ISI)."
         )
-        tips[
-            "SEQ Distractors"
-        ] = "Show 200ms white square flashes during ISI to probe vigilance."
+        tips["SEQ Distractors"] = (
+            "Show 200ms white square flashes during ISI to probe vigilance."
+        )
 
     if spa_enabled:
         tips["SPA Display (sec)"] = (
@@ -829,12 +829,14 @@ def show_page5_edge_case_warnings(config):
     Configures real-time performance safeguards on a dedicated screen.
     """
     fields = OrderedDict()
-    
+
     # Performance Monitor settings
     pm_defaults = config.get("performance_monitor", {})
     fields["Monitor Enabled"] = pm_defaults.get("enabled", True)
     fields["D-Prime Threshold"] = pm_defaults.get("dprime_threshold", 1.0)
-    fields["Lapse Rate Threshold (%)"] = int(pm_defaults.get("missed_response_threshold", 0.20) * 100)
+    fields["Lapse Rate Threshold (%)"] = int(
+        pm_defaults.get("missed_response_threshold", 0.20) * 100
+    )
     actions = ["warn_then_terminate", "auto_terminate", "log_only"]
     def_act = pm_defaults.get("action", "warn_then_terminate")
     if def_act == "prompt_researcher":
@@ -1458,7 +1460,9 @@ def main():
                 # Ensure core fields exist for older/incomplete presets
                 loaded.setdefault("task_mode", "Full Induction")
                 loaded.setdefault("num_breaks", len(loaded.get("breaks_schedule", [])))
-                loaded.setdefault("num_measures", len(loaded.get("measures_schedule", [])))
+                loaded.setdefault(
+                    "num_measures", len(loaded.get("measures_schedule", []))
+                )
                 base_config = loaded
                 # Skip setup pages and continue toward final confirmation.
                 step = 7
@@ -1538,7 +1542,11 @@ def main():
             if "page2" in pages:
                 # Full wizard path
                 temp_config = build_final_config(
-                    pages["page1"], pages["page2"], pages["page3"], pages["page4"], pages["page5"]
+                    pages["page1"],
+                    pages["page2"],
+                    pages["page3"],
+                    pages["page4"],
+                    pages["page5"],
                 )
             else:
                 # Preset path
@@ -1573,7 +1581,11 @@ def main():
             if "page2" in pages:
                 # Full wizard path
                 final_config = build_final_config(
-                    pages["page1"], pages["page2"], pages["page3"], pages["page4"], pages["page5"]
+                    pages["page1"],
+                    pages["page2"],
+                    pages["page3"],
+                    pages["page4"],
+                    pages["page5"],
                 )
             else:
                 # Preset path
@@ -1647,7 +1659,9 @@ def main():
                 final_config["task_mode"] = selected_mode
             else:
                 # Preset path: keep mode from preset and go straight to confirmation.
-                selected_mode = str(final_config.get("task_mode", "Full Induction")).strip()
+                selected_mode = str(
+                    final_config.get("task_mode", "Full Induction")
+                ).strip()
                 if not selected_mode:
                     selected_mode = "Full Induction"
                 final_config["task_mode"] = selected_mode

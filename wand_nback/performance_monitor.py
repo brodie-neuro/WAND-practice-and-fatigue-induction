@@ -78,7 +78,9 @@ class MonitorConfig:
         return cls(
             enabled=bool(section.get("enabled", True)),
             dprime_threshold=float(section.get("dprime_threshold", 1.0)),
-            missed_response_threshold=float(section.get("missed_response_threshold", 0.20)),
+            missed_response_threshold=float(
+                section.get("missed_response_threshold", 0.20)
+            ),
             action=str(section.get("action", "warn_then_terminate")),
         )
 
@@ -90,7 +92,9 @@ class MonitorConfig:
             return cls(
                 enabled=bool(pm.get("enabled", True)),
                 dprime_threshold=float(pm.get("dprime_threshold", 1.0)),
-                missed_response_threshold=float(pm.get("missed_response_threshold", 0.20)),
+                missed_response_threshold=float(
+                    pm.get("missed_response_threshold", 0.20)
+                ),
                 action=str(pm.get("action", "warn_then_terminate")),
             )
         return cls.from_params()
@@ -99,6 +103,7 @@ class MonitorConfig:
 # ---------------------------------------------------------------------------
 #  Alert — audio
 # ---------------------------------------------------------------------------
+
 
 def _play_alert_sound(repeats: int = 1) -> None:
     """Play a brief audible ping to notify the researcher.
@@ -109,10 +114,11 @@ def _play_alert_sound(repeats: int = 1) -> None:
     if platform.system() == "Windows":
         try:
             import winsound
+
             for _ in range(repeats):
-                winsound.Beep(800, 200)   # single short ping
+                winsound.Beep(800, 200)  # single short ping
         except Exception:
-            print("\a")                    # terminal bell fallback
+            print("\a")  # terminal bell fallback
     else:
         print("\a")
 
@@ -120,6 +126,7 @@ def _play_alert_sound(repeats: int = 1) -> None:
 # ---------------------------------------------------------------------------
 #  Participant-facing messages
 # ---------------------------------------------------------------------------
+
 
 def _show_participant_warning(
     win,
@@ -230,6 +237,7 @@ def _show_termination_message(win) -> None:
 #  Researcher-facing prompt (for piloting only)
 # ---------------------------------------------------------------------------
 
+
 def _show_researcher_prompt(
     win,
     task_name: str,
@@ -283,7 +291,7 @@ def _show_researcher_prompt(
         alert_stim.draw()
         win.flip()
         core.wait(0.15)
-        win.color = [-1, -1, -1]   # back to black
+        win.color = [-1, -1, -1]  # back to black
         alert_stim.draw()
         win.flip()
         core.wait(0.15)
@@ -306,6 +314,7 @@ def _show_researcher_prompt(
 # ---------------------------------------------------------------------------
 #  Core evaluation
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class BlockCheckResult:
@@ -368,7 +377,10 @@ def check_sequential_block(
         result.lapse_rate = lapse_rate
         result.lapse_count = lapses
 
-        if config.missed_response_threshold < 1.0 and lapse_rate > config.missed_response_threshold:
+        if (
+            config.missed_response_threshold < 1.0
+            and lapse_rate > config.missed_response_threshold
+        ):
             result.flagged = True
             result.has_lapse_flag = True
             result.reasons.append(
@@ -423,7 +435,10 @@ def check_adaptive_block(
     result.lapse_rate = lapse_rate
     result.lapse_count = total_lapses
 
-    if config.missed_response_threshold < 1.0 and lapse_rate > config.missed_response_threshold:
+    if (
+        config.missed_response_threshold < 1.0
+        and lapse_rate > config.missed_response_threshold
+    ):
         result.flagged = True
         result.has_lapse_flag = True
         result.reasons.append(
@@ -441,6 +456,7 @@ def check_adaptive_block(
 # ---------------------------------------------------------------------------
 #  Dispatcher — evaluate, alert, return decision
 # ---------------------------------------------------------------------------
+
 
 def handle_flag(
     win,
@@ -528,7 +544,9 @@ def handle_flag(
 
     # Default: prompt_researcher (for piloting)
     _play_alert_sound(repeats=3)
-    decision = _show_researcher_prompt(win, task_name, block_number, check_result.reasons)
+    decision = _show_researcher_prompt(
+        win, task_name, block_number, check_result.reasons
+    )
     check_result.decision = decision
 
     logging.info(
