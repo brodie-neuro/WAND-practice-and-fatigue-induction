@@ -172,6 +172,75 @@ def test_save_runtime_config_sets_env_var(temp_data_dir, sample_config, monkeypa
     ), f"WAND_GUI_CONFIG should be {result_path}, got {env_value}"
 
 
+def test_save_runtime_config_persists_last_study_name(
+    temp_data_dir, sample_config, monkeypatch
+):
+    """
+    BEHAVIOURAL: Saving a runtime config should persist the last study name.
+    """
+    from wand_nback import launcher as WAND_Launcher
+
+    monkeypatch.setattr(WAND_Launcher, "DATA_DIR", temp_data_dir)
+
+    WAND_Launcher.save_runtime_config(sample_config)
+
+    state_path = os.path.join(temp_data_dir, "launcher_state.json")
+    with open(state_path, "r", encoding="utf-8") as f:
+        saved_state = json.load(f)
+
+    assert saved_state["study_name"] == sample_config["study_name"]
+
+
+def test_load_launcher_state_returns_saved_study_name(
+    temp_data_dir, sample_config, monkeypatch
+):
+    """
+    BEHAVIOURAL: load_launcher_state() should return the most recent study name.
+    """
+    from wand_nback import launcher as WAND_Launcher
+
+    monkeypatch.setattr(WAND_Launcher, "DATA_DIR", temp_data_dir)
+
+    WAND_Launcher.save_launcher_state(sample_config)
+    loaded_state = WAND_Launcher.load_launcher_state()
+
+    assert loaded_state["study_name"] == sample_config["study_name"]
+
+
+def test_show_page1_prefills_saved_study_name(
+    temp_data_dir, sample_config, monkeypatch
+):
+    """
+    BEHAVIOURAL: Page 1 should prefill the last saved study name.
+    """
+    from wand_nback import launcher as WAND_Launcher
+
+    monkeypatch.setattr(WAND_Launcher, "DATA_DIR", temp_data_dir)
+    WAND_Launcher.save_launcher_state(sample_config)
+
+    captured_fields = {}
+
+    class FakeDialog:
+        def __init__(self, dictionary, **kwargs):
+            captured_fields.update(dictionary)
+            self.OK = False
+
+        def show(self):
+            return None
+
+    monkeypatch.setattr(WAND_Launcher.gui, "DlgFromDict", FakeDialog)
+
+    result = WAND_Launcher.show_page1_study_setup()
+
+    assert result is None
+    # Study_Name is now a dropdown list; the saved name should be first
+    study_field = captured_fields["Study_Name"]
+    if isinstance(study_field, list):
+        assert study_field[0] == sample_config["study_name"]
+    else:
+        assert study_field == sample_config["study_name"]
+
+
 def test_saved_config_contains_correct_values(
     temp_data_dir, sample_config, monkeypatch
 ):
@@ -381,3 +450,116 @@ def test_load_gui_config_returns_none_without_env(monkeypatch):
     )
 
     assert result is None
+
+
+# =============================================================================
+# BEHAVIOURAL TESTS - Default / Custom Block Order Modes
+# =============================================================================
+
+
+def test_build_final_config_includes_block_order_mode():
+    """The final launcher config should preserve the selected block-order mode."""
+    from wand_nback import launcher as WAND_Launcher
+
+    config = WAND_Launcher.build_final_config(
+        {"study_name": "Test Study", "participant_id": "P001"},
+        {
+            "sequential_enabled": True,
+            "sequential_blocks": 5,
+            "spatial_enabled": True,
+            "spatial_blocks": 4,
+            "dual_enabled": True,
+            "dual_blocks": 4,
+        },
+        {
+            "seq_display": 0.8,
+            "seq_isi": 1.0,
+            "seq_distractors": True,
+            "spa_display": 1.0,
+            "spa_isi": 1.0,
+            "spa_compression": True,
+            "dual_display": 1.0,
+            "dual_isi": 1.2,
+            "dual_compression": True,
+        },
+        {
+            "fullscreen": True,
+            "rng_seed": None,
+            "block_order_mode": "standard",
+            "num_breaks": 2,
+            "break_duration": 20,
+            "num_measures": 4,
+            "save_preset": False,
+            "counterbalance": False,
+        },
+        {"enabled": True, "dprime_threshold": 1.0},
+    )
+
+    assert config["block_order_mode"] == "standard"
+
+
+def test_generate_flowchart_uses_standard_order_when_locked_default():
+    """Locked default mode should still show the full resolved standard order."""
+    from wand_nback import launcher as WAND_Launcher
+
+    config = {
+        "task_mode": "Full Induction",
+        "block_order_mode": "standard",
+        "sequential_enabled": True,
+        "spatial_enabled": True,
+        "dual_enabled": True,
+        "sequential": {"blocks": 5, "display_duration": 0.8, "isi": 1.0},
+        "spatial": {"blocks": 4, "time_compression": True},
+        "dual": {"blocks": 4, "time_compression": True},
+        "breaks_schedule": [2, 4],
+        "measures_schedule": [2, 3, 4, 5],
+    }
+
+    flowchart = WAND_Launcher.generate_flowchart(config)
+
+    assert "1. SEQ Block 1" in flowchart
+    assert "2. SPA Block 1" in flowchart
+    assert "3. DUAL Block 1" in flowchart
+    assert "5. DUAL Block 2" in flowchart
+    assert "Break" in flowchart
+    assert "Subjective Measures" in flowchart
+
+
+def test_mode_selection_back_step_uses_page5_for_locked_default():
+    """Locked default mode should back out to the last visible pre-builder page."""
+    from wand_nback import launcher as WAND_Launcher
+
+    step = WAND_Launcher.get_mode_selection_back_step(
+        {"block_order_mode": "standard"}, full_wizard_path=True
+    )
+
+    assert step == 5
+
+
+def test_load_preset_infers_create_your_own_mode_from_legacy_custom_order(
+    tmp_path, monkeypatch
+):
+    """Older presets with custom_block_order should stay on the custom path."""
+    from wand_nback import launcher as WAND_Launcher
+
+    preset_dir = tmp_path / "presets"
+    preset_dir.mkdir()
+    preset_path = preset_dir / "Legacy_Custom.json"
+    preset_path.write_text(
+        json.dumps(
+            {
+                "study_name": "Legacy Custom",
+                "custom_block_order": [
+                    {"label": "Start", "type": "start", "movable": False},
+                    {"label": "SEQ", "type": "seq", "movable": True},
+                    {"label": "End", "type": "end", "movable": False},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(WAND_Launcher, "PRESETS_DIR", str(preset_dir))
+
+    loaded = WAND_Launcher.load_preset("Legacy_Custom")
+
+    assert loaded["block_order_mode"] == "create_your_own"

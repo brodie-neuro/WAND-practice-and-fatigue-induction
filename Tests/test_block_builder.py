@@ -20,6 +20,7 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from wand_nback.block_builder import BlockBuilderWindow
+from wand_nback.block_order import build_standard_block_order
 
 # Mock configuration for testing
 DEFAULT_CONFIG = {
@@ -140,3 +141,35 @@ def test_end_block_exists():
 
     has_end = any(b.get("label") == "End" for b in blocks)
     assert has_end, "End block should always exist"
+
+
+def test_initial_block_order_prefills_builder_and_empties_pools():
+    """Custom mode should open with the standard order already populated."""
+    config = DEFAULT_CONFIG.copy()
+    config["num_breaks"] = 2
+    config["num_measures"] = 4
+    config["initial_block_order"] = build_standard_block_order(config)
+
+    builder = MockBlockBuilder(config)
+    seq_pool = builder._generate_seq_pool()
+    spa_pool = builder._generate_spa_pool()
+    dual_pool = builder._generate_dual_pool()
+    break_pool = builder._generate_break_pool()
+    measure_pool = builder._generate_measure_pool()
+
+    assert len(builder.blocks) > 2, "Builder should start with the standard order"
+    assert (
+        seq_pool == []
+    ), "SEQ pool should be empty when all standard blocks are prefilled"
+    assert (
+        spa_pool == []
+    ), "SPA pool should be empty when all standard blocks are prefilled"
+    assert (
+        dual_pool == []
+    ), "DUAL pool should be empty when all standard blocks are prefilled"
+    assert (
+        break_pool == []
+    ), "Break pool should be empty when all standard blocks are prefilled"
+    assert (
+        measure_pool == []
+    ), "Measure pool should be empty when all standard blocks are prefilled"

@@ -87,7 +87,7 @@
   "performance_monitor": {
     "enabled": true,
     "dprime_threshold": 1.0,
-    "missed_response_threshold": 0.20,
+    "missed_response_threshold": 0.2,
     "action": "warn_then_terminate"
   }
 }

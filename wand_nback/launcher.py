@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-WAND Launcher v1.3.0 - Comprehensive Study Configuration System
+WAND Launcher v1.3.1 - Comprehensive Study Configuration System
 
 A professional GUI for configuring WAND experiments with:
 - Study presets (save/load configurations)
@@ -10,7 +10,7 @@ A professional GUI for configuring WAND experiments with:
 - Counterbalancing options
 
 Author: Brodie E. Mangan
-Version: 1.3.0
+Version: 1.3.1
 License: MIT
 """
 
@@ -20,6 +20,20 @@ import os
 import sys
 from collections import OrderedDict
 from datetime import datetime
+
+from wand_nback.block_order import (
+    BLOCK_ORDER_MODE_CUSTOM,
+    BLOCK_ORDER_MODE_DEFAULT,
+    block_order_mode_from_label,
+    block_order_mode_label,
+    build_standard_block_order,
+)
+from wand_nback.block_order import (
+    generate_default_schedules as block_order_default_schedules,
+)
+from wand_nback.block_order import (
+    get_block_order_mode,
+)
 
 # Import block builder module
 try:
@@ -100,14 +114,104 @@ DEFAULT_CONFIG = {
     "counterbalance_spatial_dual": False,
     "fullscreen": True,
     "rng_seed": None,
+    "block_order_mode": BLOCK_ORDER_MODE_DEFAULT,
     "breaks_schedule": [2, 4],
     "measures_schedule": [2, 3, 4, 5],
+    "num_breaks": 2,
+    "num_measures": 4,
+    "break_duration": 20,
 }
 
 
 # =============================================================================
 # Utility Functions
 # =============================================================================
+
+
+def get_launcher_state_path():
+    """Return the path for persisted launcher UI state."""
+    return os.path.join(DATA_DIR, "launcher_state.json")
+
+
+def load_launcher_state():
+    """Load persisted launcher UI state, if available."""
+    state_path = get_launcher_state_path()
+    if not os.path.exists(state_path):
+        return {}
+
+    try:
+        with open(state_path, "r", encoding="utf-8") as f:
+            state = json.load(f)
+    except Exception as exc:
+        print(f"[WARNING] Failed to read launcher state: {exc}")
+        return {}
+
+    if not isinstance(state, dict):
+        return {}
+
+    result = {}
+    study_name = str(state.get("study_name", "")).strip()
+    if study_name:
+        result["study_name"] = study_name
+
+    raw_history = state.get("study_history", [])
+    result["study_history"] = raw_history if isinstance(raw_history, list) else []
+    return result
+
+
+def save_launcher_state(config):
+    """Persist lightweight launcher UI state for future sessions.
+
+    Tracks a rolling history of study names and participant IDs so the
+    launcher can offer dropdowns on subsequent runs.
+    """
+    study_name = str(config.get("study_name", "")).strip()
+    if not study_name:
+        return None
+
+    participant_id = str(config.get("participant_id", "")).strip()
+
+    os.makedirs(DATA_DIR, exist_ok=True)
+    state_path = get_launcher_state_path()
+
+    # Load existing state to preserve history
+    existing = {}
+    if os.path.exists(state_path):
+        try:
+            with open(state_path, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+        except Exception:
+            existing = {}
+
+    history = existing.get("study_history", [])
+    if not isinstance(history, list):
+        history = []
+
+    # Find or create study entry
+    study_entry = None
+    for entry in history:
+        if isinstance(entry, dict) and entry.get("study_name") == study_name:
+            study_entry = entry
+            break
+
+    if study_entry is None:
+        study_entry = {"study_name": study_name, "participant_ids": []}
+        history.append(study_entry)
+
+    # Add participant ID if new and non-empty
+    if participant_id and participant_id not in study_entry.get("participant_ids", []):
+        study_entry.setdefault("participant_ids", []).append(participant_id)
+
+    state = {
+        "study_name": study_name,
+        "last_modified": datetime.now().isoformat(),
+        "study_history": history,
+    }
+
+    with open(state_path, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2)
+
+    return state_path
 
 
 def format_duration(minutes):
@@ -125,6 +229,15 @@ def format_duration(minutes):
     else:
         secs = int(minutes * 60)
         return f"{secs} sec"
+
+
+def get_mode_selection_back_step(config, full_wizard_path):
+    """Return the correct back target from mode selection."""
+    if not full_wizard_path:
+        return 1
+    if get_block_order_mode(config) == BLOCK_ORDER_MODE_CUSTOM:
+        return 6
+    return 5
 
 
 # =============================================================================
@@ -190,9 +303,17 @@ def load_preset(preset_name):
 
     try:
         with open(preset_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
+            raw_config = json.load(f)
         # Fill missing fields so older presets still run with current defaults.
-        config = _deep_merge_defaults(DEFAULT_CONFIG, config)
+        config = _deep_merge_defaults(DEFAULT_CONFIG, raw_config)
+        if "block_order_mode" not in raw_config:
+            config["block_order_mode"] = (
+                BLOCK_ORDER_MODE_CUSTOM
+                if raw_config.get("custom_block_order")
+                else BLOCK_ORDER_MODE_DEFAULT
+            )
+        else:
+            config["block_order_mode"] = get_block_order_mode(config)
         print(f"[INFO] Loaded preset: {preset_name}")
         return config
     except Exception as e:
@@ -225,6 +346,7 @@ def save_preset(config, preset_name):
     with open(preset_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
 
+    save_launcher_state(config)
     print(f"[INFO] Saved preset: {preset_path}")
     return preset_path
 
@@ -234,9 +356,20 @@ def save_preset(config, preset_name):
 # =============================================================================
 
 
+def _get_participant_ids_for_study(study_name, study_history):
+    """Return previously recorded participant IDs for *study_name*."""
+    for entry in study_history:
+        if isinstance(entry, dict) and entry.get("study_name") == study_name:
+            return list(entry.get("participant_ids", []))
+    return []
+
+
 def show_page1_study_setup():
     """
-    Page 1: Study name, load preset, task mode.
+    Page 1: Study name, load preset, participant ID.
+
+    Split into two sub-dialogs so the participant-ID dropdown can be
+    populated with the history for the selected study.
 
     Returns
     -------
@@ -245,54 +378,173 @@ def show_page1_study_setup():
     """
     presets = get_available_presets()
 
-    # Ensure "Standard_WAND_Protocol" is always available and first after <Create New>
+    # Ensure "Standard_WAND_Protocol" is always available and first
     if "Standard_WAND_Protocol" in presets:
         presets.remove("Standard_WAND_Protocol")
-    presets.insert(0, "Standard_WAND_Protocol")  # Put Standard first
+    presets.insert(0, "Standard_WAND_Protocol")
     # Move <Create New> to end of list
     if "<Create New>" in presets:
         presets.remove("<Create New>")
         presets.append("<Create New>")
 
-    # Use OrderedDict with DlgFromDict for reliable cross-version behaviour
-    fields = OrderedDict()
-    fields["Load_Preset"] = presets  # Dropdown - Standard_WAND_Protocol is now first
-    fields["Study_Name"] = "My_Study"
-    fields[
-        "Participant_ID"
-    ] = ""  # Required but without asterisk to avoid PsychoPy message
+    launcher_state = load_launcher_state()
+    study_history = launcher_state.get("study_history", [])
 
-    # Tooltips for Study Setup
-    tips = {
-        "Load_Preset": "Load a saved configuration. Standard_WAND_Protocol uses default parameters.",
-        "Study_Name": "Name of your study. Used in output file names.",
-        "Participant_ID": "Unique participant identifier. Used in output file names.",
+    # ------------------------------------------------------------------
+    # Page 1a: Preset + Study Name
+    # ------------------------------------------------------------------
+    # Build study-name choices: last used first, then others, then <New>
+    study_names = []
+    last_study = launcher_state.get("study_name", "")
+    if last_study:
+        study_names.append(last_study)
+    for entry in study_history:
+        name = entry.get("study_name", "") if isinstance(entry, dict) else ""
+        if name and name not in study_names:
+            study_names.append(name)
+    study_names.append("<New Study>")
+
+    fields_a = OrderedDict()
+    fields_a["Load_Preset"] = presets
+    # If only "<New Study>" is in the list (first run), show a text field
+    if len(study_names) == 1:
+        fields_a["Study_Name"] = "My_Study"
+    else:
+        fields_a["Study_Name"] = study_names
+
+    tips_a = {
+        "Load_Preset": (
+            "Load a saved configuration. Standard_WAND_Protocol uses the standard "
+            "WAND order, skips the block-order editor, and shows the full resolved "
+            "sequence on the final confirmation screen."
+        ),
+        "Study_Name": ("Select a previous study or choose <New Study> to create one."),
     }
 
-    dlg = gui.DlgFromDict(
-        dictionary=fields,
-        title="WAND - Page 1/6: Study Setup",
+    dlg_a = gui.DlgFromDict(
+        dictionary=fields_a,
+        title="WAND - Page 1: Study Setup",
         sortKeys=False,
         show=False,
-        tip=tips,
+        tip=tips_a,
     )
+    dlg_a.show()
 
-    dlg.show()
-
-    if not dlg.OK:
+    if not dlg_a.OK:
         return None
 
+    selected_study = fields_a["Study_Name"]
+    selected_preset = fields_a["Load_Preset"]
+
+    # If creating a new config, require a new study name
+    existing_names = [
+        e.get("study_name", "") for e in study_history if isinstance(e, dict)
+    ]
+    if selected_preset == "<Create New>" and selected_study in existing_names:
+        warn_dlg = gui.Dlg(title="Existing Study")
+        warn_dlg.addText(
+            f"'{selected_study}' already exists.\n\n"
+            "To add participants to an existing study,\n"
+            "load its preset instead of using <Create New>.\n\n"
+            "To create a new experiment, choose <New Study>."
+        )
+        warn_dlg.show()
+        return show_page1_study_setup()
+
+    # Handle <New Study> selection
+    if selected_study == "<New Study>":
+        new_dlg = gui.Dlg(title="New Study Name")
+        new_dlg.addField("Study Name:", "My_Study")
+        new_result = new_dlg.show()
+        if not new_dlg.OK:
+            return show_page1_study_setup()  # back to study selection
+        entered = str(new_result[0]).strip() if new_result else ""
+        if not entered:
+            error_dlg = gui.Dlg(title="Validation Error")
+            error_dlg.addText("Study name cannot be empty!")
+            error_dlg.show()
+            return show_page1_study_setup()
+        # Prevent creating a duplicate of an existing study name
+        existing_names = [
+            e.get("study_name", "") for e in study_history if isinstance(e, dict)
+        ]
+        if entered in existing_names:
+            dup_dlg = gui.Dlg(title="Study Already Exists")
+            dup_dlg.addText(
+                f"'{entered}' already exists.\n\n"
+                "Please select it from the dropdown instead."
+            )
+            dup_dlg.show()
+            return show_page1_study_setup()
+        selected_study = entered
+
+    # ------------------------------------------------------------------
+    # Page 2: Participant ID (populated from study history)
+    # ------------------------------------------------------------------
+    prev_pids = _get_participant_ids_for_study(selected_study, study_history)
+
+    fields_b = OrderedDict()
+    if prev_pids:
+        # Show previous IDs in a reference dropdown + <New Participant>
+        pid_choices = ["<New Participant>"] + list(prev_pids)
+        fields_b["Participant_ID"] = pid_choices
+        pid_tip = (
+            f"Previous participants for '{selected_study}': "
+            + ", ".join(prev_pids)
+            + ". Select <New Participant> to add a new one."
+        )
+    else:
+        fields_b["Participant_ID"] = ""
+        pid_tip = "Unique participant identifier. Used in output file names."
+
+    tips_b = {"Participant_ID": pid_tip}
+
+    dlg_b = gui.DlgFromDict(
+        dictionary=fields_b,
+        title=f"WAND - Page 2: Participant ({selected_study})",
+        sortKeys=False,
+        tip=tips_b,
+    )
+
+    if not dlg_b.OK:
+        return show_page1_study_setup()  # back to study selection
+
+    selected_pid = fields_b["Participant_ID"]
+
+    # Handle <New Participant> selection
+    if selected_pid == "<New Participant>":
+        pid_dlg = gui.Dlg(title="New Participant ID")
+        pid_dlg.addField("Participant ID:", "")
+        pid_result = pid_dlg.show()
+        if not pid_dlg.OK:
+            return show_page1_study_setup()
+        selected_pid = str(pid_result[0]).strip() if pid_result else ""
+
+    selected_pid = str(selected_pid).strip()
+
     # Validate Participant ID is not empty
-    if not fields["Participant_ID"].strip():
+    if not selected_pid:
         error_dlg = gui.Dlg(title="Validation Error")
         error_dlg.addText("Participant ID cannot be empty!")
         error_dlg.show()
-        return show_page1_study_setup()  # Recurse to show again
+        return show_page1_study_setup()
+
+    # Warn if duplicate participant ID
+    if selected_pid in prev_pids:
+        warn_dlg = gui.Dlg(title="Duplicate Participant ID")
+        warn_dlg.addText(
+            f"'{selected_pid}' has already been run in '{selected_study}'.\n\n"
+            "Running again may OVERWRITE existing data.\n\n"
+            "Click OK to continue anyway, or Cancel to go back."
+        )
+        warn_dlg.show()
+        if not warn_dlg.OK:
+            return show_page1_study_setup()
 
     return {
-        "load_preset": fields["Load_Preset"],
-        "study_name": fields["Study_Name"],
-        "participant_id": fields["Participant_ID"].strip(),
+        "load_preset": fields_a["Load_Preset"],
+        "study_name": selected_study,
+        "participant_id": str(selected_pid).strip(),
     }
 
 
@@ -342,7 +594,7 @@ def show_page2_task_selection(config):
 
     dlg = gui.DlgFromDict(
         dictionary=fields,
-        title="WAND - Page 2/6: Task Selection",
+        title="WAND - Page 3: Task Selection",
         sortKeys=False,
         tip=tips,
     )
@@ -451,9 +703,9 @@ def show_page3_task_timings(config):
             "Inter-stimulus interval between letters. "
             "Block duration = 164 trials × (display + ISI)."
         )
-        tips[
-            "SEQ Distractors"
-        ] = "Show 200ms white square flashes during ISI to probe vigilance."
+        tips["SEQ Distractors"] = (
+            "Show 200ms white square flashes during ISI to probe vigilance."
+        )
 
     if spa_enabled:
         tips["SPA Display (sec)"] = (
@@ -485,7 +737,7 @@ def show_page3_task_timings(config):
 
     dlg = gui.DlgFromDict(
         dictionary=fields,
-        title="WAND - Page 3/6: Task Timings",
+        title="WAND - Page 4: Task Timings",
         sortKeys=False,
         tip=tips,
     )
@@ -561,10 +813,13 @@ def show_page4_options(config):
     fields["Fullscreen"] = config.get("fullscreen", True)
     fields["RNG Seed (blank = random)"] = str(config.get("rng_seed", "") or "")
 
-    # Breaks and measures configuration - now using COUNTS, not positions
-    # Positions will be configured in the Block Builder
-    def_num_breaks = len(config.get("breaks_schedule", [2, 4]))
-    def_num_measures = len(config.get("measures_schedule", [2, 3, 4, 5]))
+    # Breaks and measures configuration - now using counts, not manual positions
+    def_num_breaks = int(
+        config.get("num_breaks", len(config.get("breaks_schedule", [2, 4])))
+    )
+    def_num_measures = int(
+        config.get("num_measures", len(config.get("measures_schedule", [2, 3, 4, 5])))
+    )
 
     fields["Number of Breaks"] = def_num_breaks
     fields["Break Duration (sec)"] = config.get("break_duration", 20)
@@ -576,15 +831,17 @@ def show_page4_options(config):
     tips = {
         "Fullscreen": "Run experiment in fullscreen mode. Recommended for data collection.",
         "RNG Seed (blank = random)": "Fixed seed for reproducible stimulus sequences. Leave blank for true randomisation.",
-        "Number of Breaks": "Short rest periods. Position in Block Builder.",
+        "Number of Breaks": ("Short rest periods placed via the Block Builder."),
         "Break Duration (sec)": "Duration of each break in seconds.",
-        "Subjective Measures": "Questionnaire insertions (e.g., fatigue ratings). Position in Block Builder.",
+        "Subjective Measures": (
+            "Questionnaire insertions (e.g., fatigue ratings) placed via the Block Builder."
+        ),
         "Save as Preset": "Save this configuration for future use.",
     }
 
     dlg = gui.DlgFromDict(
         dictionary=fields,
-        title="WAND - Page 4/6: Options",
+        title="WAND - Page 5: Options",
         sortKeys=False,
         tip=tips,
     )
@@ -606,6 +863,7 @@ def show_page4_options(config):
     result = {
         "fullscreen": bool(fields["Fullscreen"]),
         "rng_seed": rng_seed,
+        "block_order_mode": BLOCK_ORDER_MODE_CUSTOM,  # Always create-your-own on wizard path
         "num_breaks": num_breaks,
         "break_duration": (
             int(fields["Break Duration (sec)"])
@@ -631,36 +889,11 @@ def generate_flowchart(config):
     Dynamically generates the flow for any number of blocks.
     Uses custom_block_order from Block Builder if present.
     """
-    # Check for custom block order from Block Builder
     custom_order = config.get("custom_block_order")
-    if custom_order and config.get("task_mode") != "Practice Only":
-        return generate_flowchart_from_custom_order(custom_order, config)
 
     seq_enabled = config.get("sequential_enabled", True)
     spa_enabled = config.get("spatial_enabled", True)
     dual_enabled = config.get("dual_enabled", True)
-    counterbalance = config.get("counterbalance_spatial_dual", False)
-
-    seq_blocks = config.get("sequential", {}).get("blocks", 5)
-    spa_blocks = config.get("spatial", {}).get("blocks", 4)
-    dual_blocks = config.get("dual", {}).get("blocks", 4)
-
-    spa_comp = config.get("spatial", {}).get("time_compression", True)
-    dual_comp = config.get("dual", {}).get("time_compression", True)
-
-    breaks = config.get("breaks_schedule", [2, 4])
-    measures = config.get("measures_schedule", [2, 3, 4, 5])
-
-    def get_event_str(cycle):
-        """Format event string (Measure/Break) for a given cycle."""
-        parts = []
-        if cycle in measures:
-            parts.append("Subjective Measures")
-        if cycle in breaks:
-            parts.append("Break")
-        if parts:
-            return f"      ── {' + '.join(parts)} ──"
-        return None
 
     lines = []
     lines.append("TASK ORDER:")
@@ -678,83 +911,12 @@ def generate_flowchart(config):
         lines.append("  (varies based on participant calibration)")
         return "\n".join(lines)
 
-    # Full Induction - match actual WAND script order
-    # Full Induction - match actual WAND script order
-    # Force Standard Order: A=SPA, B=DUAL (Counterbalance removed)
-    task_A_name, task_B_name = "SPA", "DUAL"
-    task_A_enabled, task_B_enabled = spa_enabled, dual_enabled
-    task_A_blocks, task_B_blocks = spa_blocks, dual_blocks
-    task_A_comp, task_B_comp = spa_comp, dual_comp
+    if custom_order:
+        return generate_flowchart_from_custom_order(custom_order, config)
 
-    step = 1
-
-    # Add initial measures
-    if seq_enabled:
-        lines.append(f"      ── Practice/Familiarisation ──")
-
-    # Determine max loops
-    max_loops = 0
-    if seq_enabled:
-        max_loops = max(max_loops, seq_blocks)
-    if spa_enabled:
-        max_loops = max(max_loops, spa_blocks)
-    if dual_enabled:
-        max_loops = max(max_loops, dual_blocks)
-
-    for cycle_num in range(1, max_loops + 1):
-        # 1. SEQUENTIAL
-        if seq_enabled and cycle_num <= seq_blocks:
-            lines.append(f"  {step}. SEQ Block {cycle_num}")
-            step += 1
-
-        # 2. EVENTS (After Seq)
-        evt = get_event_str(cycle_num)
-        if evt:
-            lines.append(evt)
-
-        # 3. GROUP (A/B vs B/A)
-        # Odd: A then B
-        # Even: B then A
-        if cycle_num % 2 != 0:
-            current_order = [
-                (task_A_name, task_A_enabled, task_A_blocks, task_A_comp),
-                (task_B_name, task_B_enabled, task_B_blocks, task_B_comp),
-            ]
-        else:
-            current_order = [
-                (task_B_name, task_B_enabled, task_B_blocks, task_B_comp),
-                (task_A_name, task_A_enabled, task_A_blocks, task_A_comp),
-            ]
-
-        for name, enabled, blocks, comp_flag in current_order:
-            if enabled and cycle_num <= blocks:
-                # Map name back to correct display string (SPA/DUAL)
-                # name is "SPA" or "DUAL"
-                c_mark = "⟳" if comp_flag else ""
-                lines.append(f"  {step}. {name} Block {cycle_num} {c_mark}")
-                step += 1
-
-    lines.append("─" * 50)
-    lines.append(f"  ⟳ = Time compression enabled")
-
-    # Estimate duration using actual timing values
-    seq_config = config.get("sequential", {})
-    seq_display = seq_config.get("display_duration", 0.8)
-    seq_isi = seq_config.get("isi", 1.0)
-    seq_block_min = (seq_display + seq_isi) * 164 / 60
-
-    seq_time = seq_blocks * seq_block_min if seq_enabled else 0
-    spa_time = spa_blocks * 4.5 if spa_enabled else 0  # Fixed 270s
-    dual_time = dual_blocks * 4.5 if dual_enabled else 0  # Fixed 270s
-    # Add time for breaks (20s) and measures
-    # Approx 1 min per measure, 0.5 min per break
-    n_meas = len([m for m in measures if m <= max_loops])
-    n_breaks = len([b for b in breaks if b <= max_loops])
-    total_time = seq_time + spa_time + dual_time + (n_meas * 1.5) + (n_breaks * 0.5)
-
-    lines.append(f"  Estimated duration: approx. {format_duration(total_time)}")
-
-    return "\n".join(lines)
+    return generate_flowchart_from_custom_order(
+        build_standard_block_order(config), config
+    )
 
 
 def generate_flowchart_from_custom_order(block_order, config):
@@ -779,11 +941,16 @@ def generate_flowchart_from_custom_order(block_order, config):
     lines = []
     lines.append("TASK ORDER:")
     lines.append("─" * 50)
-    lines.append("      ── Practice/Familiarisation ──")
+    if any(block.get("type") == "seq" for block in block_order):
+        lines.append("      ── Practice/Familiarisation ──")
 
     step = 1
     seq_count = spa_count = dual_count = 0
     total_time = 0
+    seq_config = config.get("sequential", {})
+    seq_display = seq_config.get("display_duration", 0.8)
+    seq_isi = seq_config.get("isi", 1.0)
+    seq_block_min = (seq_display + seq_isi) * 164 / 60
 
     for block in block_order:
         block_type = block.get("type", "")
@@ -796,7 +963,7 @@ def generate_flowchart_from_custom_order(block_order, config):
             seq_count += 1
             lines.append(f"  {step}. SEQ Block {seq_count}")
             step += 1
-            total_time += 5
+            total_time += seq_block_min
         elif block_type == "spa":
             spa_count += 1
             c_mark = "⟳" if spa_comp else ""
@@ -855,7 +1022,7 @@ def show_page5_edge_case_warnings(config):
 
     dlg = gui.DlgFromDict(
         dictionary=fields,
-        title="WAND - Page 5/6: Edge Case Warnings",
+        title="WAND - Page 6: Edge Case Warnings",
         sortKeys=False,
         tip=tips,
     )
@@ -959,7 +1126,7 @@ def show_page6_mode_selection(config):
 
     dlg = gui.DlgFromDict(
         dictionary=fields,
-        title="WAND - Page 7/8: Select Run Mode",
+        title="WAND - Page 7: Select Run Mode",
         sortKeys=False,
     )
 
@@ -993,6 +1160,7 @@ def show_page6_confirmation(config):
     flowchart = generate_flowchart(config)
     seed_display = str(config.get("rng_seed")) if config.get("rng_seed") else "Random"
     mode = config.get("task_mode", "Practice Only")
+    order_mode = block_order_mode_label(get_block_order_mode(config))
 
     summary = f"""
 ══════════════════════════════════════════════════════
@@ -1002,6 +1170,7 @@ def show_page6_confirmation(config):
   Study:          {config.get('study_name', 'Unnamed')}
   Participant:    {config.get('participant_id', 'Unknown')}
   RNG Seed:       {seed_display}
+  Block Order:    {order_mode}
 
 ──────────────────────────────────────────────────────
 {flowchart}
@@ -1011,7 +1180,7 @@ def show_page6_confirmation(config):
   Click Cancel to go back
 """
 
-    dlg = gui.Dlg(title=f"WAND - Page 8/8: Confirm & Launch ({mode})")
+    dlg = gui.Dlg(title=f"WAND - Page 8: Confirm & Launch ({mode})")
     dlg.addText(summary)
     dlg.show()
 
@@ -1079,13 +1248,14 @@ def build_final_config(page1, page2, page3, page4, page5_edge):
         # "n_back_level": page4["n_back_level"],  # REMOVED
         "fullscreen": page4["fullscreen"],
         "rng_seed": page4["rng_seed"],
+        "block_order_mode": page4.get("block_order_mode", BLOCK_ORDER_MODE_DEFAULT),
         "counterbalance_spatial_dual": page4["counterbalance"],
         "num_breaks": page4.get("num_breaks", 2),
         "break_duration": page4.get("break_duration", 20),
         "num_measures": page4.get("num_measures", 4),
         "performance_monitor": page5_edge,
-        # Note: breaks_schedule and measures_schedule will be populated
-        # from custom_block_order after Block Builder step
+        # Note: breaks_schedule and measures_schedule are resolved later from
+        # either the locked default order or a custom block order.
     }
 
     return config
@@ -1128,33 +1298,7 @@ def extract_schedules(block_order):
 
 def generate_default_schedules(num_breaks, num_measures, total_cycles):
     """Generate default distributed schedules if Block Builder is skipped."""
-    if total_cycles <= 0:
-        return [], []
-    breaks = []
-    if num_breaks > 0:
-        if num_breaks == 1:
-            breaks = [max(1, total_cycles // 2)]
-        else:
-            # Spread evenly, e.g. 2 breaks in 5 cycles -> [2, 4]
-            # Use simple step logic
-            # intervals = num_breaks + 1
-            # step = total / intervals
-            step = total_cycles / (num_breaks + 1)
-            breaks = [int(step * (i + 1)) for i in range(num_breaks)]
-
-    measures = []
-    if num_measures > 0:
-        if num_measures >= total_cycles:
-            measures = list(range(1, total_cycles + 1))
-        else:
-            step = total_cycles / (num_measures + 1)
-            measures = [int(step * (i + 1)) + 1 for i in range(num_measures)]
-
-    # Ensure unique, valid, and sorted
-    breaks = sorted(list(set([max(1, min(total_cycles, b)) for b in breaks])))
-    measures = sorted(list(set([max(1, min(total_cycles, m)) for m in measures])))
-
-    return breaks, measures
+    return block_order_default_schedules(num_breaks, num_measures, total_cycles)
 
 
 # =============================================================================
@@ -1174,6 +1318,7 @@ def save_runtime_config(config):
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
 
+    save_launcher_state(config)
     os.environ["WAND_GUI_CONFIG"] = config_path
     print(f"[GUI] Runtime config saved: {config_path}")
 
@@ -1356,7 +1501,7 @@ def show_splash_screen(duration_ms=3000):
     # Version and author
     info_label = tk.Label(
         main_frame,
-        text="v1.3.0  •  Brodie E. Mangan",
+        text="v1.3.1  •  Brodie E. Mangan",
         font=("Segoe UI", 9),
         fg="#555555",
         bg="#0a0a0a",
@@ -1424,7 +1569,7 @@ def main():
 
     print("\n" + "=" * 60)
     print("WAND - Working-memory Adaptive-fatigue with N-back Difficulty")
-    print("GUI Launcher v1.3.0")
+    print("GUI Launcher v1.3.1")
     print("=" * 60 + "\n")
 
     step = 1
@@ -1464,6 +1609,9 @@ def main():
                     "num_measures", len(loaded.get("measures_schedule", []))
                 )
                 base_config = loaded
+                # Clear stale wizard-page data so step 7 takes the preset path.
+                for key in ("page2", "page3", "page4", "page5"):
+                    pages.pop(key, None)
                 # Skip setup pages and continue toward final confirmation.
                 step = 7
 
@@ -1552,14 +1700,36 @@ def main():
                 # Preset path
                 temp_config = base_config
 
-            # Show block builder if available
-            if BLOCK_BUILDER_AVAILABLE:
-                print("[GUI] Opening Block Builder...")
+            # Always clear any stale in-memory builder result before deciding the path.
+            pages["block_order"] = None
+            block_order_mode = get_block_order_mode(temp_config)
+            full_wizard_path = "page2" in pages
+
+            if BLOCK_BUILDER_AVAILABLE and (
+                full_wizard_path or block_order_mode == BLOCK_ORDER_MODE_CUSTOM
+            ):
+                # Full wizard (Create New): always start empty so the
+                # researcher places blocks manually.
+                # Preset path with saved custom order: pre-populate.
+                if full_wizard_path:
+                    print("[GUI] Opening block-order editor...")
+                    temp_config.pop("initial_block_order", None)
+                else:
+                    saved_custom = temp_config.get("custom_block_order")
+                    if saved_custom:
+                        print(
+                            "[GUI] Opening block-order editor (preset order loaded)..."
+                        )
+                        temp_config["initial_block_order"] = saved_custom
+                    else:
+                        print("[GUI] Opening block-order editor...")
+                        temp_config.pop("initial_block_order", None)
+
                 block_order = show_block_builder(temp_config)
 
                 if block_order is None:
                     # User cancelled -> Back to Page 5
-                    if "page2" in pages:
+                    if full_wizard_path:
                         step = 5
                     else:
                         step = 1  # Back to Study Setup for preset path
@@ -1567,8 +1737,14 @@ def main():
 
                 pages["block_order"] = block_order
                 print(f"[GUI] Block order configured: {len(block_order)} blocks")
+            elif not BLOCK_BUILDER_AVAILABLE:
+                print(
+                    "[GUI] Block-order editor unavailable, falling back to the standard order"
+                )
+                pages["block_order"] = None
             else:
-                print("[GUI] Block builder not available, using default order")
+                # Preset quick path with standard order - skip builder
+                print("[GUI] Standard preset - skipping block-order editor")
                 pages["block_order"] = None
 
             step = 7
@@ -1610,6 +1786,7 @@ def main():
             # Attach custom block order if configured AND extract compatible schedules
             if pages.get("block_order"):
                 final_config["custom_block_order"] = pages["block_order"]
+                final_config["block_order_mode"] = BLOCK_ORDER_MODE_CUSTOM
                 print("[GUI] Custom block order attached to config")
 
                 # Extract schedules for standard loop compatibility
@@ -1621,7 +1798,36 @@ def main():
                 )
 
             else:
+                mode = get_block_order_mode(final_config)
+                if mode == BLOCK_ORDER_MODE_DEFAULT:
+                    final_config.pop("custom_block_order", None)
+
                 if (
+                    mode == BLOCK_ORDER_MODE_CUSTOM
+                    and isinstance(final_config.get("custom_block_order"), list)
+                    and final_config["custom_block_order"]
+                ):
+                    b_sched, m_sched = extract_schedules(
+                        final_config["custom_block_order"]
+                    )
+                    final_config["breaks_schedule"] = b_sched
+                    final_config["measures_schedule"] = m_sched
+                    print(
+                        f"[GUI] Using saved custom order from preset: Breaks={b_sched}, Measures={m_sched}"
+                    )
+                elif mode == BLOCK_ORDER_MODE_CUSTOM and not BLOCK_BUILDER_AVAILABLE:
+                    final_config["block_order_mode"] = BLOCK_ORDER_MODE_DEFAULT
+                    n_br = final_config.get("num_breaks", 0)
+                    n_meas = final_config.get("num_measures", 0)
+                    b_sched, m_sched = generate_default_schedules(
+                        n_br, n_meas, total_cycles
+                    )
+                    final_config["breaks_schedule"] = b_sched
+                    final_config["measures_schedule"] = m_sched
+                    print(
+                        f"[GUI] Block-order editor unavailable - using standard schedule: Breaks={b_sched}, Measures={m_sched}"
+                    )
+                elif (
                     "page2" not in pages
                     and isinstance(final_config.get("breaks_schedule"), list)
                     and isinstance(final_config.get("measures_schedule"), list)
@@ -1648,24 +1854,14 @@ def main():
                         f"[GUI] Generated default schedules from counts: Breaks={b_sched}, Measures={m_sched}"
                     )
 
-            # MODE SELECTION
-            if "page2" in pages:
-                # Full wizard path: user explicitly chooses mode.
-                selected_mode = show_page6_mode_selection(final_config)
-                if selected_mode is None:
-                    # User cancelled -> Back to Block Builder
-                    step = 6
-                    continue
-                final_config["task_mode"] = selected_mode
-            else:
-                # Preset path: keep mode from preset and go straight to confirmation.
-                selected_mode = str(
-                    final_config.get("task_mode", "Full Induction")
-                ).strip()
-                if not selected_mode:
-                    selected_mode = "Full Induction"
-                final_config["task_mode"] = selected_mode
-                print(f"[GUI] Preset mode retained: {selected_mode}")
+            # MODE SELECTION - always show so user can cancel back
+            selected_mode = show_page6_mode_selection(final_config)
+            if selected_mode is None:
+                step = get_mode_selection_back_step(
+                    final_config, full_wizard_path=("page2" in pages)
+                )
+                continue
+            final_config["task_mode"] = selected_mode
 
             # WARN: Full Induction without Sequential won't collect behavioural metrics
             if selected_mode == "Full Induction" and not final_config.get(

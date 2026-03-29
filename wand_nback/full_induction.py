@@ -17,7 +17,7 @@ Brodie E. Mangan
 
 Version
 -------
-1.3.0
+1.3.1
 
 Environment
 -----------
@@ -46,6 +46,7 @@ print("Starting WAND, this may take a moment...", flush=True)
 from psychopy import core, event, visual
 
 from wand_nback.analysis import summarise_sequential_block
+from wand_nback.block_order import build_standard_block_order
 from wand_nback.common import (
     collect_trial_response,
     create_grid,
@@ -2062,9 +2063,63 @@ def main_task_flow():
                 logging.info(
                     "[GUI] No custom block order - using standard cycle-based execution"
                 )
-                print(
-                    "[INFO] No Block Builder sequence - using standard cycle-based execution"
+                standard_block_order = build_standard_block_order(
+                    {
+                        "sequential_enabled": seq_enabled,
+                        "spatial_enabled": spa_enabled,
+                        "dual_enabled": dual_enabled,
+                        "sequential": {
+                            "blocks": seq_blocks,
+                            "display_duration": seq_display,
+                            "isi": seq_isi,
+                        },
+                        "spatial": {
+                            "blocks": spa_blocks,
+                            "time_compression": spa_compression,
+                        },
+                        "dual": {
+                            "blocks": dual_blocks,
+                            "time_compression": dual_compression,
+                        },
+                        "breaks_schedule": breaks_schedule,
+                        "measures_schedule": measures_schedule,
+                    }
                 )
+                print("\n" + "=" * 70)
+                print("  FULL EXPERIMENT SEQUENCE (standard locked order)")
+                print("=" * 70)
+                print("  0. Practice/Familiarisation (always first)")
+                print("-" * 70)
+                step = 1
+                seq_count = spa_count = dual_count = 0
+                for block in standard_block_order:
+                    block_type = block.get("type", "")
+                    if block_type == "start":
+                        continue
+                    elif block_type == "end":
+                        continue
+                    elif block_type == "seq":
+                        seq_count += 1
+                        print(f"  {step}. Sequential N-back (Block {seq_count})")
+                        step += 1
+                    elif block_type == "spa":
+                        spa_count += 1
+                        print(f"  {step}. Spatial N-back (Block {spa_count})")
+                        step += 1
+                    elif block_type == "dual":
+                        dual_count += 1
+                        print(f"  {step}. Dual N-back (Block {dual_count})")
+                        step += 1
+                    elif block_type == "break":
+                        print("       â”€â”€ Break â”€â”€")
+                    elif block_type == "measures":
+                        print("       â”€â”€ Subjective Measures â”€â”€")
+                print("-" * 70)
+                print(
+                    f"  Total: {seq_count} SEQ, {spa_count} SPA, {dual_count} DUAL blocks"
+                )
+                print("=" * 70)
+                print("  >>> Standard order will execute exactly as shown <<<\n")
 
         # Helper to run scheduled events (measures/breaks) based on cycle number
         def run_scheduled_events(cycle_num):

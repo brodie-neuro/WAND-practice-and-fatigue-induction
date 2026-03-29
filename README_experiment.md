@@ -1,4 +1,4 @@
-﻿WAND Fatigue Induction Experiment
+WAND Fatigue Induction Experiment
 
 ## Overview
 This document provides detailed instructions for running the Full Induction protocol (`wand_nback/full_induction.py`), which implements a sophisticated cognitive fatigue induction protocol based on the Working-memory Adaptive-fatigue with N-back Difficulty (WAND) model. The protocol induces active cognitive fatigue over approximately 65â€“70 minutes using sequential, spatial, and dual N-back tasks with adaptive difficulty in the default setting, linear timing compression, and mini-distractors. For a broader overview of the WAND protocol, including design principles, see the main README.md.
@@ -28,16 +28,19 @@ pip install .
 After installation, launch the GUI with: `wand-launcher`
 
 If you load `Standard_WAND_Protocol` from the launcher, WAND uses a preset quick-path:
-- skips Block Builder and mode-selection dialogs,
+- skips the Block Builder entirely,
 - preserves the preset task mode and schedule,
 - and opens directly at final confirmation.
+
+For new sessions using `<Create New>`, the launcher always opens the Block Builder empty so you can design your block order from scratch. All task blocks, breaks, and subjective measures start in their pools. There is no "Standard" block order option on the Create New path — it is always a custom build.
 
 ## File Structure
 
 - `wand_nback/launcher.py`: GUI wizard for configuring and launching experiments (recommended entry point).
 - `wand_nback/full_induction.py`: Main script for the fatigue induction experiment.
 - `wand_nback/practice_plateau.py`: Practice calibration script.
-- `wand_nback/block_builder.py`: Visual drag-and-drop block ordering interface.
+- `wand_nback/block_builder.py`: Visual drag-and-drop block ordering interface for custom order editing.
+- `wand_nback/block_order.py`: Shared helpers that define the locked standard protocol order and default schedule generation.
 - `wand_nback/common.py`: Shared utilities and configuration loader.
 - `wand_nback/analysis.py`: Signal Detection Theory metrics and analysis functions.
 - `wand_nback/config/`: Directory containing `params.json` (settings) and `text_en.json` (instructions).

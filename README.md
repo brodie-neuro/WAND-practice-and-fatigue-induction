@@ -21,7 +21,7 @@
 
 - [What is WAND?](#what-is-wand)
 - [For Researchers: GUI-First Design](#for-researchers-gui-first-design)
-- [Current Release](#current-release-v130)
+- [Current Release](#current-release-v131)
 - [Overview](#overview)
 - [Task Components](#task-components)
 - [Design Principles](#design-principles)
@@ -85,14 +85,15 @@ WAND is an **open-source cognitive fatigue research suite** built on PsychoPy. I
 
 ---
 
-## Current Release: v1.3.0
+## Current Release: v1.3.1
 
 ### Highlights
 - **pip-installable**: standard Python packaging with entry points
 - **GUI Launcher**: multi-page wizard for complete experiment customisation
-- **Block Builder**: visual drag-and-drop interface for experiment design
+- **Session History**: the launcher tracks previous study names and participant IDs across sessions, offering dropdowns and duplicate-ID warnings
+- **Block Builder**: drag-and-drop interface for block ordering, opens automatically on `<Create New>` sessions (empty for manual placement)
 - **Edge Case Warnings Monitor**: real-time block-level safeguards with configurable warning/termination actions
-- **Preset Quick-Launch**: selecting `Standard_WAND_Protocol` skips setup pages and jumps to final confirmation
+- **Standard Preset Path**: loading `Standard_WAND_Protocol` skips the block-order editor entirely and goes directly to confirmation
 - **EEG Triggers**: fully configurable parallel port codes via `params.json`
 - **Full SDT Metrics**: d', criterion (c), hits, false alarms in all output
 
@@ -281,19 +282,35 @@ The launcher provides a multi-page wizard with the following configurable option
 
 | Page | Features |
 |------|----------|
-| **Study Setup** | Study name, participant ID, preset loading/saving |
-| **Task Selection** | Enable/disable Sequential, Spatial, Dual tasks |
-| **Timings** | Per-task display duration and ISI settings |
-| **Options** | Fullscreen, RNG seed, mini-distractors toggle, time compression, breaks/measures scheduling |
-| **Edge Case Warnings** | Performance monitor on/off, d' threshold, lapse threshold, action mode |
-| **Block Builder** | Visual drag-and-drop experiment structure |
-| **Launch** | Mode selection (Practice or Full Induction) and confirmation (create-new flow) |
+| **Page 1: Study Setup** | Preset loading, study name dropdown (with session history + `<New Study>` option) |
+| **Page 2: Participant** | Participant ID with history dropdown, duplicate-ID warning, `<New Participant>` option |
+| **Page 3: Task Selection** | Enable/disable Sequential, Spatial, Dual tasks |
+| **Page 4: Timings** | Per-task display duration and ISI settings |
+| **Page 5: Options** | Fullscreen, RNG seed, breaks/measures scheduling |
+| **Page 6: Edge Case Warnings** | Performance monitor on/off, d' threshold, lapse threshold, action mode |
+| **Block Builder** | Visual drag-and-drop editor (opens empty on Create New, skipped on preset path) |
+| **Page 7–8: Launch** | Mode selection (Practice or Full Induction) and confirmation |
 
-> **Preset quick path**: If you load a preset (for example `Standard_WAND_Protocol`), the launcher preserves that preset's mode/schedule and skips Block Builder and mode-selection dialogs, going directly to final confirmation.
+> **Create New path**: The Block Builder always opens empty so you can design your protocol. All blocks start in their pools.
+
+> **Preset quick path**: If you load `Standard_WAND_Protocol`, the launcher skips the Block Builder and goes directly to final confirmation.
+
+> **Session history**: The launcher remembers all previous study names and participant IDs. Study names appear as a dropdown; participant IDs for the selected study are shown for reference. Entering a duplicate participant ID triggers an overwrite warning.
 
 > **Tip**: Hover over field labels in the dialogs to see helpful tooltips explaining each setting.
 >
 > **Advanced customization**: Colors and EEG triggers can be modified via `config/params.json`.
+
+### Manual Verification
+
+Recent launcher changes that should be checked manually:
+- `<Create New>` path: Block Builder opens empty, all blocks in pools
+- Preset path: Block Builder is skipped, goes to confirmation
+- Session history: previous study names and participant IDs appear in dropdowns
+- Duplicate participant warning: entering an already-used ID shows overwrite warning
+- Page numbering: sequential Page 1 through Page 8
+- Back/cancel navigation: no loop when cancelling from mode selection
+
 
 ### Hot keys during an experiment
 

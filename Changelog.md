@@ -6,9 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## [Unreleased]
+## [1.3.1] - 2026-03-29
 
-- No unreleased changes yet.
+### Added
+- **Session History**: The launcher now tracks a rolling history of study names and participant IDs in `data/launcher_state.json`. On subsequent runs, `Study_Name` is a dropdown of previous studies (plus `<New Study>`) and `Participant_ID` shows previous participants for the selected study (plus `<New Participant>`).
+- **Duplicate Participant Warning**: If a researcher selects or types a participant ID that has already been run in the chosen study, a warning dialog alerts them that continuing may overwrite data.
+- **Duplicate Study Name Guard**: Choosing `<New Study>` and entering a name that already exists in the session history is blocked, directing the user to select it from the dropdown instead.
+- **Create New Requires New Study**: Selecting `<Create New>` with an existing study name is blocked — researchers are directed to load the study's preset to add participants, or choose `<New Study>` to start a genuinely new experiment.
+- **Standard Order Helper**: Added `wand_nback/block_order.py` as a single source of truth for the canonical default protocol order and default schedule generation.
+- **Regression Tests**: Added coverage for locked default ordering, standard-order generation, legacy custom preset loading, create-your-own label parsing, and mode-selection back navigation.
+
+### Changed
+- **Block Builder Always Opens on Create New**: When using `<Create New>`, the Block Builder now always opens (empty, for manual placement). It is only skipped on the preset quick path (`Standard_WAND_Protocol`).
+- **Standard Default Order**: `Standard_WAND_Protocol` preset now treats the default protocol as the standard order, skipping the block-order editor and going directly to confirmation.
+- **Create-Your-Own Order Entry**: The launcher now labels the manual path as `Create Your Own`, and that path opens the editor empty (Start and End only) so researchers assemble the sequence directly from the pools.
+- **Confirmation Summary**: Final launcher confirmation now shows the resolved block order for both standard and custom orders, with block-order mode displayed explicitly.
+- **Launcher Page Numbering**: All dialog pages are now numbered sequentially (Page 1: Study Setup, Page 2: Participant, Page 3–8: configuration and launch) instead of inconsistent `X/6` or `X/8` labels.
+- **Block-Order Naming Cleanup**: Launcher labels are now `Standard` and `Create Your Own`, and saved mode values are normalized to `standard` / `create_your_own` while older values still load correctly.
+- **Packaged Preset Cleanup**: Removed the shipped `Custom_Builder_Test.json` preset so it is no longer exposed as a packaged option.
+
+### Fixed
+- **Preset Quick-Path Crash**: Switching from a cancelled wizard attempt to a preset no longer crashes with a `KeyError` due to stale page data.
+- **Default Schedule Resolution**: Default auto-generated schedules now match the canonical standard protocol (`Breaks=[2, 4]`, `Measures=[2, 3, 4, 5]`) for the 5-cycle default configuration.
+- **Legacy Custom Preset Compatibility**: Older presets containing `custom_block_order` but no explicit block-order mode now continue to load as custom-order presets.
 
 ---
 ## [1.3.0] - 2026-03-05

@@ -6,9 +6,10 @@ Horizontal drag-and-drop with dark theme matching WAND launcher.
 Blocks wrap to next row if window is too narrow.
 
 Author: Brodie E. Mangan
-Version: 1.3.0
+Version: 1.3.1
 """
 
+import copy
 import tkinter as tk
 from tkinter import ttk
 
@@ -66,7 +67,7 @@ class BlockBuilderWindow:
         self._create_window()
 
     def _generate_default_blocks(self):
-        """Initialize counts and return minimal main sequence (Start/End only)."""
+        """Initialize counts and return either the seeded or minimal main sequence."""
         # Config parsing
         seq_enabled = self.config.get("sequential_enabled", True)
         spa_enabled = self.config.get("spatial_enabled", True)
@@ -86,6 +87,24 @@ class BlockBuilderWindow:
         self.num_breaks = self.config.get("num_breaks", 2)
         self.num_measures = self.config.get("num_measures", 4)
 
+        initial_order = self.config.get("initial_block_order") or self.config.get(
+            "custom_block_order"
+        )
+        self.seq_used = self.spa_used = self.dual_used = 0
+        self.breaks_used = self.measures_used = 0
+        if initial_order:
+            blocks = copy.deepcopy(initial_order)
+            self.seq_used = sum(1 for block in blocks if block.get("type") == "seq")
+            self.spa_used = sum(1 for block in blocks if block.get("type") == "spa")
+            self.dual_used = sum(1 for block in blocks if block.get("type") == "dual")
+            self.breaks_used = sum(
+                1 for block in blocks if block.get("type") == "break"
+            )
+            self.measures_used = sum(
+                1 for block in blocks if block.get("type") == "measures"
+            )
+            return blocks
+
         # Minimal start/end
         return [
             {"label": "Start", "type": "start", "movable": False},
@@ -95,33 +114,47 @@ class BlockBuilderWindow:
     def _generate_seq_pool(self):
         return [
             {"label": "SEQ", "type": "seq", "movable": True}
-            for i in range(getattr(self, "seq_count", 0))
+            for i in range(
+                max(0, getattr(self, "seq_count", 0) - getattr(self, "seq_used", 0))
+            )
         ]
 
     def _generate_spa_pool(self):
         return [
             {"label": "SPA", "type": "spa", "movable": True}
-            for i in range(getattr(self, "spa_count", 0))
+            for i in range(
+                max(0, getattr(self, "spa_count", 0) - getattr(self, "spa_used", 0))
+            )
         ]
 
     def _generate_dual_pool(self):
         return [
             {"label": "DUAL", "type": "dual", "movable": True}
-            for i in range(getattr(self, "dual_count", 0))
+            for i in range(
+                max(0, getattr(self, "dual_count", 0) - getattr(self, "dual_used", 0))
+            )
         ]
 
     def _generate_break_pool(self):
         """Generate pool of break blocks based on count."""
         return [
             {"label": f"Break", "type": "break", "movable": True}
-            for i in range(getattr(self, "num_breaks", 0))
+            for i in range(
+                max(0, getattr(self, "num_breaks", 0) - getattr(self, "breaks_used", 0))
+            )
         ]
 
     def _generate_measure_pool(self):
         """Generate pool of measure blocks based on count."""
         return [
             {"label": "Sub_M", "type": "measures", "movable": True}
-            for i in range(getattr(self, "num_measures", 0))
+            for i in range(
+                max(
+                    0,
+                    getattr(self, "num_measures", 0)
+                    - getattr(self, "measures_used", 0),
+                )
+            )
         ]
 
     def _create_window(self):
