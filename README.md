@@ -89,7 +89,7 @@ WAND is an **open-source cognitive fatigue research suite** built on PsychoPy. I
 
 ### Highlights
 - **Level 4 N-back**: Following EEG data collection (~40 participants), a small subset demonstrated ceiling performance at Level 3. The practice-to-plateau protocol and full induction now support Levels 2–4, with the same adaptive promotion/demotion conventions
-- **Colourblind-safe palette**: Level colours updated to the Okabe-Ito palette, verified across protanopia, deuteranopia, and tritanopia
+- **Colourblind-aware palette**: Level colours updated to the Okabe-Ito palette to improve distinguishability under common colour-vision deficiencies
 - **Configurable response keys**: Match/non-match keys are fully configurable through the GUI, with validation and preset support
 - **pip-installable**: standard Python packaging with entry points
 - **GUI Launcher**: multi-page wizard for complete experiment customisation

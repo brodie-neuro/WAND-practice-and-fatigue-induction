@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Max Practice Blocks**: Increased from 12 to 18 to accommodate the longer 2→3→4 promotion chain with grace blocks and potential oscillation.
 - **Grace Period Generalisation**: The unscored familiarisation block after promotion now triggers on any upward level change (not only 2→3).
-- **Colour Palette**: Migrated from named CSS colours (`deepskyblue`, `orange`, `teal`) to the Okabe-Ito hex palette for colourblind accessibility across all CVD types.
+- **Colour Palette**: Migrated from named CSS colours (`deepskyblue`, `orange`, `teal`) to the Okabe-Ito hex palette to improve distinguishability under common colour-vision deficiencies.
 - **Instruction Text**: Practice and induction instructions now display the currently configured response keys instead of assuming `Z` / `M`.
 - **Confirmation Page (Page 8)**: Two-column task-order layout with monospace font for alignment; compact header row; removed PsychoPy's default "Fields marked with asterisk" banner.
 - **Flowchart Labels**: "Subjective Measures" shortened to "Measures" for compactness.
