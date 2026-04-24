@@ -10,7 +10,7 @@
     <img src="https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction/actions/workflows/ci.yml/badge.svg" alt="CI Tests">
   </a>
   &nbsp;
-  <img src="https://img.shields.io/badge/python-3.8%20%7C%203.10-blue" alt="Python 3.8 | 3.10">
+  <img src="https://img.shields.io/badge/python-%E2%89%A53.8-blue" alt="Python 3.8 | 3.10">
   &nbsp;
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
@@ -21,7 +21,7 @@
 
 - [What is WAND?](#what-is-wand)
 - [For Researchers: GUI-First Design](#for-researchers-gui-first-design)
-- [Current Release](#current-release-v131)
+- [Current Release](#current-release-v132)
 - [Overview](#overview)
 - [Task Components](#task-components)
 - [Design Principles](#design-principles)
@@ -85,15 +85,17 @@ WAND is an **open-source cognitive fatigue research suite** built on PsychoPy. I
 
 ---
 
-## Current Release: v1.3.1
+## Current Release: v1.3.2
 
 ### Highlights
+- **Level 4 N-back**: Following EEG data collection (~40 participants), a small subset demonstrated ceiling performance at Level 3. The practice-to-plateau protocol and full induction now support Levels 2–4, with the same adaptive promotion/demotion conventions
+- **Colourblind-safe palette**: Level colours updated to the Okabe-Ito palette, verified across protanopia, deuteranopia, and tritanopia
+- **Configurable response keys**: Match/non-match keys are fully configurable through the GUI, with validation and preset support
 - **pip-installable**: standard Python packaging with entry points
 - **GUI Launcher**: multi-page wizard for complete experiment customisation
 - **Session History**: the launcher tracks previous study names and participant IDs across sessions, offering dropdowns and duplicate-ID warnings
-- **Block Builder**: drag-and-drop interface for block ordering, opens automatically on `<Create New>` sessions (empty for manual placement)
+- **Block Builder**: drag-and-drop interface for block ordering
 - **Edge Case Warnings Monitor**: real-time block-level safeguards with configurable warning/termination actions
-- **Standard Preset Path**: loading `Standard_WAND_Protocol` skips the block-order editor entirely and goes directly to confirmation
 - **EEG Triggers**: fully configurable parallel port codes via `params.json`
 - **Full SDT Metrics**: d', criterion (c), hits, false alarms in all output
 
@@ -109,7 +111,7 @@ WAND is a set of PsychoPy scripts that calibrate N-back capacity and then induce
 
 | Script                     | Purpose                                                                                     | Typical Duration |
 |---------------------------|---------------------------------------------------------------------------------------------|------------------|
-| `practice_plateau.py`| Calibrates individual N-back capacity through adaptive difficulty until performance stabilises (≤ 7% variability) | 20–60 minutes |
+| `practice_plateau.py`| Calibrates individual N-back capacity (Levels 2–4) through adaptive difficulty until performance stabilises (≤ 7% variability across 3 blocks) | 20–50 minutes |
 | `full_induction.py`  | Induces cognitive fatigue with Sequential, Spatial, and Dual N-back tasks                   | 65–70 minutes (Standard Protocol) |
 | `Tests/quicktest_induction.py` | Automated smoke test to verify installation                          | < 1 minute |
 
@@ -124,7 +126,7 @@ WAND is a set of PsychoPy scripts that calibrate N-back capacity and then induce
 | Task modalities            | Sequential, Spatial, and Dual N-back tasks tax the same fronto parietal networks in complementary ways |
 | Adaptive difficulty        | Automatic level adjustment and linear timing compression maintain appropriate challenge for Spatial and Dual |
 | Mini distractors           | Brief 200 ms visual flashes probe inhibitory control and vigilance within blocks |
-| Practice plateau           | Requires stability ≤ 7 percent variability over three consecutive blocks to separate fatigue from learning |
+| Practice plateau           | Requires stability ≤ 7 percent variability over three consecutive same-level blocks to separate fatigue from learning. Supports Levels 2–4 with adaptive promotion (≥82%) and demotion (<70%) |
 | Balanced target ratio      | 50 to 50 target to non-target prevents response bias and supports sensitivity metrics |
 | Engagement supports        | Lapse cues and colour coded N levels help maintain attention without confounding the tasks |
 
@@ -179,7 +181,7 @@ Responses use 1 to 8 Likert scales and are saved alongside behavioural data in `
 
 ### Prerequisites
 
-**Python 3.8 or 3.10** is required. PsychoPy has specific version constraints and does not support all Python versions. We recommend Python 3.10 for new installations.
+**Python 3.8+** is required (3.10 recommended). PsychoPy has specific version constraints, so we recommend Python 3.10 for new installations.
 
 ### Quick Verification
 
@@ -286,7 +288,7 @@ The launcher provides a multi-page wizard with the following configurable option
 | **Page 2: Participant** | Participant ID with history dropdown, duplicate-ID warning, `<New Participant>` option |
 | **Page 3: Task Selection** | Enable/disable Sequential, Spatial, Dual tasks |
 | **Page 4: Timings** | Per-task display duration and ISI settings |
-| **Page 5: Options** | Fullscreen, RNG seed, breaks/measures scheduling |
+| **Page 5: Options** | Fullscreen, RNG seed, breaks/measures scheduling, configurable match/non-match response keys |
 | **Page 6: Edge Case Warnings** | Performance monitor on/off, d' threshold, lapse threshold, action mode |
 | **Block Builder** | Visual drag-and-drop editor (opens empty on Create New, skipped on preset path) |
 | **Page 7–8: Launch** | Mode selection (Practice or Full Induction) and confirmation |
@@ -299,7 +301,7 @@ The launcher provides a multi-page wizard with the following configurable option
 
 > **Tip**: Hover over field labels in the dialogs to see helpful tooltips explaining each setting.
 >
-> **Advanced customization**: Colors and EEG triggers can be modified via `config/params.json`.
+> **Advanced customization**: Colors and EEG triggers can be modified via `wand_nback/config/params.json`.
 
 ### Manual Verification
 
@@ -316,16 +318,20 @@ Recent launcher changes that should be checked manually:
 
 | Key | Effect |
 |-----|--------|
+| Match response | Default `Z` during N-back trials; configurable in launcher Options or `wand_nback/config/params.json` |
+| Non-match response | Default `M` during N-back trials; configurable in launcher Options or `wand_nback/config/params.json` |
 | Esc | Emergency abort. Closes window and exits Python |
 | 5   | Skip remainder of current demo or block and jump to the next stage |
 
 ## Configuration
 
-All parameters are in `config/params.json`. All participant facing text is in `config/text_en.json`. The code reads values through `wand_common.get_param` and `wand_common.get_text`.
+All parameters are in `wand_nback/config/params.json`. All participant facing text is in `wand_nback/config/text_en.json`. The code reads values through `wand_common.get_param` and `wand_common.get_text`.
+
+The launcher Options page also exposes the participant response keys. Defaults remain `z` for match and `m` for non-match, but these can be changed for layouts such as AZERTY or QWERTZ without editing code.
 
 ### Window and appearance
 
-Edit `config/params.json`:
+Edit `wand_nback/config/params.json`:
 
 ```json
 {
@@ -356,6 +362,8 @@ Key tunables used by the scripts and `wand_common.py`:
 | `practice.speed_default`              | string         | Slow or normal initial speed in practice |
 | `practice.speed_multiplier.normal`    | float          | Multiplier for normal speed |
 | `practice.speed_multiplier.slow`      | float          | Multiplier for slow speed |
+| `response_keys.match`                 | string         | Single-character key used for match responses (default `z`) |
+| `response_keys.non_match`             | string         | Single-character key used for non-match responses (default `m`) |
 | `sequential.target_percentage`        | float          | Target rate for sequential N-back |
 | `sequential.max_consecutive_matches`  | int            | Cap on consecutive true matches |
 | `spatial.target_percentage`           | float          | Target rate for spatial N-back |

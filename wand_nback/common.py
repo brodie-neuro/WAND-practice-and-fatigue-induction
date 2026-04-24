@@ -55,6 +55,7 @@ TEXT: Dict[str, str] = {}
 
 # Cached background grid lines
 _GRID_LINES: List[visual.ShapeStim] = []
+_RESERVED_RESPONSE_KEYS = {"escape", "space", "return", "5"}
 
 
 def _safe_read_json(path: str) -> Any:
@@ -158,9 +159,53 @@ def load_config(
         LOGGER.warning("Text JSON did not decode to a dict: %s", text_path)
         text = {}
 
+    gui_config = load_gui_config()
+    if isinstance(gui_config, dict):
+        params = _apply_gui_param_overrides(params, gui_config)
+
     PARAMS = params
     TEXT = {str(k): str(v) for k, v in text.items()}
     return PARAMS, TEXT
+
+
+def _apply_gui_param_overrides(
+    params: Dict[str, Any], gui_config: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Apply GUI-runtime overrides to the static params config.
+
+    This keeps launcher session settings out of the checked-in package config
+    while still making them available to scripts that read values at import time.
+    """
+    merged = json.loads(json.dumps(params))
+
+    if "window" not in merged or not isinstance(merged["window"], dict):
+        merged["window"] = {}
+    if "response_keys" not in merged or not isinstance(merged["response_keys"], dict):
+        merged["response_keys"] = {}
+
+    if "fullscreen" in gui_config:
+        merged["window"]["fullscreen"] = bool(gui_config["fullscreen"])
+
+    response_keys = gui_config.get("response_keys", {})
+    if isinstance(response_keys, dict):
+        match_key = response_keys.get("match")
+        non_match_key = response_keys.get("non_match")
+    else:
+        match_key = None
+        non_match_key = None
+
+    if match_key is None:
+        match_key = gui_config.get("match_key")
+    if non_match_key is None:
+        non_match_key = gui_config.get("non_match_key")
+
+    if match_key is not None:
+        merged["response_keys"]["match"] = str(match_key)
+    if non_match_key is not None:
+        merged["response_keys"]["non_match"] = str(non_match_key)
+
+    return merged
 
 
 def load_gui_config():
@@ -273,6 +318,101 @@ def get_param(path: str, default: Any = None) -> Any:
     --------
     _get_from : Helper that implements dotted path traversal."""
     return _get_from(PARAMS, path, default)
+
+
+def validate_response_keys(match_key: Any, non_match_key: Any) -> Dict[str, str]:
+    """
+    Validate and normalise the configured match / non-match response keys.
+
+    Parameters
+    ----------
+    match_key : Any
+        Key used for match responses.
+    non_match_key : Any
+        Key used for non-match responses.
+
+    Returns
+    -------
+    Dict[str, str]
+        Normalised keys in lowercase under ``match`` and ``non_match``.
+
+    Raises
+    ------
+    ValueError
+        If either key is invalid or both keys are the same.
+    """
+
+    def _normalise(key: Any, label: str) -> str:
+        raw = str(key)
+        key_name = raw.strip()
+        lowered = key_name.lower()
+
+        if not key_name:
+            raise ValueError(f"{label} key cannot be empty.")
+        if lowered in _RESERVED_RESPONSE_KEYS:
+            raise ValueError(
+                f"{label} key cannot be one of: "
+                f"{', '.join(sorted(_RESERVED_RESPONSE_KEYS))}."
+            )
+        if len(key_name) != 1 or not key_name.isprintable() or key_name.isspace():
+            raise ValueError(f"{label} key must be a single printable character.")
+
+        return lowered
+
+    match = _normalise(match_key, "Match")
+    non_match = _normalise(non_match_key, "Non-match")
+
+    if match == non_match:
+        raise ValueError("Match and non-match keys must be different.")
+
+    return {"match": match, "non_match": non_match}
+
+
+def get_response_keys() -> Dict[str, str]:
+    """
+    Return the validated response-key configuration for the current session.
+
+    Returns
+    -------
+    Dict[str, str]
+        Mapping with lowercase ``match`` and ``non_match`` keys.
+    """
+    return validate_response_keys(
+        get_param("response_keys.match", "z"),
+        get_param("response_keys.non_match", "m"),
+    )
+
+
+def get_response_map(value_style: str = "bool") -> Dict[str, Any]:
+    """
+    Build a response-map dictionary from the configured response keys.
+
+    Parameters
+    ----------
+    value_style : str, optional
+        ``"bool"`` returns ``{match_key: True, non_match_key: False}``.
+        ``"label"`` returns ``{match_key: "match", non_match_key: "non-match"}``.
+
+    Returns
+    -------
+    Dict[str, Any]
+        Response-key lookup map for trial collection.
+
+    Raises
+    ------
+    ValueError
+        If ``value_style`` is unsupported or the configured keys are invalid.
+    """
+    response_keys = get_response_keys()
+    match_key = response_keys["match"]
+    non_match_key = response_keys["non_match"]
+
+    if value_style == "label":
+        return {match_key: "match", non_match_key: "non-match"}
+    if value_style == "bool":
+        return {match_key: True, non_match_key: False}
+
+    raise ValueError(f"Unsupported value_style: {value_style}")
 
 
 def get_text(key: str, **fmt: Any) -> str:
@@ -931,7 +1071,9 @@ def get_level_color(n_level: Optional[int]) -> str:
     if isinstance(mapping, dict) and key in mapping:
         return mapping[key]
 
-    return {2: "deepskyblue", 3: "orange", 4: "crimson"}.get(n_level, "white")
+    return {2: "#0072B2", 3: "#E69F00", 4: "#009E73", 5: "#CC79A7"}.get(
+        n_level, "white"
+    )
 
 
 def display_grid(
@@ -1424,6 +1566,9 @@ __all__ = [
     "TEXT",
     "load_config",
     "get_param",
+    "validate_response_keys",
+    "get_response_keys",
+    "get_response_map",
     "get_text",
     "load_gui_config",
     "install_error_hook",

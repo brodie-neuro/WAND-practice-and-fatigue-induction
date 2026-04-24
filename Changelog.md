@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.3.2] - 2026-04-23
+
+### Added
+- **Level 4 N-back Support**: Following EEG data collection with ~40 participants, a small subset demonstrated ceiling performance at Level 3, necessitating Level 4. The practice-to-plateau protocol now supports starting at Level 2, 3, or 4, with adaptive promotion (3→4 at ≥82%) and demotion (4→3 at <70%) using the same conventions as the existing 2→3 chain.
+- **Level 4 in Full Induction**: The researcher-facing N-back level prompt in the full induction now accepts Level 4.
+- **Level 5 Colour Support**: Colour palette extended to Level 5 for spatial/dual adaptive ceiling, using the Okabe-Ito colourblind-safe palette (`#0072B2`, `#E69F00`, `#009E73`, `#CC79A7`).
+- **Level 4 Test Suite**: `Tests/test_level4.py` with 21 tests covering promotion chains (2→3→4), demotions, plateau detection at Level 4, colour distinctness, max blocks cap, and text prompt validation.
+- **Configurable Response Keys**: Match / non-match keys are now configurable via `wand_nback/config/params.json` and the launcher Options page, with validation to keep keys distinct, printable, and non-reserved.
+- **Response Key Tests**: `Tests/test_response_keys.py` covers custom/seeded keys and reserved key rejection.
+
+### Changed
+- **Max Practice Blocks**: Increased from 12 to 18 to accommodate the longer 2→3→4 promotion chain with grace blocks and potential oscillation.
+- **Grace Period Generalisation**: The unscored familiarisation block after promotion now triggers on any upward level change (not only 2→3).
+- **Colour Palette**: Migrated from named CSS colours (`deepskyblue`, `orange`, `teal`) to the Okabe-Ito hex palette for colourblind accessibility across all CVD types.
+- **Instruction Text**: Practice and induction instructions now display the currently configured response keys instead of assuming `Z` / `M`.
+- **Confirmation Page (Page 8)**: Two-column task-order layout with monospace font for alignment; compact header row; removed PsychoPy's default "Fields marked with asterisk" banner.
+- **Flowchart Labels**: "Subjective Measures" shortened to "Measures" for compactness.
+
+### Fixed
+- **Response Key Passthrough Bug**: `build_final_config()` was not including `match_key`/`non_match_key` from the Options page, causing custom keys set in the GUI to silently fall back to `z`/`m` at runtime. Now correctly threaded through to `params.json`.
+- **Preset Response Key Defaults**: Old presets without response key fields now correctly default to `z`/`m` instead of raising errors.
+
+---
 ## [1.3.1] - 2026-03-29
 
 ### Added

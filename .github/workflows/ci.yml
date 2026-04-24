@@ -6,11 +6,17 @@ on:
       - '**.py'
       - 'requirements.txt'
       - '.github/workflows/**'
+      - 'pyproject.toml'
+      - 'MANIFEST.in'
+      - 'wand_nback/config/*.json'
   pull_request:
     paths:
       - '**.py'
       - 'requirements.txt'
       - '.github/workflows/**'
+      - 'pyproject.toml'
+      - 'MANIFEST.in'
+      - 'wand_nback/config/*.json'
 
 jobs:
   test:

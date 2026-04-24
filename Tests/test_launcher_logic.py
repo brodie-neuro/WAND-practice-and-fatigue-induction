@@ -522,7 +522,7 @@ def test_generate_flowchart_uses_standard_order_when_locked_default():
     assert "3. DUAL Block 1" in flowchart
     assert "5. DUAL Block 2" in flowchart
     assert "Break" in flowchart
-    assert "Subjective Measures" in flowchart
+    assert "Measures" in flowchart
 
 
 def test_mode_selection_back_step_uses_page5_for_locked_default():

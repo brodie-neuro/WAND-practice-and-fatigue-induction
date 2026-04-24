@@ -1,6 +1,6 @@
 {
   "window": {
-    "fullscreen": false,
+    "fullscreen": true,
     "size": [
       1650,
       1000
@@ -20,6 +20,10 @@
       "normal": 1.0,
       "slow": 1.5
     }
+  },
+  "response_keys": {
+    "match": "z",
+    "non_match": "m"
   },
   "sequential": {
     "target_percentage": 0.5,
@@ -42,9 +46,10 @@
   "colors": {
     "default": "white",
     "levels": {
-      "2": "deepskyblue",
-      "3": "orange",
-      "4": "teal"
+      "2": "#0072B2",
+      "3": "#E69F00",
+      "4": "#009E73",
+      "5": "#CC79A7"
     }
   },
   "eeg": {

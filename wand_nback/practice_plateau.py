@@ -63,6 +63,8 @@ from wand_nback.common import (
     generate_sequential_image_sequence,
     get_level_color,
     get_param,
+    get_response_keys,
+    get_response_map,
     get_text,
     install_error_hook,
     load_config,
@@ -168,7 +170,7 @@ def log_seq_block(
     Parameters
     ----------
     level : int
-        The N-back level of the block (2 or 3).
+        The N-back level of the block (2, 3, or 4).
     block_no : int
         Sequential counter of *normal-speed* blocks (starts at 1).
     accuracy : float
@@ -387,7 +389,7 @@ def prompt_starting_level():
     level = prompt_choice(
         win,
         instructions,
-        key_map={"2": 2, "3": 3},
+        key_map={"2": 2, "3": 3, "4": 4},
         allow_escape_quit=True,
         text_style=txt,
     )
@@ -480,15 +482,20 @@ def show_task_instructions(win, task_name, n_back_level=None):
     n_back_level : int, optional
         N-back level text for sequential instructions (2 or 3).
     """
+    response_keys = get_response_keys()
+    text_kwargs = {
+        "match_key": response_keys["match"].upper(),
+        "non_match_key": response_keys["non_match"].upper(),
+    }
     welcome_text = get_text("practice_instructions_intro", task_name=task_name)
 
     if task_name.lower() == "sequential":
         nb = n_back_level if n_back_level in [2, 3] else 2
-        welcome_text += get_text("practice_instructions_seq", nb=nb)
+        welcome_text += get_text("practice_instructions_seq", nb=nb, **text_kwargs)
     elif task_name.lower() == "spatial":
-        welcome_text += get_text("practice_instructions_spa")
+        welcome_text += get_text("practice_instructions_spa", **text_kwargs)
     elif task_name.lower() == "dual":
-        welcome_text += get_text("practice_instructions_dual")
+        welcome_text += get_text("practice_instructions_dual", **text_kwargs)
     else:
         welcome_text += "(No specific instructions available for this task.)\n\n"
 
@@ -1654,7 +1661,7 @@ def run_spatial_nback_practice(n, num_trials=50, display_duration=None, isi=None
         response, reaction_time = collect_trial_response(
             win,
             duration=isi,
-            response_map={"z": True, "m": False},
+            response_map=get_response_map("bool"),
             is_valid_trial=(i >= n),
             stop_on_response=False,  # Keep looping after feedback to fill ISI
             post_response_callback=feedback_action,
@@ -1809,7 +1816,7 @@ def run_dual_nback_practice(n, num_trials=50, display_duration=None, isi=None):
         response, reaction_time = collect_trial_response(
             win,
             duration=isi,
-            response_map={"z": True, "m": False},
+            response_map=get_response_map("bool"),
             is_valid_trial=(i >= n),
             stop_on_response=False,  # Wait out the clock
             post_response_callback=feedback_action,
@@ -1963,7 +1970,7 @@ def run_sequential_nback_practice(
         response, reaction_time = collect_trial_response(
             win,
             duration=isi,
-            response_map={"z": True, "m": False},
+            response_map=get_response_map("bool"),
             is_valid_trial=(i >= n),
             stop_on_response=False,  # Wait out the clock
             tick_callback=distractor_tick,
@@ -2011,14 +2018,14 @@ def check_level_change(block_results, current_level, window_size=2):
     block_results : List[Tuple[int, int, float, float]]
         History of (block_count, n_level, accuracy, avg_rt).
     current_level : int
-        Current N-back level (2 or 3).
+        Current N-back level (2, 3, or 4).
     window_size : int, optional
         Number of most recent blocks for the rolling average. Default 2.
 
     Returns
     -------
     int
-        New level (2 or 3); unchanged if criteria are not met.
+        New level (2, 3, or 4); unchanged if criteria are not met.
 
     Notes
     -----
@@ -2031,6 +2038,10 @@ def check_level_change(block_results, current_level, window_size=2):
     rolling_avg = sum(recent_accuracies) / window_size
 
     if rolling_avg >= 82 and current_level == 2:
+        return 3
+    elif rolling_avg >= 82 and current_level == 3:
+        return 4
+    elif rolling_avg < 70 and current_level == 4:
         return 3
     elif rolling_avg < 70 and current_level == 3:
         return 2
@@ -2091,7 +2102,7 @@ def run_sequential_nback_until_plateau(starting_level):
     Parameters
     ----------
     starting_level : int
-        The initial N-back level (2 or 3).
+        The initial N-back level (2, 3, or 4).
 
     Returns
     -------
@@ -2102,7 +2113,7 @@ def run_sequential_nback_until_plateau(starting_level):
     global skip_to_next_stage
     n_level = starting_level
     block_results = []
-    max_blocks = 12
+    max_blocks = 18
     scored_trials = 90
     block_count = 0
 
@@ -2168,7 +2179,7 @@ def run_sequential_nback_until_plateau(starting_level):
             # If the level changes, we MUST continue to the next block.
             # We do not check for plateau here.
 
-            if new_level == 3 and n_level == 2:
+            if new_level > n_level:
                 in_grace_period = True
 
             n_level = new_level

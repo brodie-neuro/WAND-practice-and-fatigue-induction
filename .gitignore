@@ -43,6 +43,10 @@ cognitive_experiment/
 exit
 hook-psychopy.py
 Abstract Stimuli - all/
+error.log
+
+# Stale root config (canonical source is wand_nback/config/)
+config/
 
 # Local utility scripts
 monitor_timing_test.py
@@ -87,3 +91,7 @@ pre-processing/
 post-processing/
 preprocessing/
 postprocessing/
+
+# Codex/AI agent artifacts
+.codex_build_check/
+.pip_cache/

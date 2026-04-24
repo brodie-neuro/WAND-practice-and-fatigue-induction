@@ -31,6 +31,7 @@ from wand_nback import practice_plateau as practice
         (2, 1, 1),
         (2, 10, 1),
         (3, 5, 2),
+        (4, 5, 3),
     ],
 )
 def test_log_seq_block_writes_csv(mocker, tmp_path, n_level, num_trials, block_no):

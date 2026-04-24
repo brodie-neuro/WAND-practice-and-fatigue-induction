@@ -61,6 +61,8 @@ from wand_nback.common import (
     get_jitter,
     get_level_color,
     get_param,
+    get_response_keys,
+    get_response_map,
     get_text,
     install_error_hook,
     load_config,
@@ -421,7 +423,7 @@ def get_participant_info(win):
     n_level = prompt_choice(
         win,
         get_text("get_n_level"),
-        key_map={"2": 2, "3": 3},
+        key_map={"2": 2, "3": 3, "4": 4},
         allow_escape_quit=False,
         text_style=text_style,
     )
@@ -696,12 +698,20 @@ def show_welcome_screen(win, task_name, n_back_level=None):
     n_back_level : int, optional
         Included in the text for the Sequential task.
     """
+    response_keys = get_response_keys()
+    text_kwargs = {
+        "match_key": response_keys["match"].upper(),
+        "non_match_key": response_keys["non_match"].upper(),
+    }
+
     if task_name == "Sequential N-back":
-        welcome_text = get_text("induction_task_welcome_seq", n_back_level=n_back_level)
+        welcome_text = get_text(
+            "induction_task_welcome_seq", n_back_level=n_back_level, **text_kwargs
+        )
     elif task_name == "Spatial N-back":
-        welcome_text = get_text("induction_task_welcome_spa")
+        welcome_text = get_text("induction_task_welcome_spa", **text_kwargs)
     elif task_name == "Dual N-back":
-        welcome_text = get_text("induction_task_welcome_dual")
+        welcome_text = get_text("induction_task_welcome_dual", **text_kwargs)
     else:
         welcome_text = get_text("task_instructions_fallback")
 
@@ -1254,7 +1264,7 @@ def run_sequential_nback_block(
         resp1, rt1 = collect_trial_response(
             win,
             duration=display_duration,
-            response_map={"z": "match", "m": "non-match"},
+            response_map=get_response_map("label"),
             is_valid_trial=(i >= skip_responses),
             stop_on_response=False,
         )
@@ -1294,7 +1304,7 @@ def run_sequential_nback_block(
         resp2, rt2 = collect_trial_response(
             win,
             duration=jittered_isi,
-            response_map={"z": "match", "m": "non-match"},
+            response_map=get_response_map("label"),
             is_valid_trial=(i >= skip_responses),
             stop_on_response=False,
             tick_callback=seq_distractor_tick,
@@ -1434,7 +1444,7 @@ def run_spatial_nback_block(
         response, reaction_time = collect_trial_response(
             win,
             duration=get_jitter(isi),
-            response_map={"z": True, "m": False},
+            response_map=get_response_map("bool"),
             is_valid_trial=(i >= n),
             stop_on_response=False,
         )
@@ -1609,7 +1619,7 @@ def run_dual_nback_block(
         response, reaction_time = collect_trial_response(
             win,
             duration=get_jitter(isi),
-            response_map={"z": True, "m": False},
+            response_map=get_response_map("bool"),
             is_valid_trial=(i >= n),
             stop_on_response=False,
         )
@@ -2223,8 +2233,12 @@ def main_task_flow():
                 f"Starting Sequential {n_back_level}-back PRACTICE/FAMILIARISATION round"
             )
             try:
+                response_keys = get_response_keys()
                 familiarisation_text = get_text(
-                    "induction_practice_intro", n_back_level=n_back_level
+                    "induction_practice_intro",
+                    n_back_level=n_back_level,
+                    match_key=response_keys["match"].upper(),
+                    non_match_key=response_keys["non_match"].upper(),
                 )
                 instruction_text = visual.TextStim(
                     win,

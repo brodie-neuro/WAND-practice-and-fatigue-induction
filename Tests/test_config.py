@@ -332,6 +332,47 @@ def test_load_gui_config_returns_none_without_env(no_config):
     assert config is None
 
 
+def test_load_config_applies_gui_runtime_overrides(tmp_path, monkeypatch):
+    """
+    BEHAVIOURAL: load_config should merge launcher runtime overrides in memory.
+    """
+    from wand_nback import common as wand_common
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+
+    params_path = config_dir / "params.json"
+    text_path = config_dir / "text_en.json"
+    gui_config_path = tmp_path / "gui_runtime.json"
+
+    params = {
+        "window": {"fullscreen": False},
+        "response_keys": {"match": "z", "non_match": "m"},
+    }
+    gui_runtime = {
+        "fullscreen": True,
+        "match_key": "g",
+        "non_match_key": "l",
+    }
+
+    with open(params_path, "w", encoding="utf-8") as f:
+        json.dump(params, f)
+    with open(text_path, "w", encoding="utf-8") as f:
+        json.dump({}, f)
+    with open(gui_config_path, "w", encoding="utf-8") as f:
+        json.dump(gui_runtime, f)
+
+    monkeypatch.setenv("WAND_GUI_CONFIG", str(gui_config_path))
+
+    loaded_params, _ = wand_common.load_config(lang="en", config_dir=str(config_dir))
+
+    assert loaded_params["window"]["fullscreen"] is True
+    assert loaded_params["response_keys"]["match"] == "g"
+    assert loaded_params["response_keys"]["non_match"] == "l"
+    assert wand_common.get_param("window.fullscreen") is True
+    assert wand_common.get_response_map("bool") == {"g": True, "l": False}
+
+
 def test_practice_fallback_to_default_timing(no_config):
     """
     BEHAVIOURAL: Without config, Practice uses default timings.

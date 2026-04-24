@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-WAND Launcher v1.3.1 - Comprehensive Study Configuration System
+WAND Launcher v1.3.2 - Comprehensive Study Configuration System
 
 A professional GUI for configuring WAND experiments with:
 - Study presets (save/load configurations)
@@ -10,7 +10,7 @@ A professional GUI for configuring WAND experiments with:
 - Counterbalancing options
 
 Author: Brodie E. Mangan
-Version: 1.3.1
+Version: 1.3.2
 License: MIT
 """
 
@@ -825,6 +825,11 @@ def show_page4_options(config):
     fields["Break Duration (sec)"] = config.get("break_duration", 20)
     fields["Subjective Measures"] = def_num_measures
 
+    # Response key configuration
+    rk = config.get("response_keys", {})
+    fields["Match Key"] = str(rk.get("match", "z"))
+    fields["Non-match Key"] = str(rk.get("non_match", "m"))
+
     fields["Save as Preset"] = True
 
     # Tooltips for Options
@@ -835,6 +840,14 @@ def show_page4_options(config):
         "Break Duration (sec)": "Duration of each break in seconds.",
         "Subjective Measures": (
             "Questionnaire insertions (e.g., fatigue ratings) placed via the Block Builder."
+        ),
+        "Match Key": (
+            "Single character for 'match' responses. Default z (QWERTY). "
+            "Change to suit your keyboard layout (e.g., w for AZERTY)."
+        ),
+        "Non-match Key": (
+            "Single character for 'non-match' responses. Default m. "
+            "Must differ from the match key."
         ),
         "Save as Preset": "Save this configuration for future use.",
     }
@@ -871,9 +884,22 @@ def show_page4_options(config):
             else 0
         ),
         "num_measures": num_measures,
+        "match_key": str(fields["Match Key"]).strip().lower() or "z",
+        "non_match_key": str(fields["Non-match Key"]).strip().lower() or "m",
         "save_preset": bool(fields["Save as Preset"]),
         "counterbalance": False,  # Legacy field, forced False
     }
+
+    # Validate response keys early so the user gets feedback now, not at launch
+    from wand_nback.common import validate_response_keys
+
+    try:
+        validate_response_keys(result["match_key"], result["non_match_key"])
+    except ValueError as exc:
+        error_dlg = gui.Dlg(title="Invalid Response Keys")
+        error_dlg.addText(str(exc))
+        error_dlg.show()
+        return show_page4_options(config)  # Recurse to let user fix
 
     return result
 
@@ -935,15 +961,14 @@ def generate_flowchart_from_custom_order(block_order, config):
     str
         Formatted flowchart text
     """
+    import math
+
     spa_comp = config.get("spatial", {}).get("time_compression", True)
     dual_comp = config.get("dual", {}).get("time_compression", True)
 
-    lines = []
-    lines.append("TASK ORDER:")
-    lines.append("─" * 50)
-    if any(block.get("type") == "seq" for block in block_order):
-        lines.append("      ── Practice/Familiarisation ──")
+    has_practice = any(block.get("type") == "seq" for block in block_order)
 
+    entries = []
     step = 1
     seq_count = spa_count = dual_count = 0
     total_time = 0
@@ -954,37 +979,55 @@ def generate_flowchart_from_custom_order(block_order, config):
 
     for block in block_order:
         block_type = block.get("type", "")
-
-        # Skip start/end blocks
         if block_type in ("start", "end"):
             continue
-
         if block_type == "seq":
             seq_count += 1
-            lines.append(f"  {step}. SEQ Block {seq_count}")
+            entries.append(f"{step}. SEQ Block {seq_count}")
             step += 1
             total_time += seq_block_min
         elif block_type == "spa":
             spa_count += 1
-            c_mark = "⟳" if spa_comp else ""
-            lines.append(f"  {step}. SPA Block {spa_count} {c_mark}")
+            c_mark = " \u27f3" if spa_comp else ""
+            entries.append(f"{step}. SPA Block {spa_count}{c_mark}")
             step += 1
             total_time += 4.5
         elif block_type == "dual":
             dual_count += 1
-            c_mark = "⟳" if dual_comp else ""
-            lines.append(f"  {step}. DUAL Block {dual_count} {c_mark}")
+            c_mark = " \u27f3" if dual_comp else ""
+            entries.append(f"{step}. DUAL Block {dual_count}{c_mark}")
             step += 1
             total_time += 4.5
         elif block_type == "break":
-            lines.append("      ── Break ──")
+            entries.append("\u2500\u2500 Break \u2500\u2500")
             total_time += 0.5
         elif block_type == "measures":
-            lines.append("      ── Subjective Measures ──")
+            entries.append("\u2500\u2500 Measures \u2500\u2500")
             total_time += 1.5
 
-    lines.append("─" * 50)
-    lines.append("  ⟳ = Time compression enabled")
+    COL_W = 24
+    GAP = "      "  # 6 spaces between columns
+    lines = []
+    lines.append("TASK ORDER:")
+    lines.append("\u2500" * (COL_W * 2 + len(GAP)))
+    if has_practice:
+        lines.append("  \u2500\u2500 Practice/Familiarisation \u2500\u2500")
+
+    mid = math.ceil(len(entries) / 2)
+    left_col = entries[:mid]
+    right_col = entries[mid:]
+
+    for i in range(len(left_col)):
+        left = f"  {left_col[i]}"
+        if i < len(right_col):
+            right = f"{right_col[i]}"
+            lines.append(f"{left:<{COL_W}}{GAP}{right}")
+        else:
+            lines.append(f"{left}")
+
+    lines.append("\u2500" * (COL_W * 2 + len(GAP)))
+    if spa_comp or dual_comp:
+        lines.append("  \u27f3 = Time compression enabled")
     lines.append(f"  Estimated duration: approx. {format_duration(total_time)}")
 
     return "\n".join(lines)
@@ -1162,26 +1205,47 @@ def show_page6_confirmation(config):
     mode = config.get("task_mode", "Practice Only")
     order_mode = block_order_mode_label(get_block_order_mode(config))
 
-    summary = f"""
-══════════════════════════════════════════════════════
-  {mode.upper()} - TASK ORDER
-══════════════════════════════════════════════════════
-
-  Study:          {config.get('study_name', 'Unnamed')}
-  Participant:    {config.get('participant_id', 'Unknown')}
-  RNG Seed:       {seed_display}
-  Block Order:    {order_mode}
-
-──────────────────────────────────────────────────────
-{flowchart}
-══════════════════════════════════════════════════════
-
-  Click OK to LAUNCH the experiment
-  Click Cancel to go back
-"""
+    summary = (
+        f"{mode.upper()} - TASK ORDER\n"
+        f"Study: {config.get('study_name', 'Unnamed')}   "
+        f"Participant: {config.get('participant_id', 'Unknown')}   "
+        f"Seed: {seed_display}   "
+        f"Order: {order_mode}\n"
+        f"{flowchart}\n"
+        f"Click OK to LAUNCH  |  Cancel to go back"
+    )
 
     dlg = gui.Dlg(title=f"WAND - Page 8: Confirm & Launch ({mode})")
-    dlg.addText(summary)
+
+    # Hide PsychoPy's default "Fields marked with asterisk" label
+    try:
+        from qtpy import QtWidgets
+
+        for child in dlg.findChildren(QtWidgets.QLabel):
+            if "asterisk" in child.text().lower():
+                child.hide()
+                break
+    except Exception:
+        pass
+
+    # Set monospace font so two-column layout aligns
+    try:
+        from qtpy import QtCore, QtGui, QtWidgets
+
+        mono = QtGui.QFont("Consolas", 10)
+        dlg.setFont(mono)
+        text_label = dlg.addText(summary)
+        text_label.setFont(mono)
+        text_label.setTextFormat(QtCore.Qt.PlainText)
+        text_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        text_label.setWordWrap(False)
+        text_label.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Preferred
+        )
+        dlg.adjustSize()
+    except Exception:
+        dlg.addText(summary)
+
     dlg.show()
 
     return dlg.OK
@@ -1253,6 +1317,9 @@ def build_final_config(page1, page2, page3, page4, page5_edge):
         "num_breaks": page4.get("num_breaks", 2),
         "break_duration": page4.get("break_duration", 20),
         "num_measures": page4.get("num_measures", 4),
+        # Response keys
+        "match_key": page4.get("match_key", "z"),
+        "non_match_key": page4.get("non_match_key", "m"),
         "performance_monitor": page5_edge,
         # Note: breaks_schedule and measures_schedule are resolved later from
         # either the locked default order or a custom block order.
@@ -1345,26 +1412,13 @@ def launch_experiment(config):
     # print(f"  N-back:       {config['n_back_level']}-back") # REMOVED
     print("=" * 60 + "\n")
 
-    # --- Apply fullscreen setting to params.json BEFORE importing scripts ---
-    # Scripts read fullscreen from params.json at import time, so we must
-    # update it before the import statement runs.
-    try:
-        params_path = os.path.join(CONFIG_DIR, "params.json")
-        with open(params_path, "r", encoding="utf-8") as f:
-            params = json.load(f)
-
-        # Update window settings
-        if "window" not in params:
-            params["window"] = {}
-        params["window"]["fullscreen"] = config.get("fullscreen", False)
-
-        with open(params_path, "w", encoding="utf-8") as f:
-            json.dump(params, f, indent=2)
-
-        print(f"[GUI] Fullscreen mode: {config.get('fullscreen', False)}")
-    except Exception as e:
-        print(f"[GUI] Warning: Could not update params.json: {e}")
-    # --- End fullscreen fix ---
+    # Runtime settings are persisted in WAND_GUI_CONFIG by save_runtime_config().
+    # The task scripts merge that file onto their static package config at import time.
+    print(f"[GUI] Fullscreen mode: {config.get('fullscreen', False)}")
+    print(
+        f"[GUI] Response keys: match={config.get('match_key', 'z')}, "
+        f"non-match={config.get('non_match_key', 'm')}"
+    )
 
     if task_mode == "Practice Only":
         print("[GUI] Launching Practice Protocol...")
@@ -1501,7 +1555,7 @@ def show_splash_screen(duration_ms=3000):
     # Version and author
     info_label = tk.Label(
         main_frame,
-        text="v1.3.1  •  Brodie E. Mangan",
+        text="v1.3.2  •  Brodie E. Mangan",
         font=("Segoe UI", 9),
         fg="#555555",
         bg="#0a0a0a",
@@ -1569,7 +1623,7 @@ def main():
 
     print("\n" + "=" * 60)
     print("WAND - Working-memory Adaptive-fatigue with N-back Difficulty")
-    print("GUI Launcher v1.3.1")
+    print("GUI Launcher v1.3.2")
     print("=" * 60 + "\n")
 
     step = 1
@@ -1608,6 +1662,8 @@ def main():
                 loaded.setdefault(
                     "num_measures", len(loaded.get("measures_schedule", []))
                 )
+                loaded.setdefault("match_key", "z")
+                loaded.setdefault("non_match_key", "m")
                 base_config = loaded
                 # Clear stale wizard-page data so step 7 takes the preset path.
                 for key in ("page2", "page3", "page4", "page5"):
