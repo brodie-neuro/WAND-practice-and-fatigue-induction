@@ -2,12 +2,12 @@
 title: 'WAND (Working-memory Adaptive-fatigue with N-back Difficulty): A Modular Software Suite for Cognitive Fatigue Research'
 authors:
   - name: Brodie E. Mangan 
-    orcid: 0009-0002-8466-5423
-    affiliation: 1
+    orcid: "0009-0002-8466-5423"
+    affiliation: "1"
 affiliations:
   - name: University of Stirling 
     index: 1
-    ror: 045wgfr59
+    ror: "045wgfr59"
 date: 12 June 2025 
 tags:
   - cognitive fatigue
@@ -26,88 +26,33 @@ archive:
 
 # Summary
 
-WAND (Working-memory Adaptive-fatigue with N-back Difficulty) is an open-source PsychoPy [@peirce2019psychopy2] software suite for cognitive fatigue research. It provides a modular N-back framework to classify performance, calibrate stable baselines via plateau detection (mitigating learning effects), and systematically induce active fatigue using varied N-back tasks with integrated distractors. This MIT-licensed paper outlines WAND's design and use.
+WAND (Working-memory Adaptive-fatigue with N-back Difficulty) is an open-source PsychoPy [@peirce2019psychopy2] software suite for cognitive fatigue research. It helps researchers calibrate a participant's task-performance capacity, verify that performance has stabilised before fatigue induction, and then run a sustained multi-task N-back protocol designed to induce active cognitive fatigue. The software is distributed as a pip-installable Python package with command-line entry points, a GUI launcher, a drag-and-drop Block Builder, automated smoke tests, configurable EEG trigger support, and CSV outputs containing behavioural and signal-detection metrics.
 
 # Statement of Need
 
-Cognitive fatigue research is limited by the frequent conflation of "passive fatigue" (arousal reduction from monotony) with "active fatigue" (neural overload from sustained, effortful engagement) [@holroyd2024controllosphere; @pessiglione2025origins], which impairs the ability to link behavioural decrements with specific neurophysiological correlates [@bernhardt2019differentiating], and by traditional N-back paradigms that inadequately induce fatigue due to learning effects, static difficulty, and biased designs [@hopstaken2015multifaceted]. This impairs robust study of active fatigue.
+Cognitive fatigue research is limited by the frequent conflation of "passive fatigue" (arousal reduction from monotony) with "active fatigue" (overload from sustained, effortful engagement) [@holroyd2024controllosphere; @pessiglione2025origins]. This distinction matters because passive and active fatigue may have different behavioural and neurophysiological correlates [@bernhardt2019differentiating]. Traditional N-back paradigms are also vulnerable to learning effects, static difficulty, and response-bias confounds, limiting their ability to isolate and induce fatigue-related performance decline [@hopstaken2015multifaceted; @mangan2025missinglink].
 
-WAND offers a modular PsychoPy framework for researchers in cognitive science, psychology, and neuroergonomics to reliably induce and investigate active fatigue. It addresses key methodological gaps by:
+WAND is intended for researchers in cognitive psychology, neuroscience, neuroergonomics, and clinical or applied fatigue studies who need a reproducible way to separate familiarisation and ability calibration from the later fatigue-induction phase. It provides a standard protocol for behavioural and EEG-compatible studies while allowing laboratories to customise task composition, timings, breaks, subjective-measure placement, response keys, monitor settings, and performance-safeguard thresholds.
 
-- **Addressing Methodological Gaps**: Offering an integrated solution to induce active fatigue by systematically controlling for concurrent confounds like task learning, static difficulty, and arousal reduction.
+# State of the Field
 
-- **Explicitly Separating Key Phases**: The software integrates distinct phases for participant classification (based on baseline N-back capacity), performance calibration (including plateau detection), and fatigue induction. This structured approach enhances the precision of fatigue measurement.
+General experiment frameworks such as PsychoPy [@peirce2019psychopy2] provide powerful stimulus presentation and response-collection primitives, but they do not by themselves define a validated fatigue-induction workflow, adaptive practice-to-plateau calibration, or safeguards for fatigue-specific edge cases. WAND builds on PsychoPy rather than replacing it: the contribution is a domain-specific, packaged protocol for active cognitive fatigue research, with ready-to-run N-back tasks, calibration rules, data logging, GUI configuration, and reproducibility-oriented defaults.
 
-- **Novel Feature Integration**: Implementing, to our knowledge, the first open-source dynamic behavioural plateauing for N-back tasks, and incorporating periodic visual distractors (~8% of trials) during induction to sustain load and model micro-interruptions.
+# Software Design
 
-- **Supporting Replicable and Progressive Research**: Supporting transparent, replicable, and extensible fatigue research through open science principles, suitable for behavioural and neuroimaging studies.
+WAND is organised as the `wand_nback` Python package. Installation through `pip install git+https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git` exposes entry points for the main GUI (`wand-launcher`), practice calibration (`wand-practice`), full induction (`wand-induction`), an automated quick test (`wand-quicktest`), and EEG trigger testing (`wand-eeg-test`). The launcher guides researchers through study setup, participant ID handling, task selection, timing parameters, fullscreen and random-seed settings, response-key validation, break and subjective-measure counts, and edge-case performance-monitor settings.
 
-WAND thus provides an integrated platform with innovative techniques to overcome key limitations in active fatigue research. A preliminary validation study ($N = 27$) demonstrated that WAND successfully induces measurable active cognitive fatigue, with participants showing a significant decline in sensitivity ($d'$) across the induction protocol (Cohen's $d = -0.71$; @mangan2026validation). WAND is currently being used in an ongoing EEG study to investigate the neural correlates of active cognitive fatigue, building on theoretical frameworks linking sustained working memory load to fatigue-related oscillatory signatures [@mangan2025missinglink]. The software's modular structure enables researchers to adapt the protocol for behavioural and EEG (electroencephalography) investigations into the mechanisms of fatigue under sustained cognitive load.
+The GUI supports two workflow modes. Loading the bundled `Standard_WAND_Protocol` preset skips directly to final confirmation with the canonical schedule. Creating a new study opens the Block Builder, where researchers can construct a protocol visually by placing Sequential, Spatial, Dual, Break, and subjective-measure blocks into a custom order. The same configuration is saved as JSON and read by the task scripts, so GUI and scripted execution share the same runtime settings. Advanced options, including window appearance, colours, response keys, target rates, jitter, performance-monitor behaviour, and parallel-port EEG trigger codes, are stored in `wand_nback/config/params.json`.
 
-# Implementation and Architecture
+The experiment is divided into practice calibration and fatigue induction. During practice, researchers can select normal timing or a slow timing profile in which stimulus and inter-stimulus durations are multiplied by 1.5. Slow-mode onboarding is run at Level 2 until the participant reaches at least 65% accuracy in one 60-trial block, after which practice switches to normal timing. Spatial and Dual competency require two successive normal-speed Level 2 blocks at or above 65% accuracy.
 
-WAND is implemented in Python, utilising Psychopy, and comprises two sequential phases, managed by distinct modules within the `wand_nback` package (accessed via the GUI launcher `wand-launcher`):
+Sequential calibration supports Levels 2-4. The participant's N-level is updated using the mean accuracy from the two most recent scored Sequential blocks at the current N-level: performance at or above 82% promotes the participant from Level 2 to 3 or from Level 3 to 4, while performance below 70% demotes the participant from Level 4 to 3 or from Level 3 to 2. After a promotion, the next block at the new level is treated as familiarisation and is not used for subsequent level-change or plateau decisions. Plateau is reached when the last three scored blocks are at the same N-level and all three fall within 7 percentage points of their three-block mean accuracy.
 
-## Initial Familiarisation and Competency Check
-Participants are familiarised with N-back mechanics via practice on Spatial and Dual N-back tasks (fixed at Level 2). An optional 'slow mode' (50% reduced speed) aids initial onboarding, with progression to normal speed upon achieving basic competency (e.g., an accuracy of 65% or greater in one slow-mode block). Further progression requires meeting a performance threshold at normal speed (e.g., 65% accuracy averaged across the two Level 2 practice blocks for each task type). Written instructions and demonstrations clarify task demands. This prepares participants for Sequential N-back calibration.
+The induction stage combines Sequential, Spatial, and Dual N-back tasks. Sequential blocks run at the calibrated N-level and can include brief visual distractors. Spatial and Dual blocks adapt within each 4.5-minute block using three sub-blocks, with promotion at or above 82% accuracy and demotion at or below 65%, bounded to Levels 2-4. Spatial and Dual blocks also support progressive timing compression. Subjective ratings of fatigue, effort, attention, and overwhelm are inserted at configured points. Results are saved after each block and at session end, including accuracy, reaction time, lapses, d-prime, A-prime, hit rates, false-alarm rates, and task metadata. A performance monitor can flag low Sequential d-prime or high lapse rates and can log, warn, or terminate according to configuration.
 
-## Plateau Detection and Calibration Phase
-This phase uses the Sequential N-back task to establish a stable performance baseline and classify N-back capacity. Researchers can set a starting N-level (e.g., 2 or 3), with an optional 'slow mode' available. At normal speed, participants may progress to a higher N-level (e.g., from Level 2 to 3 if accuracy exceeds 82% over two consecutive blocks). Adaptive N-back blocks continue until three out of five consecutive blocks exhibit an accuracy variance of 7% or less, indicating a stable performance plateau.
-This N-level is then used for the fatigue induction. Block-level feedback is provided to the participant during this calibration/plateauing phase.
+# Research Impact Statement
 
-## Fatigue Induction Task
-This session (~65-70 minutes) induces fatigue via an extended, alternating sequence of N-back tasks, using the calibrated Sequential N-back N-level:
-
-Sequential N-back Blocks (e.g., 5 blocks): Run at the fixed calibrated N-level with features like periodic visual distractors (if enabled).
-
-Adaptive Spatial and Dual N-back Blocks (e.g., 4 blocks each): Incorporate dynamic N-level adjustments (up to 3 changes per block) and block level progressive timing compression to maintain high cognitive load.
-
-Subjective fatigue measures (fatigue, effort, attention, overwhelmed) are collected at intervals, and short breaks are provided. Detailed performance is logged, and optional EEG synchronisation is supported.
-
-# Key Design Features and Innovations
-
-WAND’s novelty lies in its integrated approach to overcoming key limitations in cognitive fatigue research:
-
-- **Varied N-back Protocol**: Combines Spatial, Dual, and Sequential N-back tasks targeting core non-verbal working memory circuits. This multi-task design maintains sustained cognitive load while mitigating boredom, redundancy, and learning effects. Adaptive modifications (e.g., difficulty, timing) are applied to Spatial and Dual variants, preserving the Sequential variant for primary fatigue measurement.
-
-- **Performance-Based Stratification**: Calibrates N-back difficulty to each participant’s baseline capacity, improving sensitivity to fatigue-induced performance changes.
-
-- **Dynamic Plateau Detection**: Implements a rolling-window average and variance threshold to identify stable performance plateaus, mitigating training effects.
-
-- **Micro-Disruption via Visual Distractors**: Injects distractor trials within the Sequential N-back to simulate real-world interference and probe inhibitory control under load.
-
-- **Sophisticated Performance Metrics**: Captures d-prime, A-prime, accuracy, reaction time, and lapse rate, allowing for granular signal detection and behavioural fatigue tracking.
-
-- **Accessible Configuration Interface**: A multi-page graphical wizard simplifies experiment setup, while a drag-and-drop 'Block Builder' allows researchers to visually design and customise complex protocol sequences without coding.
-
-# Availability
-
-- **Operating System**: Platform-independent (Windows, macOS, Linux) via PsychoPy.
-- **Programming Language**: Python (3.8+/3.10), utilising the PsychoPy library.
-- **Dependencies**: Core dependencies are specified in the `pyproject.toml` file to ensure a reproducible environment. Key packages include:
-  - `psychopy>=2024.1.0`
-  - `numpy` 
-  - `scipy`
-  - `pandas`
-  - `wxPython`
-  
-- **Repository**: [https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction](https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction)
-- **License**: MIT License
-
-
-## Installation
-
-WAND can be installed directly from GitHub via pip:
-
-```bash
-pip install git+https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction.git
-```
-
-Once installed, launch the configuration GUI:
-
-```bash
-wand-launcher
-``` 
+WAND was developed to operationalise the theoretical link between sustained working memory load and active cognitive fatigue [@mangan2025missinglink]. It has been used in a validation study currently available as a PsyArXiv preprint and under review at PLOS ONE ($N = 27$), where participants showed a significant decline in sensitivity ($d'$) across the induction protocol (Cohen's $d = -0.71$; @mangan2026validation). It is also being used in an ongoing EEG study of active cognitive fatigue. The repository includes installation documentation, example outputs, a quick test for installation verification, community contribution guidelines, and a `pytest` suite covering response keys, task configuration, block ordering, signal-detection metrics, Level 4 calibration, performance monitoring, and launcher logic.
 
 # Acknowledgements
 
