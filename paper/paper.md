@@ -52,7 +52,7 @@ The induction stage combines Sequential, Spatial, and Dual N-back tasks. Sequent
 
 # Research Impact Statement
 
-WAND was developed to operationalise the theoretical link between sustained working memory load and active cognitive fatigue [@mangan2025missinglink]. It has been used in a validation study currently available as a PsyArXiv preprint and under review at PLOS ONE ($N = 27$), where participants showed a significant decline in sensitivity ($d'$) across the induction protocol (Cohen's $d = -0.71$; @mangan2026validation). It is also being used in an ongoing EEG study of active cognitive fatigue. The repository includes installation documentation, example outputs, a quick test for installation verification, community contribution guidelines, and a `pytest` suite covering response keys, task configuration, block ordering, signal-detection metrics, Level 4 calibration, performance monitoring, and launcher logic.
+WAND was developed to operationalise the theoretical link between sustained working memory load and active cognitive fatigue [@mangan2025missinglink]. It has been used in a validation study currently available as a PsyArXiv preprint and under review at PLOS ONE ($N = 27$), where participants showed a significant decline in sensitivity ($d'$) across the induction protocol [Cohen's $d = -0.71$\; @mangan2026validation]. It is also being used in an ongoing EEG study of active cognitive fatigue. The repository includes installation documentation, example outputs, a quick test for installation verification, community contribution guidelines, and a `pytest` suite covering response keys, task configuration, block ordering, signal-detection metrics, Level 4 calibration, performance monitoring, and launcher logic.
 
 # Acknowledgements
 
