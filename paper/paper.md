@@ -5,7 +5,7 @@ authors:
     orcid: "0009-0002-8466-5423"
     affiliation: "1"
 affiliations:
-  - name: University of Stirling 
+  - name: University of Stirling, Stirling, United Kingdom
     index: 1
     ror: "045wgfr59"
 date: 12 June 2025 
