@@ -21,7 +21,7 @@ tags:
 bibliography: paper.bib 
 repository: https://github.com/brodie-neuro/WAND-practice-and-fatigue-induction
 archive:
-  doi: 10.5281/zenodo.15389892
+  doi: 10.5281/zenodo.19719398
 ---
 
 # Summary
